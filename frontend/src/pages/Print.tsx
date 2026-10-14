@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { Card, Button, Select, Field } from "../components/ui";
+import { Card, Button, Select, Field, Input } from "../components/ui";
 import { Printer } from "lucide-react";
 
 export default function Print() {
