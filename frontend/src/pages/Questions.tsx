@@ -8,6 +8,7 @@ const empty = { subject_id: "", chapter_id: "", type: "mcq", difficulty: "medium
 export default function Questions() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [chapters, setChapters] = useState<any[]>([]);
+  const [formChapters, setFormChapters] = useState<any[]>([]);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [filterType, setFilterType] = useState("");
   const [questions, setQuestions] = useState<any[]>([]);
@@ -20,6 +21,10 @@ export default function Questions() {
     if (selectedSubject) api.get(`/subjects/${selectedSubject}/chapters`).then(r => setChapters(r.data.chapters));
     else setChapters([]);
   }, [selectedSubject]);
+  useEffect(() => {
+    if (form.subject_id) api.get(`/subjects/${form.subject_id}/chapters`).then(r => setFormChapters(r.data.chapters));
+    else setFormChapters([]);
+  }, [form.subject_id]);
   const loadQuestions = async () => {
     const params = new URLSearchParams();
     if (selectedSubject) params.set("subject_id", selectedSubject);
@@ -95,7 +100,7 @@ export default function Questions() {
               <Field label="Chapter">
                 <Select value={form.chapter_id} onChange={e => setForm({ ...form, chapter_id: e.target.value })}>
                   <option value="">No chapter / all</option>
-                  {chapters.map(c => <option key={c.id} value={c.id}>Ch.{c.number} {c.title}</option>)}
+                  {formChapters.map(c => <option key={c.id} value={c.id}>Ch.{c.number} {c.title}</option>)}
                 </Select>
               </Field>
               <Field label="Type">

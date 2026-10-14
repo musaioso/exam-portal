@@ -24,7 +24,9 @@ router.get("/:id", async (req, res) => {
   e.question_ids = JSON.parse(e.question_ids);
   e.is_published = !!e.is_published;
   // attach questions
-  const qs = all(db, `SELECT * FROM questions WHERE id IN (${e.question_ids.map(()=>'?').join(',')})`, e.question_ids)
+  const raw = all(db, `SELECT * FROM questions WHERE id IN (${e.question_ids.map(()=>'?').join(',')})`, e.question_ids);
+  const byId = new Map(raw.map((q: any) => [q.id, q]));
+  const qs = e.question_ids.map((id: string) => byId.get(id)).filter(Boolean)
     .map((q: any) => ({ ...q, options: q.options ? JSON.parse(q.options) : null }));
   res.json({ exam: e, questions: qs });
 });

@@ -8,13 +8,17 @@ export default function Results() {
   const { user } = useAuth();
   const [params] = useSearchParams();
   const [attempts, setAttempts] = useState<any[]>([]);
+  const [examMap, setExamMap] = useState<Record<string,string>>({});
   const [grading, setGrading] = useState<string | null>(null);
   const [gradeForm, setGradeForm] = useState({ score: 0, total: 0 });
 
   const load = async () => {
     if (user?.role === "student") {
-      const { data } = await api.get("/exams/attempts/mine");
-      setAttempts(data.attempts);
+      const [{ data: a }, { data: e }] = await Promise.all([api.get("/exams/attempts/mine"), api.get("/exams")]);
+      setAttempts(a.attempts);
+      const m: Record<string,string> = {};
+      e.exams.forEach((x:any) => { m[x.id] = x.title; });
+      setExamMap(m);
     } else {
       // teachers: load all exams then attempts? Our API doesn't list all attempts. Use attempts by exam not available. Fallback: fetch exams and attempts per exam not implemented. Show students only? Instead list from? We'll show message.
       const { data } = await api.get("/exams");
@@ -55,7 +59,7 @@ export default function Results() {
             {attempts.map(a => (
               <div key={a.id} className="flex items-center justify-between py-2 border-b border-slate-700/40 text-sm">
                 <div>
-                  <div className="font-medium">Exam {a.exam_id.slice(0,8)}</div>
+                  <div className="font-medium">{examMap[a.exam_id] || `Exam ${a.exam_id.slice(0,8)}`}</div>
                   <div className="text-xs text-slate-500">{new Date(a.started_at).toLocaleString()} · {a.status}</div>
                 </div>
                 <div className="text-right">
