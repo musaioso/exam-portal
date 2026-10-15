@@ -16,7 +16,11 @@ import path from "path";
 //    configured, on serverless (in-memory, i.e. ephemeral) so the app still
 //    runs.
 const DB_PATH = path.resolve(process.cwd(), process.env.DB_PATH || "data/mcq.db");
-const REMOTE_URL = process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL || "";
+const RAW_REMOTE_URL = process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL || "";
+// Turso's HTTP API supports both `turso://` and `libsql://` databases, but the
+// libSQL client only understands `libsql:`/`https:`/`http:`. Normalise either
+// scheme to `https://` so one client works for every Turso database.
+const REMOTE_URL = RAW_REMOTE_URL.replace(/^(turso|libsql):\/\//, "https://");
 const REMOTE_TOKEN = process.env.TURSO_AUTH_TOKEN || process.env.LIBSQL_AUTH_TOKEN || undefined;
 
 export const isRemote = !!REMOTE_URL && !REMOTE_URL.startsWith("file:");
