@@ -6,6 +6,7 @@ import questionsRouter from "./routes/questions";
 import examsRouter from "./routes/exams";
 import usersRouter from "./routes/users";
 import { requireAuth } from "./middleware/auth";
+import { ensureReady } from "./serverless";
 
 export function createApp() {
   const app = express();
@@ -37,6 +38,20 @@ export function createApp() {
   );
   app.use(express.json({ limit: "2mb" }));
 
+  // Make sure the schema exists and the demo data is loaded before serving any
+  // request. This runs once per instance (see serverless.ts) and is what makes
+  // the serverless deployment self-initialising.
+  app.use((_req, res, next) => {
+    ensureReady()
+      .then(() => next())
+      .catch((err: unknown) => {
+        res.status(500).json({
+          error: "Database warmup failed",
+          detail: String((err as Error)?.message || err),
+        });
+      });
+  });
+
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
   app.use("/api/auth", authRouter);
@@ -51,4 +66,6 @@ export function createApp() {
   return app;
 }
 
-export default createApp;
+// Vercel's zero-config Express support looks for a default export of the app
+// instance (or an `app.listen` call) inside an entry file such as `src/app.ts`.
+export default createApp();

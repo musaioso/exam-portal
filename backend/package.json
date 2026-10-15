@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
     "seed": "tsx seed/seed.ts"
   },
   "keywords": [],

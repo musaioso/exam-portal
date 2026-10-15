@@ -1,23 +1,19 @@
 import "dotenv/config";
-import { getDb } from "./db/database";
-import { migrate } from "./db/migrate";
-import { createApp } from "./app";
+import app from "./app";
+import { ensureReady } from "./serverless";
 
-const app = createApp();
 const PORT = process.env.PORT || 4000;
 
-const start = async () => {
-  await getDb();
-  await migrate();
-  app.listen(PORT, () => {
-    console.log(`MCQ backend running on http://localhost:${PORT}`);
+ensureReady()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`MCQ backend running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
   });
-};
-
-start().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
 
 process.on("SIGINT", () => {
   const { closeDb } = require("./db/database");
