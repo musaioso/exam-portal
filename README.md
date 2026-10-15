@@ -49,20 +49,28 @@ Each worktree is a separate directory/branch; run `npm install` inside it before
 
 ## Deploy (GitHub + Vercel)
 
-Everything runs on **Vercel** from this one repo:
+Everything runs on **Vercel** from this one repo, as two [Vercel Services](https://vercel.com/docs/services):
 
 - `frontend/` — React + Vite SPA, built to `frontend/dist` (static).
-- `api/[...path].ts` — a single serverless function that serves the whole Express API.
-- `backend/` — the Express + SQLite (sql.js) code that the function imports.
+- `backend/` — the Express + SQLite API, deployed as an Express service.
 
-`vercel.json` wires it together (install, build, SPA fallback that leaves `/api/*`
-to the function). On Vercel the SQLite database is **in-memory and ephemeral**:
-on every cold start the schema is recreated and the demo data is reseeded
-automatically, so the deployed demo is always usable — but user-created data does
-not persist between cold starts.
+`vercel.json` wires them together (one domain, `/api/*` → backend, everything else → SPA).
 
-> Need durable data? Host the API on a platform with a persistent disk (see
-> `render.yaml`) and set `VITE_API_URL` to that API on Vercel.
+### Persistent data (recommended)
+Data is stored in a **Turso** (libSQL) database, so it is shared across all
+serverless instances and survives redeploys and cold starts:
+
+1. In the Vercel project → **Storage** → create/connect a **Turso** database
+   (or create one at [turso.tech](https://turso.tech) and copy its URL + token).
+2. Set these environment variables on the project (Vercel's Turso integration
+   adds them automatically):
+   - `TURSO_DATABASE_URL` — e.g. `libsql://your-db.turso.io`
+   - `TURSO_AUTH_TOKEN`
+3. Redeploy.
+
+Without a Turso database the backend falls back to an in-memory SQLite database
+that is recreated (and reseeded with the demo data) on every cold start — the
+site still works, but user-created data is not durable.
 
 ### 1. Push to GitHub
 ```
@@ -72,11 +80,9 @@ git push -u origin main
 
 ### 2. Import on Vercel
 - New Project → Import the GitHub repo.
-- **Root Directory**: leave as the repo root (default).
-- **Framework Preset**: Other.
-- Build/install/output come from `vercel.json` (builds `frontend`, outputs `frontend/dist`).
-- **Environment Variables**: none required. Optionally set `JWT_SECRET` so login
-  tokens stay valid across deployments.
+- Build settings come from `vercel.json`.
+- **Environment Variables**: set the Turso ones above (optional but recommended);
+  optionally set `JWT_SECRET` so login tokens stay valid across deployments.
 - Deploy.
 
 ### Always-latest workflow

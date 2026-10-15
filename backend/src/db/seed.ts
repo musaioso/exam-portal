@@ -26,46 +26,41 @@ interface DemoQuestion {
 
 /**
  * Ensures the demo subjects, accounts and questions exist. Idempotent: safe to
- * run on every (cold) start.
+ * run on every (cold) start. Once the demo data has been created it is marked
+ * in `app_meta` so later cold starts skip the work entirely.
  */
 export async function seedDatabase() {
   const db = await getDb();
+
+  const seeded = await get(db, "SELECT value FROM app_meta WHERE key='seeded'");
+  if (seeded) return;
+
   const now = Date.now();
+  // Upsert so concurrent cold starts can't trip the UNIQUE(slug) constraint.
   for (const s of SUBJECTS) {
-    const existing = get(db, "SELECT id FROM subjects WHERE slug=?", [s.slug]);
-    if (existing) {
-      run(db, "UPDATE subjects SET name=?, name_bn=?, code=? WHERE slug=?", [s.name, s.name_bn, s.code, s.slug]);
-    } else {
-      run(db, "INSERT INTO subjects (id,name,name_bn,slug,code,description,created_at) VALUES (?,?,?,?,?,?,?)",
-        [uuid(), s.name, s.name_bn, s.slug, s.code, "NCTB 2025 (English Version)", now]);
-    }
+    await run(db,
+      `INSERT INTO subjects (id,name,name_bn,slug,code,description,created_at) VALUES (?,?,?,?,?,?,?)
+       ON CONFLICT(slug) DO UPDATE SET name=excluded.name, name_bn=excluded.name_bn, code=excluded.code`,
+      [uuid(), s.name, s.name_bn, s.slug, s.code, "NCTB 2025 (English Version)", now]);
   }
-  // admin user
-  if (!get(db, "SELECT id FROM users WHERE email=?", ["admin@mcq.local"])) {
-    run(db, "INSERT INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)",
-      [uuid(), "Administrator", "admin@mcq.local", bcrypt.hashSync("admin123", 10), "admin", now]);
-  }
-  // sample teacher
-  if (!get(db, "SELECT id FROM users WHERE email=?", ["teacher@mcq.local"])) {
-    run(db, "INSERT INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)",
-      [uuid(), "Demo Teacher", "teacher@mcq.local", bcrypt.hashSync("teacher123", 10), "teacher", now]);
-  }
-  // sample student
-  if (!get(db, "SELECT id FROM users WHERE email=?", ["student@mcq.local"])) {
-    run(db, "INSERT INTO users (id,name,email,password_hash,role,grade,section,created_at) VALUES (?,?,?,?,?,?,?,?)",
-      [uuid(), "Demo Student", "student@mcq.local", bcrypt.hashSync("student123", 10), "student", "Class 8", "A", now]);
-  }
+  // Demo accounts (INSERT OR IGNORE keeps any password the user has changed).
+  await run(db, "INSERT OR IGNORE INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)",
+    [uuid(), "Administrator", "admin@mcq.local", bcrypt.hashSync("admin123", 10), "admin", now]);
+  await run(db, "INSERT OR IGNORE INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)",
+    [uuid(), "Demo Teacher", "teacher@mcq.local", bcrypt.hashSync("teacher123", 10), "teacher", now]);
+  await run(db, "INSERT OR IGNORE INTO users (id,name,email,password_hash,role,grade,section,created_at) VALUES (?,?,?,?,?,?,?,?)",
+    [uuid(), "Demo Student", "student@mcq.local", bcrypt.hashSync("student123", 10), "student", "Class 8", "A", now]);
 
   // Demo questions: only on an empty questions table so real data is never
   // touched. Bodies live in seed-questions.json next to this file.
-  const qCount = get(db, "SELECT COUNT(*) AS c FROM questions") as any;
+  const qCount = await get(db, "SELECT COUNT(*) AS c FROM questions") as any;
   if (!qCount || Number(qCount.c) === 0) {
-    const admin = get(db, "SELECT id FROM users WHERE email=?", ["admin@mcq.local"]) as any;
+    const admin = await get(db, "SELECT id FROM users WHERE email=?", ["admin@mcq.local"]) as any;
     const createdBy = admin ? admin.id : null;
     for (const q of DEMO_QUESTIONS as DemoQuestion[]) {
-      const subject = get(db, "SELECT id FROM subjects WHERE slug=?", [q.subject]) as any;
+      const subject = await get(db, "SELECT id FROM subjects WHERE slug=?", [q.subject]) as any;
       if (!subject) continue;
-      run(
+      await run(
         db,
         `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -86,4 +81,6 @@ export async function seedDatabase() {
       );
     }
   }
+
+  await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('seeded', ?)", [String(now)]);
 }

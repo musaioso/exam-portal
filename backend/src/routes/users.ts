@@ -8,7 +8,7 @@ const router = Router();
 
 router.get("/", requireAuth, requireRole("admin", "teacher"), async (_req, res) => {
   const db = await getDb();
-  const users = all(db, "SELECT id,name,email,role,grade,section,created_at FROM users ORDER BY created_at DESC");
+  const users = await all(db, "SELECT id,name,email,role,grade,section,created_at FROM users ORDER BY created_at DESC");
   res.json({ users });
 });
 
@@ -17,16 +17,16 @@ router.post("/students", requireAuth, requireRole("admin", "teacher"), async (re
   const { name, email, password, grade, section } = req.body || {};
   if (!name || !email || !password) return res.status(400).json({ error: "Missing fields" });
   const db = await getDb();
-  if (get(db, "SELECT id FROM users WHERE email=?", [email])) return res.status(409).json({ error: "Email exists" });
+  if (await get(db, "SELECT id FROM users WHERE email=?", [email])) return res.status(409).json({ error: "Email exists" });
   const id = uuid();
-  run(db, "INSERT INTO users (id,name,email,password_hash,role,grade,section,created_at) VALUES (?,?,?,?,?,?,?,?)",
+  await run(db, "INSERT INTO users (id,name,email,password_hash,role,grade,section,created_at) VALUES (?,?,?,?,?,?,?,?)",
     [id, name, email, bcrypt.hashSync(password, 10), "student", grade || null, section || null, Date.now()]);
   res.json({ user: { id, name, email, role: "student" } });
 });
 
 router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   const db = await getDb();
-  run(db, "DELETE FROM users WHERE id=?", [req.params.id]);
+  await run(db, "DELETE FROM users WHERE id=?", [req.params.id]);
   res.json({ ok: true });
 });
 

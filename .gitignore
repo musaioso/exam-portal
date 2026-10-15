@@ -3,5 +3,6 @@ build/
 dist/
 .env
 *.db
+backend/data/
 worktrees/
 .DS_Store

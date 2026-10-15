@@ -16,7 +16,7 @@ router.get("/export", async (req: Request, res: Response) => {
   if (difficulty) { sql += " AND q.difficulty=?"; params.push(difficulty); }
   if (q) { sql += " AND (q.prompt LIKE ? OR q.answer LIKE ?)"; params.push(`%${q}%`, `%${q}%`); }
   sql += " ORDER BY q.created_at DESC";
-  const rows = all(db, sql, params).map((r: any) => ({
+  const rows = (await all(db, sql, params)).map((r: any) => ({
     ...r,
     options: r.options ? JSON.parse(r.options) : null,
   }));
@@ -53,7 +53,7 @@ router.get("/", async (req: Request, res: Response) => {
   let o = Math.max(0, parseInt(offset) || 0);
   if (ps > 0 && page) o = Math.max(0, (parseInt(page) - 1) * ps);
   const useLimit = l > 0 ? l : ps;
-  const rows = all(db, useLimit > 0 ? sql + " LIMIT ? OFFSET ?" : sql, useLimit > 0 ? [...params, useLimit, o] : params).map((r: any) => ({
+  const rows = (await all(db, useLimit > 0 ? sql + " LIMIT ? OFFSET ?" : sql, useLimit > 0 ? [...params, useLimit, o] : params)).map((r: any) => ({
     ...r,
     options: r.options ? JSON.parse(r.options) : null,
     chapter_ids: undefined,
@@ -63,7 +63,7 @@ router.get("/", async (req: Request, res: Response) => {
 
 router.get("/:id", async (req, res) => {
   const db = await getDb();
-  const r = get(db, "SELECT * FROM questions WHERE id=?", [req.params.id]) as any;
+  const r = await get(db, "SELECT * FROM questions WHERE id=?", [req.params.id]) as any;
   if (!r) return res.status(404).json({ error: "Not found" });
   r.options = r.options ? JSON.parse(r.options) : null;
   res.json({ question: r });
@@ -74,7 +74,7 @@ router.post("/", requireAuth, requireRole("admin", "teacher"), async (req: Reque
   if (!subject_id || !type || !prompt) return res.status(400).json({ error: "Missing fields" });
   const db = await getDb();
   const id = uuid();
-  run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at)
+  await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
     [id, subject_id, chapter_id || null, type, difficulty || "medium", prompt,
       options ? JSON.stringify(options) : null, answer || null, explanation || null, marks || 1,
@@ -87,7 +87,7 @@ router.post("/bulk-delete", requireAuth, requireRole("admin", "teacher"), async 
   if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "ids[] required" });
   const db = await getDb();
   const placeholders = ids.map(() => "?").join(",");
-  run(db, `DELETE FROM questions WHERE id IN (${placeholders})`, ids);
+  await run(db, `DELETE FROM questions WHERE id IN (${placeholders})`, ids);
   res.json({ ok: true, deleted: ids.length });
 });
 
@@ -104,7 +104,7 @@ router.post("/bulk-update", requireAuth, requireRole("admin", "teacher"), async 
   const db = await getDb();
   const setClause = keys.map((k) => `${k}=?`).join(", ");
   const placeholders = ids.map(() => "?").join(",");
-  run(db, `UPDATE questions SET ${setClause} WHERE id IN (${placeholders})`, [...keys.map((k) => allowed[k]), ...ids]);
+  await run(db, `UPDATE questions SET ${setClause} WHERE id IN (${placeholders})`, [...keys.map((k) => allowed[k]), ...ids]);
   res.json({ ok: true, updated: ids.length });
 });
 
@@ -125,34 +125,34 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
   const topChapterTitle: string = body.chapter_title != null ? String(body.chapter_title).trim() : "";
   const topChapterNumber = body.chapter_number;
 
-  const findSubjectId = (id?: string | null, slug?: string | null): string | null => {
-    if (id) { const s = get(db, "SELECT id FROM subjects WHERE id=?", [id]) as any; if (s) return s.id; }
-    if (slug) { const s = get(db, "SELECT id FROM subjects WHERE slug=?", [slug]) as any; if (s) return s.id; }
+  const findSubjectId = async (id?: string | null, slug?: string | null): Promise<string | null> => {
+    if (id) { const s = await get(db, "SELECT id FROM subjects WHERE id=?", [id]) as any; if (s) return s.id; }
+    if (slug) { const s = await get(db, "SELECT id FROM subjects WHERE slug=?", [slug]) as any; if (s) return s.id; }
     return null;
   };
 
   // Resolve a chapter: by id, by number, or by title (case-insensitive). If a
   // title is given but no such chapter exists yet, create it as the next number.
-  const resolveChapterId = (
+  const resolveChapterId = async (
     subjectId: string,
     o: { chapter_id?: any; chapter_number?: any; chapter_title?: string }
-  ): string | null => {
+  ): Promise<string | null> => {
     if (o.chapter_id) {
-      const c = get(db, "SELECT id FROM chapters WHERE id=? AND subject_id=?", [o.chapter_id, subjectId]) as any;
+      const c = await get(db, "SELECT id FROM chapters WHERE id=? AND subject_id=?", [o.chapter_id, subjectId]) as any;
       if (c) return c.id;
     }
     if (o.chapter_number != null && o.chapter_number !== "") {
-      const c = get(db, "SELECT id FROM chapters WHERE subject_id=? AND number=?", [subjectId, Number(o.chapter_number)]) as any;
+      const c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND number=?", [subjectId, Number(o.chapter_number)]) as any;
       if (c) return c.id;
     }
     const title = (o.chapter_title || "").trim();
     if (title) {
-      let c = get(db, "SELECT id FROM chapters WHERE subject_id=? AND (title=? COLLATE NOCASE OR title_bn=? COLLATE NOCASE)", [subjectId, title, title]) as any;
+      let c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND (title=? COLLATE NOCASE OR title_bn=? COLLATE NOCASE)", [subjectId, title, title]) as any;
       if (!c) {
-        const mx = get(db, "SELECT MAX(number) as m FROM chapters WHERE subject_id=?", [subjectId]) as any;
+        const mx = await get(db, "SELECT MAX(number) as m FROM chapters WHERE subject_id=?", [subjectId]) as any;
         const number = (mx && mx.m ? Number(mx.m) : 0) + 1;
         const cid = uuid();
-        run(db, "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,created_at) VALUES (?,?,?,?,?,?,?)",
+        await run(db, "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,created_at) VALUES (?,?,?,?,?,?,?)",
           [cid, subjectId, number, title, title, null, Date.now()]);
         c = { id: cid };
       }
@@ -161,7 +161,7 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
     return null;
   };
 
-  const defaultSubjectId = findSubjectId(topSubjectId, topSubjectSlug);
+  const defaultSubjectId = await findSubjectId(topSubjectId, topSubjectSlug);
   const defaultChapterCache = new Map<string, string | null>();
   const skipDuplicates = body.skip_duplicates !== false; // default: on
   let imported = 0;
@@ -171,7 +171,7 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
     const row = questions[i] || {};
     try {
       // resolve subject (row-level wins, else top-level default)
-      const subject_id = findSubjectId(row.subject_id, row.subject_slug) || defaultSubjectId;
+      const subject_id = (await findSubjectId(row.subject_id, row.subject_slug)) || defaultSubjectId;
       if (!subject_id) throw new Error("subject_id or valid subject_slug required");
       const type = String(row.type || "mcq").toLowerCase();
       if (!VALID_TYPES.has(type)) throw new Error("invalid type");
@@ -179,7 +179,7 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
       if (!prompt) throw new Error("prompt required");
       // Skip rows whose question already exists in this subject (prevents double imports)
       if (skipDuplicates) {
-        const dup = get(db, "SELECT id FROM questions WHERE subject_id=? AND prompt=?", [subject_id, prompt]) as any;
+        const dup = await get(db, "SELECT id FROM questions WHERE subject_id=? AND prompt=?", [subject_id, prompt]) as any;
         if (dup) { skipped++; continue; }
       }
       // resolve chapter (row-level wins, else top-level default; title may auto-create)
@@ -187,10 +187,10 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
       const hasRowChapter = !!(row.chapter_id || (row.chapter_number != null && row.chapter_number !== "") || (rowChapterTitle && rowChapterTitle.trim()));
       let chapter_id: string | null;
       if (hasRowChapter) {
-        chapter_id = resolveChapterId(subject_id, { chapter_id: row.chapter_id, chapter_number: row.chapter_number, chapter_title: rowChapterTitle });
+        chapter_id = await resolveChapterId(subject_id, { chapter_id: row.chapter_id, chapter_number: row.chapter_number, chapter_title: rowChapterTitle });
       } else if (topChapterTitle || (topChapterNumber != null && topChapterNumber !== "")) {
         if (defaultChapterCache.has(subject_id)) chapter_id = defaultChapterCache.get(subject_id) ?? null;
-        else { chapter_id = resolveChapterId(subject_id, { chapter_number: topChapterNumber, chapter_title: topChapterTitle }); defaultChapterCache.set(subject_id, chapter_id); }
+        else { chapter_id = await resolveChapterId(subject_id, { chapter_number: topChapterNumber, chapter_title: topChapterTitle }); defaultChapterCache.set(subject_id, chapter_id); }
       } else {
         chapter_id = null;
       }
@@ -204,7 +204,7 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
       const difficulty = VALID_DIFF.has(row.difficulty) ? row.difficulty : "medium";
       const marks = row.marks != null && Number.isFinite(Number(row.marks)) && Number(row.marks) > 0 ? Number(row.marks) : 1;
       const id = uuid();
-      run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at)
+      await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
         [id, subject_id, chapter_id, type, difficulty, prompt,
           options ? JSON.stringify(options) : null, row.answer != null ? String(row.answer) : null,
@@ -219,10 +219,10 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
 
 router.post("/:id/duplicate", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const db = await getDb();
-  const src = get(db, "SELECT * FROM questions WHERE id=?", [req.params.id]) as any;
+  const src = await get(db, "SELECT * FROM questions WHERE id=?", [req.params.id]) as any;
   if (!src) return res.status(404).json({ error: "Not found" });
   const id = uuid();
-  run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at)
+  await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
     [id, src.subject_id, src.chapter_id, src.type, src.difficulty, src.prompt, src.options, src.answer, src.explanation, src.marks, req.user!.id, Date.now()]);
   res.json({ question: { id } });
@@ -230,7 +230,7 @@ router.post("/:id/duplicate", requireAuth, requireRole("admin", "teacher"), asyn
 router.put("/:id", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const { subject_id, chapter_id, type, difficulty, prompt, options, answer, explanation, marks } = req.body || {};
   const db = await getDb();
-  run(db, `UPDATE questions SET
+  await run(db, `UPDATE questions SET
     subject_id=COALESCE(?,subject_id), chapter_id=COALESCE(?,chapter_id), type=COALESCE(?,type),
     difficulty=COALESCE(?,difficulty), prompt=COALESCE(?,prompt),
     options=?, answer=COALESCE(?,answer), explanation=COALESCE(?,explanation), marks=COALESCE(?,marks)
@@ -242,7 +242,7 @@ router.put("/:id", requireAuth, requireRole("admin", "teacher"), async (req: Req
 
 router.delete("/:id", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const db = await getDb();
-  run(db, "DELETE FROM questions WHERE id=?", [req.params.id]);
+  await run(db, "DELETE FROM questions WHERE id=?", [req.params.id]);
   res.json({ ok: true });
 });
 

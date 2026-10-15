@@ -1,4 +1,4 @@
-import { getDb } from "./database";
+import { getDb, run, all, execScript } from "./database";
 
 const SCHEMA = `
 PRAGMA foreign_keys = ON;
@@ -96,29 +96,31 @@ CREATE TABLE IF NOT EXISTS results (
   FOREIGN KEY (attempt_id) REFERENCES exam_attempts(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS app_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);
 CREATE INDEX IF NOT EXISTS idx_questions_chapter ON questions(chapter_id);
 CREATE INDEX IF NOT EXISTS idx_chapters_subject ON chapters(subject_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_student ON exam_attempts(student_id);
 `;
 
-function ensureColumn(db: any, table: string, name: string, definition: string) {
-  const info = db.exec(`PRAGMA table_info(${table})`);
-  const rows: any[][] = (info[0]?.values as any[][]) || [];
-  const exists = rows.some((r) => String(r[1]) === name);
-  if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+async function ensureColumn(db: any, table: string, name: string, definition: string) {
+  const rows = await all(db, `PRAGMA table_info(${table})`);
+  const exists = rows.some((r: any) => String(r.name) === name);
+  if (!exists) await run(db, `ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
 }
 
 export async function migrate() {
   const db = await getDb();
-  db.exec(SCHEMA);
+  await execScript(db, SCHEMA);
   // Lightweight migrations for existing databases
-  ensureColumn(db, "exams", "subject_ids", "TEXT");
-  ensureColumn(db, "exams", "subject_times", "TEXT");
-  ensureColumn(db, "exams", "shuffle_questions", "INTEGER DEFAULT 0");
-  ensureColumn(db, "exams", "shuffle_options", "INTEGER DEFAULT 0");
-  const { schedulePersist } = await import("./database");
-  schedulePersist(db);
+  await ensureColumn(db, "exams", "subject_ids", "TEXT");
+  await ensureColumn(db, "exams", "subject_times", "TEXT");
+  await ensureColumn(db, "exams", "shuffle_questions", "INTEGER DEFAULT 0");
+  await ensureColumn(db, "exams", "shuffle_options", "INTEGER DEFAULT 0");
 }
 
 export default migrate;

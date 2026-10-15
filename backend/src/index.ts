@@ -1,6 +1,7 @@
 import "dotenv/config";
 import app from "./app";
 import { ensureReady } from "./serverless";
+import { closeDb } from "./db/database";
 
 const PORT = process.env.PORT || 4000;
 
@@ -16,7 +17,5 @@ ensureReady()
   });
 
 process.on("SIGINT", () => {
-  const { closeDb } = require("./db/database");
-  closeDb();
-  process.exit(0);
+  void closeDb().finally(() => process.exit(0));
 });
