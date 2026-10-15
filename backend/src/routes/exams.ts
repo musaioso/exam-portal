@@ -8,12 +8,18 @@ const router = Router();
 // Teacher/admin: list attempts with student + exam info
 router.get("/attempts", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const db = await getDb();
-  const { exam_id, student_id, status } = req.query as any;
+  const { exam_id, student_id, status, subject_id, q } = req.query as any;
   const where: string[] = [];
   const params: any[] = [];
   if (exam_id) { where.push("ea.exam_id=?"); params.push(exam_id); }
   if (student_id) { where.push("ea.student_id=?"); params.push(student_id); }
   if (status) { where.push("ea.status=?"); params.push(status); }
+  if (subject_id) { where.push("e.subject_id=?"); params.push(subject_id); }
+  if (q && String(q).trim()) {
+    const like = `%${String(q).trim()}%`;
+    where.push("(u.name LIKE ? OR u.email LIKE ? OR e.title LIKE ?)");
+    params.push(like, like, like);
+  }
   const sql = `SELECT ea.*, u.name as student_name, u.email as student_email, u.grade as student_grade, u.section as student_section,
       e.title as exam_title, e.total_marks as exam_total_marks, e.subject_id as subject_id
     FROM exam_attempts ea
