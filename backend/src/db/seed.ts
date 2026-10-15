@@ -1,5 +1,5 @@
 import { getDb, run, get } from "./database";
-import { v4 as uuid } from "uuid";
+import { randomUUID as uuid } from "node:crypto";
 import bcrypt from "bcryptjs";
 
 const SUBJECTS = [
