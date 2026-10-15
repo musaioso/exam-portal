@@ -56,10 +56,14 @@ CREATE TABLE IF NOT EXISTS exams (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   subject_id TEXT NOT NULL,
+  subject_ids TEXT,
   chapter_ids TEXT,
   question_ids TEXT NOT NULL,
   duration_minutes INTEGER DEFAULT 30,
   total_marks INTEGER DEFAULT 0,
+  subject_times TEXT,
+  shuffle_questions INTEGER DEFAULT 0,
+  shuffle_options INTEGER DEFAULT 0,
   created_by TEXT NOT NULL,
   is_published INTEGER DEFAULT 0,
   created_at INTEGER NOT NULL,
@@ -98,9 +102,21 @@ CREATE INDEX IF NOT EXISTS idx_chapters_subject ON chapters(subject_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_student ON exam_attempts(student_id);
 `;
 
+function ensureColumn(db: any, table: string, name: string, definition: string) {
+  const info = db.exec(`PRAGMA table_info(${table})`);
+  const rows: any[][] = (info[0]?.values as any[][]) || [];
+  const exists = rows.some((r) => String(r[1]) === name);
+  if (!exists) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+}
+
 export async function migrate() {
   const db = await getDb();
   db.exec(SCHEMA);
+  // Lightweight migrations for existing databases
+  ensureColumn(db, "exams", "subject_ids", "TEXT");
+  ensureColumn(db, "exams", "subject_times", "TEXT");
+  ensureColumn(db, "exams", "shuffle_questions", "INTEGER DEFAULT 0");
+  ensureColumn(db, "exams", "shuffle_options", "INTEGER DEFAULT 0");
   const { schedulePersist } = await import("./database");
   schedulePersist(db);
 }

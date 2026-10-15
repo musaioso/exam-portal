@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { Card, Button, Input, Field, Textarea, Select, Badge } from "../components/ui";
-import { Plus, Trash2, Filter } from "lucide-react";
+import { Plus, Trash2, Upload } from "lucide-react";
 
 const empty = { subject_id: "", chapter_id: "", type: "mcq", difficulty: "medium", prompt: "", options: ["", "", "", ""], answer: "", explanation: "", marks: 1 };
 
@@ -10,14 +10,39 @@ export default function Questions() {
   const [chapters, setChapters] = useState<any[]>([]);
   const [formChapters, setFormChapters] = useState<any[]>([]);
   const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedChapter, setSelectedChapter] = useState("");
   const [filterType, setFilterType] = useState("");
+  const [filterDifficulty, setFilterDifficulty] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [questions, setQuestions] = useState<any[]>([]);
   const [form, setForm] = useState<any>(empty);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [lastBatchId, setLastBatchId] = useState<string | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
+
+  const importJson = async (file: File) => {
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const { data } = await api.post("/questions/bulk-import", payload);
+      const failed = data.failed ?? 0;
+      const skipped = data.skipped ?? 0;
+      let msg = `Import complete: imported ${data.imported ?? 0}, skipped ${skipped}, failed ${failed}`;
+      if (failed > 0 && Array.isArray(data.errors) && data.errors.length) {
+        const details = data.errors.slice(0, 8).map((e: any) => `• row ${e.index + 1}: ${e.error}`).join("\n");
+        msg += `\n\n${details}` + (data.errors.length > 8 ? `\n…and ${data.errors.length - 8} more` : "");
+      }
+      alert(msg);
+      loadQuestions();
+    } catch (e: any) {
+      alert(e?.response?.data?.error || e?.message || "Import failed");
+    }
+  };
 
   useEffect(() => { api.get("/subjects").then(r => setSubjects(r.data.subjects)); }, []);
   useEffect(() => {
+    setSelectedChapter("");
     if (selectedSubject) api.get(`/subjects/${selectedSubject}/chapters`).then(r => setChapters(r.data.chapters));
     else setChapters([]);
   }, [selectedSubject]);
@@ -28,13 +53,29 @@ export default function Questions() {
   const loadQuestions = async () => {
     const params = new URLSearchParams();
     if (selectedSubject) params.set("subject_id", selectedSubject);
+    if (selectedChapter) params.set("chapter_id", selectedChapter);
     if (filterType) params.set("type", filterType);
+    if (filterDifficulty) params.set("difficulty", filterDifficulty);
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
     const { data } = await api.get(`/questions?${params.toString()}`);
     setQuestions(data.questions);
   };
-  useEffect(() => { loadQuestions(); }, [selectedSubject, filterType]);
+  useEffect(() => { loadQuestions(); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, searchQuery]);
 
   const reset = () => { setForm(empty); setEditing(null); setShowForm(false); };
+
+  const undoImport = async () => {
+    if (!lastBatchId) return;
+    if (!confirm("Undo last import? This will delete all questions from that import.")) return;
+    try {
+      const { data } = await api.delete(`/questions/imports/${lastBatchId}`);
+      alert(`Undo complete: deleted ${data.deleted} questions`);
+      setLastBatchId(null);
+      loadQuestions();
+    } catch (e: any) {
+      alert(e?.response?.data?.error || e?.message || "Undo failed");
+    }
+  };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,9 +104,15 @@ export default function Questions() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Question Bank</h1>
-        <Button onClick={() => { reset(); setShowForm(true); }}><Plus size={16}/> New Question</Button>
+        <div className="flex gap-2">
+          <input ref={importRef} type="file" accept="application/json,.json" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = ""; }} />
+          <Button variant="ghost" onClick={() => importRef.current?.click()}><Upload size={16}/> Import JSON</Button>
+          {lastBatchId && <Button variant="ghost" onClick={undoImport}>Undo Last Import</Button>}
+          <Button onClick={() => { reset(); setShowForm(true); }}><Plus size={16}/> New Question</Button>
+        </div>
       </div>
 
       <Card>
@@ -76,6 +123,12 @@ export default function Questions() {
               {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
           </Field>
+          <Field label="Chapter">
+            <Select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} disabled={!selectedSubject}>
+              <option value="">All chapters</option>
+              {chapters.map(c => <option key={c.id} value={c.id}>Ch.{c.number} {c.title}</option>)}
+            </Select>
+          </Field>
           <Field label="Type">
             <Select value={filterType} onChange={e => setFilterType(e.target.value)}>
               <option value="">All types</option>
@@ -84,6 +137,18 @@ export default function Questions() {
               <option value="long">Long</option>
             </Select>
           </Field>
+          <Field label="Difficulty">
+            <Select value={filterDifficulty} onChange={e => setFilterDifficulty(e.target.value)}>
+              <option value="">All difficulties</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </Select>
+          </Field>
+          <Field label="Search">
+            <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="prompt text..." />
+          </Field>
+          <Button variant="ghost" onClick={() => { setSelectedSubject(""); setSelectedChapter(""); setFilterType(""); setFilterDifficulty(""); setSearchQuery(""); }}>Clear</Button>
         </div>
       </Card>
 

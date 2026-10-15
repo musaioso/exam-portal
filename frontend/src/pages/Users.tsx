@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { Card, Button, Input, Field, Select } from "../components/ui";
+import { Card, Button, Input, Field } from "../components/ui";
 import { Plus, Trash2 } from "lucide-react";
 
 export default function Users() {

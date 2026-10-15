@@ -4,13 +4,13 @@ import bcrypt from "bcryptjs";
 import { v4 as uuid } from "uuid";
 
 const SUBJECTS = [
-  { name: "Bangla 1st Paper", name_bn: "বাংলা ১ম পত্র", slug: "bangla-1st", code: "BAN1" },
-  { name: "Bangla 2nd Paper", name_bn: "বাংলা ২য় পত্র", slug: "bangla-2nd", code: "BAN2" },
-  { name: "English 1st Paper", name_bn: "English 1st Paper", slug: "english-1st", code: "ENG1" },
-  { name: "English 2nd Paper", name_bn: "English 2nd Paper", slug: "english-2nd", code: "ENG2" },
-  { name: "Religion and Moral Education", name_bn: "ধর্ম ও নৈতিক শিক্ষা", slug: "religion", code: "REL" },
-  { name: "Information and Communication Technology", name_bn: "তথ্য ও যোগাযোগ প্রযুক্তি", slug: "ict", code: "ICT" },
+  { name: "বাংলা ১ম পত্র", name_bn: "বাংলা ১ম পত্র", slug: "bangla-1st", code: "B1" },
+  { name: "বাংলা ২য় পত্র", name_bn: "বাংলা ২য় পত্র", slug: "bangla-2nd", code: "B2" },
+  { name: "English 1st Paper", name_bn: "English 1st Paper", slug: "english-1st", code: "E1" },
+  { name: "English 2nd Paper", name_bn: "English 2nd Paper", slug: "english-2nd", code: "E2" },
+  { name: "Religion", name_bn: "ধর্ম", slug: "religion", code: "RLG" },
   { name: "Bangladesh and Global Studies", name_bn: "বাংলাদেশ ও বিশ্বপরিচয়", slug: "bangladesh-global-studies", code: "BGS" },
+  { name: "ICT", name_bn: "তথ্য ও যোগাযোগ প্রযুক্তি", slug: "ict", code: "ICT" },
 ];
 
 async function main() {
@@ -19,7 +19,10 @@ async function main() {
   const db = await getDb();
   const now = Date.now();
   for (const s of SUBJECTS) {
-    if (!get(db, "SELECT id FROM subjects WHERE slug=?", [s.slug])) {
+    const existing = get(db, "SELECT id FROM subjects WHERE slug=?", [s.slug]);
+    if (existing) {
+      run(db, "UPDATE subjects SET name=?, name_bn=?, code=? WHERE slug=?", [s.name, s.name_bn, s.code, s.slug]);
+    } else {
       run(db, "INSERT INTO subjects (id,name,name_bn,slug,code,description,created_at) VALUES (?,?,?,?,?,?,?)",
         [uuid(), s.name, s.name_bn, s.slug, s.code, "NCTB 2025 (English Version)", now]);
     }

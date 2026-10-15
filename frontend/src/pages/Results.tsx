@@ -21,12 +21,9 @@ export default function Results() {
       setExamMap(m);
     } else {
       // teachers: load all exams then attempts? Our API doesn't list all attempts. Use attempts by exam not available. Fallback: fetch exams and attempts per exam not implemented. Show students only? Instead list from? We'll show message.
-      const { data } = await api.get("/exams");
-      const all: any[] = [];
-      for (const e of data.exams) {
-        // no endpoint for exam attempts list. Skip.
-      }
-      setAttempts(all);
+      await api.get("/exams");
+      // no endpoint for exam attempts list. Skip.
+      setAttempts([]);
     }
   };
   useEffect(() => { load(); }, [user]);

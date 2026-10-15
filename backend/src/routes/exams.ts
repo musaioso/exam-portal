@@ -5,13 +5,50 @@ import { requireAuth, requireRole } from "../middleware/auth";
 
 const router = Router();
 
+// Teacher/admin: list attempts with student + exam info
+router.get("/attempts", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
+  const db = await getDb();
+  const { exam_id, student_id, status } = req.query as any;
+  const where: string[] = [];
+  const params: any[] = [];
+  if (exam_id) { where.push("ea.exam_id=?"); params.push(exam_id); }
+  if (student_id) { where.push("ea.student_id=?"); params.push(student_id); }
+  if (status) { where.push("ea.status=?"); params.push(status); }
+  const sql = `SELECT ea.*, u.name as student_name, u.email as student_email, u.grade as student_grade, u.section as student_section,
+      e.title as exam_title, e.total_marks as exam_total_marks, e.subject_id as subject_id
+    FROM exam_attempts ea
+    JOIN users u ON u.id=ea.student_id
+    JOIN exams e ON e.id=ea.exam_id
+    ${where.length ? "WHERE " + where.join(" AND ") : ""}
+    ORDER BY ea.started_at DESC`;
+  const rows = all(db, sql, params).map((a: any) => ({ ...a, answers: JSON.parse(a.answers || "{}"), is_published: undefined }));
+  res.json({ attempts: rows });
+});
+
+router.get("/:id/attempts", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
+  const db = await getDb();
+  const rows = all(db, `SELECT ea.*, u.name as student_name, u.email as student_email, u.grade as student_grade, u.section as student_section,
+      e.title as exam_title, e.total_marks as exam_total_marks, e.subject_id as subject_id
+    FROM exam_attempts ea
+    JOIN users u ON u.id=ea.student_id
+    JOIN exams e ON e.id=ea.exam_id
+    WHERE ea.exam_id=?
+    ORDER BY ea.started_at DESC`, [req.params.id])
+    .map((a: any) => ({ ...a, answers: JSON.parse(a.answers || "{}") }));
+  res.json({ attempts: rows });
+});
+
 router.get("/", async (_req, res) => {
   const db = await getDb();
   const exams = all(db, "SELECT * FROM exams ORDER BY created_at DESC").map((e: any) => ({
     ...e,
+    subject_ids: e.subject_ids ? JSON.parse(e.subject_ids) : [e.subject_id].filter(Boolean),
+    subject_times: e.subject_times ? JSON.parse(e.subject_times) : [],
     chapter_ids: e.chapter_ids ? JSON.parse(e.chapter_ids) : [],
     question_ids: JSON.parse(e.question_ids),
     is_published: !!e.is_published,
+    shuffle_questions: !!e.shuffle_questions,
+    shuffle_options: !!e.shuffle_options,
   }));
   res.json({ exams });
 });
@@ -20,9 +57,13 @@ router.get("/:id", async (req, res) => {
   const db = await getDb();
   const e = get(db, "SELECT * FROM exams WHERE id=?", [req.params.id]) as any;
   if (!e) return res.status(404).json({ error: "Not found" });
+  e.subject_ids = e.subject_ids ? JSON.parse(e.subject_ids) : [e.subject_id].filter(Boolean);
+  e.subject_times = e.subject_times ? JSON.parse(e.subject_times) : [];
   e.chapter_ids = e.chapter_ids ? JSON.parse(e.chapter_ids) : [];
   e.question_ids = JSON.parse(e.question_ids);
   e.is_published = !!e.is_published;
+  e.shuffle_questions = !!e.shuffle_questions;
+  e.shuffle_options = !!e.shuffle_options;
   // attach questions
   const raw = all(db, `SELECT * FROM questions WHERE id IN (${e.question_ids.map(()=>'?').join(',')})`, e.question_ids);
   const byId = new Map(raw.map((q: any) => [q.id, q]));
@@ -32,19 +73,55 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
-  const { title, subject_id, chapter_ids, question_ids, duration_minutes } = req.body || {};
-  if (!title || !subject_id || !Array.isArray(question_ids) || question_ids.length === 0)
+  const { title, subject_id, subject_ids, subject_times, chapter_ids, question_ids, duration_minutes, shuffle_questions, shuffle_options } = req.body || {};
+  const subjList: string[] = Array.isArray(subject_ids) && subject_ids.length > 0
+    ? subject_ids
+    : [subject_id].filter(Boolean);
+  if (!title || subjList.length === 0 || !Array.isArray(question_ids) || question_ids.length === 0)
     return res.status(400).json({ error: "Missing fields" });
   const db = await getDb();
   // compute total marks
   const qs = all(db, `SELECT marks FROM questions WHERE id IN (${question_ids.map(()=>'?').join(',')})`, question_ids);
   const total = qs.reduce((s, q: any) => s + (q.marks || 1), 0);
+  // per-subject times: if provided, duration is the sum
+  const times: Array<{ subject_id: string; minutes: number }> = Array.isArray(subject_times)
+    ? subject_times.filter((t: any) => t && t.subject_id).map((t: any) => ({ subject_id: t.subject_id, minutes: Number(t.minutes) || 0 }))
+    : [];
+  const duration = times.length > 0
+    ? times.reduce((s, t) => s + t.minutes, 0) || Number(duration_minutes) || 30
+    : Number(duration_minutes) || 30;
   const id = uuid();
-  run(db, `INSERT INTO exams (id,title,subject_id,chapter_ids,question_ids,duration_minutes,total_marks,created_by,is_published,created_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    [id, title, subject_id, JSON.stringify(chapter_ids || []), JSON.stringify(question_ids),
-      duration_minutes || 30, total, req.user!.id, 0, Date.now()]);
+  run(db, `INSERT INTO exams (id,title,subject_id,subject_ids,subject_times,chapter_ids,question_ids,duration_minutes,total_marks,shuffle_questions,shuffle_options,created_by,is_published,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [id, title, subjList[0], JSON.stringify(subjList), JSON.stringify(times), JSON.stringify(chapter_ids || []), JSON.stringify(question_ids),
+      duration, total, shuffle_questions ? 1 : 0, shuffle_options ? 1 : 0, req.user!.id, 0, Date.now()]);
   res.json({ exam: { id, total_marks: total } });
+});
+
+router.put("/:id", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
+  const db = await getDb();
+  const existing = get(db, "SELECT * FROM exams WHERE id=?", [req.params.id]) as any;
+  if (!existing) return res.status(404).json({ error: "Not found" });
+  const { title, subject_id, subject_ids, subject_times, chapter_ids, question_ids, duration_minutes, shuffle_questions, shuffle_options } = req.body || {};
+  const subjList: string[] = Array.isArray(subject_ids) && subject_ids.length > 0
+    ? subject_ids
+    : [subject_id || existing.subject_id].filter(Boolean);
+  if (!title || subjList.length === 0 || !Array.isArray(question_ids) || question_ids.length === 0)
+    return res.status(400).json({ error: "Missing fields" });
+  // recompute total marks
+  const qs = all(db, `SELECT marks FROM questions WHERE id IN (${question_ids.map(()=>'?').join(',')})`, question_ids);
+  const total = qs.reduce((s, q: any) => s + (q.marks || 1), 0);
+  const times: Array<{ subject_id: string; minutes: number }> = Array.isArray(subject_times)
+    ? subject_times.filter((t: any) => t && t.subject_id).map((t: any) => ({ subject_id: t.subject_id, minutes: Number(t.minutes) || 0 }))
+    : [];
+  const duration = times.length > 0
+    ? times.reduce((s, t) => s + t.minutes, 0) || Number(duration_minutes) || existing.duration_minutes || 30
+    : Number(duration_minutes) || existing.duration_minutes || 30;
+  run(db, `UPDATE exams SET title=?, subject_id=?, subject_ids=?, subject_times=?, chapter_ids=?, question_ids=?,
+      duration_minutes=?, total_marks=?, shuffle_questions=?, shuffle_options=? WHERE id=?`,
+    [title, subjList[0], JSON.stringify(subjList), JSON.stringify(times), JSON.stringify(chapter_ids || existing.chapter_ids || []),
+      JSON.stringify(question_ids), duration, total, shuffle_questions ? 1 : 0, shuffle_options ? 1 : 0, req.params.id]);
+  res.json({ exam: { id: req.params.id, total_marks: total } });
 });
 
 router.put("/:id/publish", requireAuth, requireRole("admin", "teacher"), async (req, res) => {

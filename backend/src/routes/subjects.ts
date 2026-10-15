@@ -32,6 +32,10 @@ router.put("/:id", requireAuth, requireRole("admin", "teacher"), async (req: Req
 
 router.delete("/:id", requireAuth, requireRole("admin"), async (req: Request, res: Response) => {
   const db = await getDb();
+  // Check if subject exists
+  const subject = get(db, "SELECT id FROM subjects WHERE id=?", [req.params.id]);
+  if (!subject) return res.status(404).json({ error: "Subject not found" });
+  // Delete subject (cascades to chapters and questions via ON DELETE CASCADE)
   run(db, "DELETE FROM subjects WHERE id=?", [req.params.id]);
   res.json({ ok: true });
 });
@@ -63,6 +67,10 @@ router.put("/chapters/:id", requireAuth, requireRole("admin", "teacher"), async 
 
 router.delete("/chapters/:id", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const db = await getDb();
+  // Check if chapter exists
+  const chapter = get(db, "SELECT id FROM chapters WHERE id=?", [req.params.id]);
+  if (!chapter) return res.status(404).json({ error: "Chapter not found" });
+  // Delete chapter (questions referencing it will have chapter_id set to NULL)
   run(db, "DELETE FROM chapters WHERE id=?", [req.params.id]);
   res.json({ ok: true });
 });
