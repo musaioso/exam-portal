@@ -26,8 +26,10 @@ export function createApp() {
   app.use(
     cors({
       origin(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-        // Allow non-browser tools (no Origin header) and any listed origin.
-        if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+        // Allow non-browser tools (no Origin header), a wildcard, or any listed origin.
+        if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
         return callback(null, false);
       },
       credentials: true,
