@@ -47,13 +47,22 @@ Each worktree is a separate directory/branch; run `npm install` inside it before
 - Printable question papers with answer key & mark scheme
 - Modern dark theme (Tailwind)
 
-## Deploy (GitHub + Vercel + backend host)
+## Deploy (GitHub + Vercel)
 
-The app is two parts:
-- `frontend/` — React + Vite static SPA → **Vercel** (auto-deploys on every push).
-- `backend/` — Express + SQLite (sql.js) → a Node host with a persistent disk
-  (**Render** / Railway / Fly.io). Vercel serverless cannot persist the SQLite
-  file, so the API must live elsewhere.
+Everything runs on **Vercel** from this one repo:
+
+- `frontend/` — React + Vite SPA, built to `frontend/dist` (static).
+- `api/[...path].ts` — a single serverless function that serves the whole Express API.
+- `backend/` — the Express + SQLite (sql.js) code that the function imports.
+
+`vercel.json` wires it together (install, build, SPA fallback that leaves `/api/*`
+to the function). On Vercel the SQLite database is **in-memory and ephemeral**:
+on every cold start the schema is recreated and the demo data is reseeded
+automatically, so the deployed demo is always usable — but user-created data does
+not persist between cold starts.
+
+> Need durable data? Host the API on a platform with a persistent disk (see
+> `render.yaml`) and set `VITE_API_URL` to that API on Vercel.
 
 ### 1. Push to GitHub
 ```
@@ -61,22 +70,15 @@ git remote add origin https://github.com/<you>/<repo>.git
 git push -u origin main
 ```
 
-### 2. Deploy the backend (Render)
-- New + → Blueprint → pick the repo (uses `render.yaml`), **or** create a Web
-  Service with root directory `backend`, build `npm install && npm run build`,
-  start `npm start`.
-- Env vars: `JWT_SECRET` (generate), `DB_PATH=/var/data/mcq.db`,
-  `CORS_ORIGIN=https://<your-app>.vercel.app` (comma-separate multiple origins).
-- Seed the demo data once from the Render shell: `npm run seed`.
-- Free plan has an ephemeral disk — data resets on redeploy. Attach a persistent
-  disk mounted at `/var/data` (paid) to keep data.
-
-### 3. Deploy the frontend (Vercel)
-- New Project → import the repo → **Root Directory = `frontend`**.
-- Framework preset: Vite (build `npm run build`, output `dist`).
-- Env var: `VITE_API_URL=https://<your-backend>.onrender.com/api`.
-- Deploy. Every push to `main` triggers an instant redeploy.
+### 2. Import on Vercel
+- New Project → Import the GitHub repo.
+- **Root Directory**: leave as the repo root (default).
+- **Framework Preset**: Other.
+- Build/install/output come from `vercel.json` (builds `frontend`, outputs `frontend/dist`).
+- **Environment Variables**: none required. Optionally set `JWT_SECRET` so login
+  tokens stay valid across deployments.
+- Deploy.
 
 ### Always-latest workflow
-Work in any chat/worktree, then merge into `main` and push. Vercel rebuilds and
-the live URL reflects the latest version within ~1 minute.
+Merge your chat/worktree changes into `main` and push. Vercel rebuilds and the
+live URL reflects the latest version within ~1 minute.

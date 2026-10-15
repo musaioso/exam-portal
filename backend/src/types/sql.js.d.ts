@@ -15,3 +15,6 @@ declare module "sql.js" {
 
   export default function initSqlJs(config?: any): Promise<SqlJsStatic>;
 }
+
+// Pure-JS build used on serverless (no .wasm binary required).
+declare module "sql.js/dist/sql-asm.js";
