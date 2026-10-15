@@ -1,0 +1,612 @@
+[
+    {
+        "subject":  "bangladesh-global-studies",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "2 + 2 = ?",
+        "options":  [
+                        "3",
+                        "4",
+                        "5",
+                        "6"
+                    ],
+        "answer":  "4",
+        "explanation":  null,
+        "marks":  2
+    },
+    {
+        "subject":  "english-1st",
+        "type":  "long",
+        "difficulty":  "hard",
+        "prompt":  "Write an essay on \u0027The impact of social media on students\u0027 (about 200 words).",
+        "options":  null,
+        "answer":  "Rubric-based.",
+        "explanation":  null,
+        "marks":  10
+    },
+    {
+        "subject":  "english-1st",
+        "type":  "long",
+        "difficulty":  "medium",
+        "prompt":  "Write a short paragraph (about 100 words) on the importance of reading books.",
+        "options":  null,
+        "answer":  "Rubric-based.",
+        "explanation":  null,
+        "marks":  10
+    },
+    {
+        "subject":  "english-1st",
+        "type":  "short",
+        "difficulty":  "medium",
+        "prompt":  "Write two differences between active and passive voice.",
+        "options":  null,
+        "answer":  "In active voice the subject acts; in passive voice the object receives the action.",
+        "explanation":  null,
+        "marks":  5
+    },
+    {
+        "subject":  "english-1st",
+        "type":  "short",
+        "difficulty":  "easy",
+        "prompt":  "Define a noun and give two examples.",
+        "options":  null,
+        "answer":  "A noun is a naming word, e.g., book, Dhaka.",
+        "explanation":  null,
+        "marks":  5
+    },
+    {
+        "subject":  "english-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "Which sentence uses the subjunctive mood correctly?",
+        "options":  [
+                        "I wish I were taller.",
+                        "I wish I was taller.",
+                        "I wish I am taller.",
+                        "I wish I be taller."
+                    ],
+        "answer":  "I wish I were taller.",
+        "explanation":  null,
+        "marks":  1
+    },
+    {
+        "subject":  "english-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "Select the correct meaning of the idiom \u0027to bite the bullet\u0027.",
+        "options":  [
+                        "To endure a painful situation",
+                        "To eat quickly",
+                        "To act violently",
+                        "To tell a lie"
+                    ],
+        "answer":  "To endure a painful situation",
+        "explanation":  null,
+        "marks":  1
+    },
+    {
+        "subject":  "english-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "Choose the correct spelling.",
+        "options":  [
+                        "recieve",
+                        "receive",
+                        "receeve",
+                        "receve"
+                    ],
+        "answer":  "receive",
+        "explanation":  null,
+        "marks":  1
+    },
+    {
+        "subject":  "english-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "Identify the passive voice of \u0027He writes a letter\u0027.",
+        "options":  [
+                        "A letter is written by him.",
+                        "A letter was written by him.",
+                        "A letter is wrote by him.",
+                        "A letter has written by him."
+                    ],
+        "answer":  "A letter is written by him.",
+        "explanation":  null,
+        "marks":  1
+    },
+    {
+        "subject":  "english-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "Pick the correct plural of \u0027child\u0027.",
+        "options":  [
+                        "childs",
+                        "childes",
+                        "children",
+                        "childrens"
+                    ],
+        "answer":  "children",
+        "explanation":  null,
+        "marks":  1
+    },
+    {
+        "subject":  "english-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "Choose the correct article: ___ apple a day keeps the doctor away.",
+        "options":  [
+                        "An",
+                        "A",
+                        "The",
+                        "No article"
+                    ],
+        "answer":  "An",
+        "explanation":  null,
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "আল মাহমুদ বাংলাদেশ শিল্পকলা একাডেমি থেকে কোন পদে উন্নীত হয়ে অবসর নেন?",
+        "options":  [
+                        "মহাপরিচালক",
+                        "পরিচালক",
+                        "সচিব",
+                        "সহকারী পরিচালক"
+                    ],
+        "answer":  "পরিচালক",
+        "explanation":  "কবি আল মাহমুদ বাংলাদেশ শিল্পকলা একাডেমিতে যোগ দিয়ে পরিচালকের পদ থেকে অবসর গ্রহণ করেন।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "‘বোশেখ’ কবিতায় কালবৈশাখীর প্রলয়ঙ্করী ফুঁ দ্বারা কী উড়িয়ে দেওয়ার আহ্বান জানানো হয়েছে?",
+        "options":  [
+                        "ধনীদের অট্টালিকা ও বাহাদুরি",
+                        "গরিবের ভাতের হাঁড়ি",
+                        "টুনটুনির বাসা",
+                        "নদীর জলরাশি"
+                    ],
+        "answer":  "ধনীদের অট্টালিকা ও বাহাদুরি",
+        "explanation":  "কবিতায় কবি তুফানকে আহ্বান জানান যেন তা পরের শ্রমে গড়া মস্ত দালান ও বাড়তি বাহাদুরি ধ্বংস করে ফেলে।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "আল মাহমুদের কবিতায় প্রধান বৈশিষ্ট্য হিসেবে কোনটি বিশেষভাবে উল্লেখযোগ্য?",
+        "options":  [
+                        "বিদেশি শব্দের প্রচুর ব্যবহার",
+                        "লোকজ শব্দের সুনিপুণ প্রয়োগ ও ঐতিহ্যপ্রীতি",
+                        "নগর জীবনের জাঁকজমক বর্ণনা",
+                        "শুধুমাত্র ঐতিহাসিক ঘটনার বিবৃতি"
+                    ],
+        "answer":  "লোকজ শব্দের সুনিপুণ প্রয়োগ ও ঐতিহ্যপ্রীতি",
+        "explanation":  "কবি-পরিচিতি অনুযায়ী আল মাহমুদের কবিতায় লোকজ শব্দের সুনিপুণ প্রয়োগ এবং ঐতিহ্যপ্রীতি অন্যতম প্রধান বৈশিষ্ট্য।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "‘বোশেখ’ কবিতায় ‘কবিদের এক মহান রাজা’ হিসেবে কাকে অভিহিত করা হয়েছে?",
+        "options":  [
+                        "বাল্মীকিকে",
+                        "কালিদাসকে",
+                        "রবীন্দ্রনাথকে",
+                        "আল মাহমুদকে"
+                    ],
+        "answer":  "রবীন্দ্রনাথকে",
+        "explanation":  "কবিতার চরণ: ‘কবিদের এক মহান রাজা রবীন্দ্রনাথ/ তোমার কাছে দাঁড়িয়েছিলেন করজোড়ে’।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "রামায়ণে উল্লেখিত হনুমান কার সন্তান হিসেবে খ্যাত?",
+        "options":  [
+                        "সোলেমানের",
+                        "পবনের",
+                        "কালিদাসের",
+                        "বাল্মীকির"
+                    ],
+        "answer":  "পবনের",
+        "explanation":  "কবিতায় কবি পবন বা বাতাসকে লক্ষ্য করে বলেছেন— ‘রামায়ণে পড়েছি যার কীর্তিগাঁথা/ সেই মহাবীর হনুমানের পিতা তুমি?’",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "‘কিন্তু যারা লোক ঠকিয়ে প্রাসাদ গড়ে/ তাদের কোনো ইট খসাতে পারলে না তো।’— চরণটিতে ফুটে উঠেছে—",
+        "options":  [
+                        "প্রকৃতির নিরপেক্ষতা",
+                        "সামাজিক বৈষম্য ও কবির আক্ষেপ",
+                        "প্রকৃতির প্রতি কৃতজ্ঞতা",
+                        "ধনীদের প্রতি সহানুভূতি"
+                    ],
+        "answer":  "সামাজিক বৈষম্য ও কবির আক্ষেপ",
+        "explanation":  "উক্ত চরণে শোষক শ্রেণির প্রতি ঝড়ের নির্মমতা না থাকা এবং গরিবের প্রতি অত্যাচার রূপ সামাজিক বৈষম্যে কবির ক্ষোভ ফুটে উঠেছে।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "কালিদাসের ‘মেঘদূত’ কাব্য অনুসারে বাতাসকে কার সাথী বলা হয়েছে?",
+        "options":  [
+                        "প্রলয়ের",
+                        "দয়ালু মেঘের",
+                        "মহাবীর হনুমানের",
+                        "রুদ্র বৈশাখের"
+                    ],
+        "answer":  "দয়ালু মেঘের",
+        "explanation":  "কবিতায় কালিদাসের সূত্রে বাতাসকে ‘দয়ালু মেঘের সাথী’ বলে সম্বোধন করা হয়েছে।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "‘বোশেখ’ কবিতায় কবি বাতাসের কোন আচরণে ক্ষোভ প্রকাশ করেছেন?",
+        "options":  [
+                        "গরিবের ক্ষতি করলেও শোষকদের প্রাসাদ অক্ষত রাখায়",
+                        "নদীর পানি শূন্যে তুলে ছিটিয়ে দেওয়ার কারণে",
+                        "টেলিগ্রাফের খাম নুইয়ে দেওয়ার কারণে",
+                        "জোটের পাখা দুমড়ে ফেলে দেওয়ার জন্য"
+                    ],
+        "answer":  "গরিবের ক্ষতি করলেও শোষকদের প্রাসাদ অক্ষত রাখায়",
+        "explanation":  "ঝড় গরিবের ঘরবাড়ির ক্ষতি করলেও শোষকদের তৈরি প্রাসাদের কোনো ক্ষতি করতে পারে না বলেই কবির মূল ক্ষোভ।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "‘বোশেখ’ কবিতায় বৈশাখের বিধ্বংসী রূপের মধ্য দিয়ে মূলত কী প্রকাশ পেয়েছে?",
+        "options":  [
+                        "প্রকৃতির রূপ বর্ণনা",
+                        "অত্যাচারী ও শোষকের অবসান কামনা",
+                        "ঋতু পরিবর্তনের আনন্দ",
+                        "প্রাকৃতিক দুর্যোগের ইতিহাস"
+                    ],
+        "answer":  "অত্যাচারী ও শোষকের অবসান কামনা",
+        "explanation":  "পাঠ-পরিচিতি অনুযায়ী কবি বৈশাখের বিধ্বংসী শক্তির মাধ্যমে সমাজ থেকে অত্যাচারী ও শোষকদের অবসান কামনা করেছেন।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "‘বিভেদকারী পরগাছা’ বলতে কবিতায় কাদের বোঝানো হয়েছে?",
+        "options":  [
+                        "বনজ গাছপালাকে",
+                        "পরের শ্রমে মস্ত দালান গড়ে তোলা শোষক শ্রেণিকে",
+                        "দরিদ্র চাষি ও মাঝিদের",
+                        "ঝড়ে ভেঙে পড়া অট্টালিকাকে"
+                    ],
+        "answer":  "পরের শ্রমে মস্ত দালান গড়ে তোলা শোষক শ্রেণিকে",
+        "explanation":  "পরের শ্রমে সম্পদ অর্জনকারী ও সমাজে বৈষম্য সৃষ্টিকারী শোষকদের পরগাছা বলা হয়েছে।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "‘বোশেখ’ কবিতায় বাতাস কার বাহন হিসেবে উল্লিখিত হয়েছে?",
+        "options":  [
+                        "রাজা সোলেমানের",
+                        "মহাবীর হনুমানের",
+                        "কবি কালিদাসের",
+                        "বাল্মীকির"
+                    ],
+        "answer":  "রাজা সোলেমানের",
+        "explanation":  "কবিতায় উল্লেখ আছে বাতাস নাকি অত্যাচারীর মাথা কাটনেওয়ালা রাজা সোলেমানের বাহন ছিল।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "‘পানকৌড়ির রক্ত’ আল মাহমুদের কী ধরনের রচনা?",
+        "options":  [
+                        "কবিতাগ্রন্থ",
+                        "কথাসাহিত্য",
+                        "নাটক",
+                        "শিশুতোষ ছড়া"
+                    ],
+        "answer":  "কথাসাহিত্য",
+        "explanation":  "কবি আল মাহমুদের অন্যতম প্রধান কথাসাহিত্য হলো ‘পানকৌড়ির রক্ত’।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "hard",
+        "prompt":  "‘বোশেখ’ কবিতায় কোন পাখির বাসা উড়িয়ে দেওয়ার আনন্দের কথা কবি প্রশ্ন ছলে জানতে চেয়েছেন?",
+        "options":  [
+                        "টুনটুনি",
+                        "বাবুই",
+                        "বুনোহাঁস",
+                        "শালিক"
+                    ],
+        "answer":  "বাবুই",
+        "explanation":  "কবিতার পংক্তি অনুযায়ী: ‘কী আনন্দ, কী মজা পাও বাবুই পাখির ঘর উড়িয়ে?’",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "‘মেঘদূত’ কাব্যের রচয়িতা কে?",
+        "options":  [
+                        "কালিদাস",
+                        "বাল্মীকি",
+                        "আল মাহমুদ",
+                        "সোলেমান"
+                    ],
+        "answer":  "কালিদাস",
+        "explanation":  "সংস্কৃত ভাষার অমর কাব্য ‘মেঘদূত’-এর রচয়িতা হলেন মহাকবি কালিদাস।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "‘বোশেখ’ কবিতায় রবীন্দ্রনাথ কালবোশেখের কাছে দাঁড়িয়ে কী প্রার্থনা করেছিলেন?",
+        "options":  [
+                        "নতুন গৃহ নির্মাণের",
+                        "পুরানো, শুষ্ক ও মরা জিনিস উড়িয়ে দিতে",
+                        "ধনীদের প্রাসাদ ধ্বংস করতে",
+                        "নদীর পানি ছড়িয়ে দিতে"
+                    ],
+        "answer":  "পুরানো, শুষ্ক ও মরা জিনিস উড়িয়ে দিতে",
+        "explanation":  "রবীন্দ্রনাথ করজোড়ে কালবোশেখের একটি ফুঁয়ে পুরানো, শুষ্ক ও অদরকারি জিনিস উড়িয়ে দেওয়ার প্রার্থনা করেছিলেন।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "বিদ্যুতের সাহায্যে প্রথম telegraph যন্ত্র পরিচালিত হওয়া শুরু হয় কত সালে?",
+        "options":  [
+                        "১৮২৭ সালে",
+                        "১৮৩৭ সালে",
+                        "১৮৪৭ সালে",
+                        "১৮৫৭ সালে"
+                    ],
+        "answer":  "১৮৩৭ সালে",
+        "explanation":  "শব্দার্থ ও টীকা অনুযায়ী ১৮৩৭ সালে প্রথম বিদ্যুতের সাহায্যে টেলিগ্রাফ যন্ত্র পরিচালিত হয়।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "রামায়ণের রচয়িতা কে?",
+        "options":  [
+                        "কালিদাস",
+                        "বাল্মীকি",
+                        "বেদব্যাস",
+                        "রবীন্দ্রনাথ ঠাকুর"
+                    ],
+        "answer":  "বাল্মীকি",
+        "explanation":  "পৃথিবীর অন্যতম প্রাচীন মহাকাব্য রামায়ণের রচয়িতা হলেন বাল্মীকি।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "রাজা সোলেমান ইসরাইলের কততম রাজা ছিলেন?",
+        "options":  [
+                        "প্রথম রাজা",
+                        "দ্বিতীয় রাজা",
+                        "তৃতীয় রাজা",
+                        "চতুর্থ রাজা"
+                    ],
+        "answer":  "তৃতীয় রাজা",
+        "explanation":  "শব্দার্থ ও টীকা অনুযায়ী রাজা সোলেমান ছিলেন ডেভিডের পুত্র এবং ইসরাইলের তৃতীয় রাজা।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "আল মাহমুদ কোন পত্রিকার সম্পাদক হিসেবে দায়িত্ব পালন করেন?",
+        "options":  [
+                        "দৈনিক ইত্তেফাক",
+                        "দৈনিক গণকণ্ঠ",
+                        "দৈনিক সংবাদ",
+                        "দৈনিক জনকণ্ঠ"
+                    ],
+        "answer":  "দৈনিক গণকণ্ঠ",
+        "explanation":  "স্বাধীনতার পর কবি আল মাহমুদ ‘দৈনিক গণকণ্ঠ’ পত্রিকার সম্পাদক নিযুক্ত হন।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "‘জেট’ বলতে কী বোঝায়?",
+        "options":  [
+                        "ধীরগতির নৌকা",
+                        "দ্রুতগতিসম্পন্ন উড়োজাহাজ",
+                        "একপ্রকার মোটর গাড়ি",
+                        "টেলিগ্রাফ যন্ত্র"
+                    ],
+        "answer":  "দ্রুতগতিসম্পন্ন উড়োজাহাজ",
+        "explanation":  "শব্দার্থ অনুযায়ী ‘জেট’ হলো দ্রুতগতিসম্পন্ন উড়োজাহাজ।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "‘বোশেখ’ কবিতায় কবি বাতাসের কাছে কীসের পালের দড়ি না ছেঁড়ার আকুতি জানিয়েছেন?",
+        "options":  [
+                        "ধনী সওদাগরের",
+                        "গরিব মাঝির",
+                        "মাছধরা জেলের",
+                        "পর্যটকদের নৌকার"
+                    ],
+        "answer":  "গরিব মাঝির",
+        "explanation":  "কবিতায় কবি বাতাসকে গরিব মাঝির পালের দড়ি না ছিঁড়তে মিনতি করেছেন।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "বাতাস বেগুন পাতার বাসা ছিঁড়ে কার বাসা উল্টে ফেলে?",
+        "options":  [
+                        "বাবুই পাখির",
+                        "টুনটুনির",
+                        "শালিকের",
+                        "বুনোহাঁসের"
+                    ],
+        "answer":  "টুনটুনির",
+        "explanation":  "‘বোশেখ’ কবিতায় বাতাসের তাণ্ডবে টুনটুনির বাসা উল্টে যাওয়ার কথা বলা হয়েছে।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "আল মাহমুদের প্রকৃত নাম কী?",
+        "options":  [
+                        "মীর আবদুস শুকুর আল মাহমুদ",
+                        "মীর সাইফুর রহমান আল মাহমুদ",
+                        "মীর সামসুল হক আল মাহমুদ",
+                        "মীর জহিরুল ইসলাম আল মাহমুদ"
+                    ],
+        "answer":  "মীর আবদুস শুকুর আল মাহমুদ",
+        "explanation":  "কবি আল মাহমুদের প্রকৃত নাম মীর আবদুস শুকুর আল মাহমুদ।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "কবি আল মাহমুদ কত সালে মৃত্যুবরণ করেন?",
+        "options":  [
+                        "২০১৫ সালে",
+                        "২০১৭ সালে",
+                        "২০১৯ সালে",
+                        "২০২১ সালে"
+                    ],
+        "answer":  "২০১৯ সালে",
+        "explanation":  "কবি আল মাহমুদ ২০১৯ সালের ১৫ই ফেব্রুয়ারি মৃত্যুবরণ করেন।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "‘তিষ্ঠ’ শব্দটির অর্থ কী?",
+        "options":  [
+                        "চলে যাও",
+                        "স্থির হও",
+                        "উড়ে যাও",
+                        "প্রবেশ করো"
+                    ],
+        "answer":  "স্থির হও",
+        "explanation":  "‘তিষ্ঠ’ শব্দের অর্থ হলো স্থির হওয়া বা থামা।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "‘অদরকারি’ শব্দের অর্থ কী?",
+        "options":  [
+                        "প্রয়োজনীয়",
+                        "অত্যন্ত দামি",
+                        "যার প্রয়োজন নেই",
+                        "জরুরি কাজ"
+                    ],
+        "answer":  "যার প্রয়োজন নেই",
+        "explanation":  "‘অদরকারি’ শব্দের অর্থ যার কোনো প্রয়োজন নেই।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "‘বোশেখ’ কবিতাটির রচয়িতা কে?",
+        "options":  [
+                        "কাজী নজরুল ইসলাম",
+                        "আল মাহমুদ",
+                        "রবীন্দ্রনাথ ঠাকুর",
+                        "জসীমউদ্দীন"
+                    ],
+        "answer":  "আল মাহমুদ",
+        "explanation":  "‘বোশেখ’ কবিতাটি বিশিষ্ট কবি আল মাহমুদ রচনা করেছেন।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "আল মাহমুদ কত সালে জন্মগ্রহণ করেন?",
+        "options":  [
+                        "১৯৩০ সালে",
+                        "১৯৩৬ সালে",
+                        "১৯৪০ সালে",
+                        "১৯৪৫ সালে"
+                    ],
+        "answer":  "১৯৩৬ সালে",
+        "explanation":  "কবি আল মাহমুদ ১৯৩৬ সালে জন্মগ্রহণ করেন।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "আল মাহমুদ কোন জেলায় জন্মগ্রহণ করেন?",
+        "options":  [
+                        "কুমিল্লা",
+                        "ব্রাহ্মণবাড়িয়া",
+                        "নোয়াখালী",
+                        "সিলেট"
+                    ],
+        "answer":  "ব্রাহ্মণবাড়িয়া",
+        "explanation":  "কবি আল মাহমুদ ব্রাহ্মণবাড়িয়া জেলার মোড়াইল গ্রামে জন্মগ্রহণ করেন।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "easy",
+        "prompt":  "‘বোশেখ’ কবিতাটি আল মাহমুদের কোন বই থেকে সংকলন করা হয়েছে?",
+        "options":  [
+                        "লোক লোকান্তর",
+                        "কালের কলস",
+                        "সোনালি কাবিন",
+                        "পাখির কাছে ফুলের কাছে"
+                    ],
+        "answer":  "পাখির কাছে ফুলের কাছে",
+        "explanation":  "‘বোশেখ’ কবিতাটি কবি আল মাহমুদের ‘পাখির কাছে ফুলের কাছে’ কাব্য থেকে সংকলিত।",
+        "marks":  1
+    },
+    {
+        "subject":  "bangla-1st",
+        "type":  "mcq",
+        "difficulty":  "medium",
+        "prompt":  "বাঙালির খাবার দাবার কেমন?",
+        "options":  [
+                        "সরস",
+                        "নীরস",
+                        "রসালো",
+                        "টইটম্বুর"
+                    ],
+        "answer":  "সরস",
+        "explanation":  "ত্রিগুণাত্মক - সরস...",
+        "marks":  1
+    }
+]

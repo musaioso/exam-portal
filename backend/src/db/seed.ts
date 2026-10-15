@@ -1,6 +1,7 @@
 import { getDb, run, get } from "./database";
 import { randomUUID as uuid } from "node:crypto";
 import bcrypt from "bcryptjs";
+import DEMO_QUESTIONS from "./seed-questions.json";
 
 const SUBJECTS = [
   { name: "বাংলা ১ম পত্র", name_bn: "বাংলা ১ম পত্র", slug: "bangla-1st", code: "B1" },
@@ -12,9 +13,20 @@ const SUBJECTS = [
   { name: "ICT", name_bn: "তথ্য ও যোগাযোগ প্রযুক্তি", slug: "ict", code: "ICT" },
 ];
 
+interface DemoQuestion {
+  subject: string;
+  type: string;
+  difficulty: string | null;
+  prompt: string;
+  options: string[] | null;
+  answer: string | null;
+  explanation: string | null;
+  marks: number | null;
+}
+
 /**
- * Ensures the demo subjects and accounts exist. Idempotent: safe to run on
- * every (cold) start.
+ * Ensures the demo subjects, accounts and questions exist. Idempotent: safe to
+ * run on every (cold) start.
  */
 export async function seedDatabase() {
   const db = await getDb();
@@ -42,5 +54,36 @@ export async function seedDatabase() {
   if (!get(db, "SELECT id FROM users WHERE email=?", ["student@mcq.local"])) {
     run(db, "INSERT INTO users (id,name,email,password_hash,role,grade,section,created_at) VALUES (?,?,?,?,?,?,?,?)",
       [uuid(), "Demo Student", "student@mcq.local", bcrypt.hashSync("student123", 10), "student", "Class 8", "A", now]);
+  }
+
+  // Demo questions: only on an empty questions table so real data is never
+  // touched. Bodies live in seed-questions.json next to this file.
+  const qCount = get(db, "SELECT COUNT(*) AS c FROM questions") as any;
+  if (!qCount || Number(qCount.c) === 0) {
+    const admin = get(db, "SELECT id FROM users WHERE email=?", ["admin@mcq.local"]) as any;
+    const createdBy = admin ? admin.id : null;
+    for (const q of DEMO_QUESTIONS as DemoQuestion[]) {
+      const subject = get(db, "SELECT id FROM subjects WHERE slug=?", [q.subject]) as any;
+      if (!subject) continue;
+      run(
+        db,
+        `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          uuid(),
+          subject.id,
+          null,
+          q.type,
+          q.difficulty || "medium",
+          q.prompt,
+          q.options ? JSON.stringify(q.options) : null,
+          q.answer ?? null,
+          q.explanation ?? null,
+          q.marks || 1,
+          createdBy,
+          now,
+        ]
+      );
+    }
   }
 }
