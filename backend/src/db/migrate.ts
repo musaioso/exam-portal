@@ -1,5 +1,10 @@
 import { getDb, run, all, execScript } from "./database";
 
+// Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
+// re-run the migration once. When it matches what is stored in `app_meta`,
+// warmup can skip the whole schema script (see serverless.ts).
+export const SCHEMA_VERSION = "1";
+
 const SCHEMA = `
 PRAGMA foreign_keys = ON;
 
@@ -121,6 +126,7 @@ export async function migrate() {
   await ensureColumn(db, "exams", "subject_times", "TEXT");
   await ensureColumn(db, "exams", "shuffle_questions", "INTEGER DEFAULT 0");
   await ensureColumn(db, "exams", "shuffle_options", "INTEGER DEFAULT 0");
+  await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('schema_version', ?)", [SCHEMA_VERSION]);
 }
 
 export default migrate;
