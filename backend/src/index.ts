@@ -21,7 +21,21 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
-app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:5173", credentials: true }));
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+      // Allow non-browser tools (no Origin header) and any listed origin.
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
