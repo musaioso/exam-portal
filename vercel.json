@@ -3,7 +3,8 @@
   "services": {
     "api": {
       "root": "backend",
-      "framework": "express"
+      "framework": "express",
+      "installCommand": "npm install --include=dev"
     },
     "web": {
       "root": "frontend",

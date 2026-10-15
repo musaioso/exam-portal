@@ -8,7 +8,7 @@ import usersRouter from "./routes/users";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
 
-export function createApp() {
+function createApp() {
   const app = express();
 
   // API responses must not be cached/ETag-revalidated: a 304 with an empty body
