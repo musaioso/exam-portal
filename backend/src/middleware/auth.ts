@@ -3,6 +3,13 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "mcq-secret-change-me";
 
+if (!process.env.JWT_SECRET) {
+  console.warn(
+    "[auth] JWT_SECRET is not set — signing tokens with the well-known default that ships in this repository. " +
+      "Set JWT_SECRET in the deployment environment to stop anyone from forging logins."
+  );
+}
+
 export interface AuthUser {
   id: string;
   email: string;

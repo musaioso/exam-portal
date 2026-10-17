@@ -5,6 +5,7 @@ import subjectsRouter from "./routes/subjects";
 import questionsRouter from "./routes/questions";
 import examsRouter from "./routes/exams";
 import usersRouter from "./routes/users";
+import backupRouter from "./routes/backup";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
 import { storage, isPersistent } from "./db/database";
@@ -64,6 +65,7 @@ function createApp() {
   app.use("/api/questions", questionsRouter);
   app.use("/api/exams", examsRouter);
   app.use("/api/users", usersRouter);
+  app.use("/api/backup", backupRouter);
 
   // me endpoint
   app.get("/api/me", requireAuth, (req, res) => res.json({ user: req.user }));

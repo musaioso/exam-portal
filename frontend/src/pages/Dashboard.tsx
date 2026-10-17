@@ -4,9 +4,10 @@ import { api } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { Card, Button, Skeleton, cn } from "../components/ui";
 import {
-  Activity, ArrowRight, Award, BookOpen, BookPlus, CalendarDays, ChartColumn, CircleAlert,
-  ClipboardList, Clock, FilePlus2, FileQuestion, Flame, GraduationCap, ListChecks, Percent,
-  PlayCircle, Printer, RotateCcw, Sparkles, Target, TrendingUp, Trophy, UserPlus, Users,
+  Activity, ArrowRight, Award, BookOpen, BookPlus, CalendarDays, ChartColumn, CheckCircle2,
+  CircleAlert, ClipboardList, Clock, DatabaseBackup, Download, FilePlus2, FileQuestion, Flame,
+  GraduationCap, ListChecks, Percent, PlayCircle, Printer, RotateCcw, Sparkles, Target,
+  TrendingUp, Trophy, UserPlus, Users,
 } from "lucide-react";
 
 /* A pass is 33% or more — the standard NCTB mark. */
@@ -229,6 +230,7 @@ export default function Dashboard() {
     subjects: [], questions: [], exams: [], users: [], attempts: [],
   });
   const [starting, setStarting] = useState<string | null>(null);
+  const [backup, setBackup] = useState<"idle" | "loading" | "done" | "error">("idle");
 
   useEffect(() => {
     let alive = true;
@@ -354,6 +356,27 @@ export default function Dashboard() {
       nav(`/take-exam/${res.attempt.id}`);
     } catch {
       setStarting(null);
+    }
+  };
+
+  /* One JSON file with everything we have — the safety net for our own data. */
+  const downloadBackup = async () => {
+    setBackup("loading");
+    try {
+      const { data } = await api.get("/backup");
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+      link.href = url;
+      link.download = `mcq-backup-${stamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setBackup("done");
+    } catch {
+      setBackup("error");
     }
   };
 
@@ -555,7 +578,33 @@ export default function Dashboard() {
                   <a.icon size={15} /> {a.label}
                 </Button>
               ))}
+              <Button
+                variant="outline"
+                className="whitespace-nowrap"
+                disabled={backup === "loading"}
+                onClick={downloadBackup}
+              >
+                <Download size={15} /> {backup === "loading" ? "Preparing…" : "Backup JSON"}
+              </Button>
             </div>
+            <p className="text-[11px] text-slate-400 flex items-center gap-1.5 pt-3">
+              {backup === "error" ? (
+                <>
+                  <CircleAlert size={12} className="text-rose-300" />
+                  Could not create the backup — please try again.
+                </>
+              ) : backup === "done" ? (
+                <>
+                  <CheckCircle2 size={12} className="text-emerald-300" />
+                  Backup downloaded. Keep the file somewhere safe.
+                </>
+              ) : (
+                <>
+                  <DatabaseBackup size={12} className="text-indigo-300" />
+                  Download every subject, question, exam and result as one JSON file.
+                </>
+              )}
+            </p>
           </Panel>
 
           <div className="grid gap-4 xl:grid-cols-2">
