@@ -3,7 +3,7 @@ import { getDb, run, all, execScript } from "./database";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "1";
+export const SCHEMA_VERSION = "2";
 
 const SCHEMA = `
 PRAGMA foreign_keys = ON;
@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT NOT NULL CHECK (role IN ('admin','teacher','student')),
   grade TEXT,
   section TEXT,
+  -- Students sign in by picking their name and typing this 4-digit PIN, so the
+  -- teacher has to be able to read it back and hand it out again. It lives here
+  -- in the clear on purpose; only admin/teacher endpoints ever return it.
+  pin TEXT,
   created_at INTEGER NOT NULL
 );
 
@@ -122,6 +126,7 @@ export async function migrate() {
   const db = await getDb();
   await execScript(db, SCHEMA);
   // Lightweight migrations for existing databases
+  await ensureColumn(db, "users", "pin", "TEXT");
   await ensureColumn(db, "exams", "subject_ids", "TEXT");
   await ensureColumn(db, "exams", "subject_times", "TEXT");
   await ensureColumn(db, "exams", "shuffle_questions", "INTEGER DEFAULT 0");

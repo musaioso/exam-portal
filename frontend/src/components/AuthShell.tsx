@@ -23,9 +23,11 @@ const FEATURES = [
   },
 ];
 
-export function AuthShell({ title, subtitle, children }: {
+export function AuthShell({ title, subtitle, top, children }: {
   title: string;
   subtitle: string;
+  /** Rendered above the heading — the student / staff switch on the sign-in page. */
+  top?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -76,9 +78,9 @@ export function AuthShell({ title, subtitle, children }: {
         </aside>
 
         {/* Form panel */}
-        <div className="p-6 sm:p-8">
-          <div className="mb-6 flex items-center gap-3 lg:hidden">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-400 text-lg font-bold text-white shadow-lg shadow-indigo-500/25">
+        <div className="p-5 sm:p-8">
+          <div className="mb-5 flex items-center gap-3 lg:hidden">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-400 text-base font-bold text-white shadow-lg shadow-indigo-500/25">
               M
             </span>
             <div>
@@ -86,6 +88,8 @@ export function AuthShell({ title, subtitle, children }: {
               <div className="text-xs text-slate-400">NCTB 2025 · English Version</div>
             </div>
           </div>
+
+          {top && <div className="mb-5">{top}</div>}
 
           <h1 className="text-xl font-semibold">{title}</h1>
           <p className="mt-1 text-sm text-slate-400">{subtitle}</p>

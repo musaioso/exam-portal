@@ -4,6 +4,8 @@ import { api, currentUser, setAuth, clearAuth, type User } from "./api";
 interface AuthCtx {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
+  /** Students sign in with a name picked from the list plus a 4-digit PIN. */
+  loginStudent: (studentId: string, pin: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -16,8 +18,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuth(data.token, data.user);
     setUser(data.user);
   };
+  const loginStudent = async (studentId: string, pin: string) => {
+    const { data } = await api.post("/auth/student-login", { studentId, pin });
+    setAuth(data.token, data.user);
+    setUser(data.user);
+  };
   const logout = () => { clearAuth(); setUser(null); };
-  return <Ctx.Provider value={{ user, login, logout }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, login, loginStudent, logout }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {
