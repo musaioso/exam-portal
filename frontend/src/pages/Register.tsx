@@ -1,46 +1,102 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
-import { Button, Card, Input, Field, Select } from "../components/ui";
-import { ThemeToggle } from "../components/ThemeToggle";
+import { Button, Input, Select } from "../components/ui";
+import { AuthField, AuthShell } from "../components/AuthShell";
+import { CircleAlert, Eye, EyeOff, UserPlus } from "lucide-react";
 
 export default function Register() {
   const nav = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "student", grade: "", section: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [err, setErr] = useState("");
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const [busy, setBusy] = useState(false);
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setErr("");
+    e.preventDefault();
+    setErr("");
+    setBusy(true);
     try {
       await api.post("/auth/register", form);
       nav("/login");
-    } catch (x: any) { setErr(x?.response?.data?.error || "Failed"); }
+      return;
+    } catch (x: any) {
+      setErr(x?.response?.data?.error || "Could not create the account. Please try again.");
+    }
+    setBusy(false);
   };
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="fixed top-4 right-4 z-50">
-        <ThemeToggle compact />
-      </div>
-      <Card hover={false} className="w-full max-w-md">
-        <h1 className="text-xl font-semibold mb-4">Create account</h1>
-        <form onSubmit={onSubmit} className="space-y-3">
-          <Field label="Name"><Input value={form.name} onChange={e=>set("name",e.target.value)} required /></Field>
-          <Field label="Email"><Input value={form.email} onChange={e=>set("email",e.target.value)} type="email" required /></Field>
-          <Field label="Password"><Input value={form.password} onChange={e=>set("password",e.target.value)} type="password" required /></Field>
-          <Field label="Role">
-            <Select value={form.role} onChange={e=>set("role",e.target.value)}>
-              <option value="student">Student</option>
-              <option value="teacher">Teacher</option>
-            </Select>
-          </Field>
-          {form.role === "student" && <>
-            <Field label="Grade"><Input value={form.grade} onChange={e=>set("grade",e.target.value)} /></Field>
-            <Field label="Section"><Input value={form.section} onChange={e=>set("section",e.target.value)} /></Field>
-          </>}
-          {err && <div className="text-rose-400 text-sm">{err}</div>}
-          <Button className="w-full" type="submit">Create account</Button>
-        </form>
-      </Card>
-    </div>
+    <AuthShell title="Create an account" subtitle="Teachers get the paper builder; students get the exam hall.">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <AuthField label="Full name">
+          <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Ifaz Ahmed" required />
+        </AuthField>
+
+        <AuthField label="Email">
+          <Input value={form.email} onChange={(e) => set("email", e.target.value)} type="email" autoComplete="email" placeholder="you@school.edu.bd" required />
+        </AuthField>
+
+        <AuthField label="Password">
+          <div className="relative">
+            <Input
+              value={form.password}
+              onChange={(e) => set("password", e.target.value)}
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              placeholder="Choose a password"
+              className="pr-12"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              title={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 cursor-pointer place-items-center rounded-xl text-slate-400 transition hover:bg-ink/10 hover:text-slate-100"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </AuthField>
+
+        <AuthField label="I am a">
+          <Select value={form.role} onChange={(e) => set("role", e.target.value)}>
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+          </Select>
+        </AuthField>
+
+        {form.role === "student" && (
+          <div className="grid grid-cols-2 gap-3">
+            <AuthField label="Class">
+              <Input value={form.grade} onChange={(e) => set("grade", e.target.value)} placeholder="e.g. 8" />
+            </AuthField>
+            <AuthField label="Section">
+              <Input value={form.section} onChange={(e) => set("section", e.target.value)} placeholder="e.g. A" />
+            </AuthField>
+          </div>
+        )}
+
+        {err && (
+          <div className="flex items-start gap-2 rounded-2xl border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-xs text-rose-200">
+            <CircleAlert size={14} className="mt-0.5 shrink-0 text-rose-300" />
+            <span>{err}</span>
+          </div>
+        )}
+
+        <Button type="submit" className="w-full" disabled={busy}>
+          <UserPlus size={16} /> {busy ? "Creating account…" : "Create account"}
+        </Button>
+      </form>
+
+      <p className="mt-5 text-center text-xs text-slate-400">
+        Already have an account?{" "}
+        <Link to="/login" className="font-medium text-indigo-300 hover:underline">
+          Sign in
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

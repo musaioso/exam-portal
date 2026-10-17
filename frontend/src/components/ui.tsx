@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -27,6 +27,64 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={cn("w-full bg-slate-900/60 border border-slate-600/70 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/70 focus:border-violet-400/60 transition", props.className)} />;
+}
+
+/**
+ * Number field with the native steppers replaced by themed ones that sit at the
+ * right edge, span the field's full height, follow the brand colour and only
+ * appear on hover / focus.
+ */
+export function NumberInput({ className, value, onChange, min, max, step, disabled, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  const bump = (dir: 1 | -1) => {
+    if (disabled || !onChange) return;
+    const current = Number(value);
+    const base = Number.isFinite(current) ? current : (min != null && min !== "" ? Number(min) : 0);
+    const inc = (step != null && step !== "" ? Number(step) : 1) || 1;
+    const lo = min != null && min !== "" ? Number(min) : undefined;
+    const hi = max != null && max !== "" ? Number(max) : undefined;
+    let next = base + dir * inc;
+    if (lo !== undefined && next < lo) next = lo;
+    if (hi !== undefined && next > hi) next = hi;
+    onChange({ target: { value: String(next), name: props.name } } as unknown as React.ChangeEvent<HTMLInputElement>);
+  };
+  return (
+    <div className={cn("group/num relative", className)}>
+      <Input
+        type="number"
+        value={value}
+        onChange={onChange}
+        min={min}
+        max={max}
+        step={step}
+        disabled={disabled}
+        className="pr-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        {...props}
+      />
+      {!disabled && (
+        <div className="pointer-events-none absolute inset-y-[5px] right-[5px] flex w-5 flex-col overflow-hidden rounded-lg border border-slate-600/50 bg-slate-900/85 opacity-0 shadow-md backdrop-blur transition group-focus-within/num:opacity-100 group-hover/num:opacity-100">
+          <button
+            type="button"
+            aria-label="Increase"
+            tabIndex={-1}
+            onClick={() => bump(1)}
+            className="pointer-events-auto flex flex-1 items-center justify-center text-indigo-300 transition hover:bg-indigo-500/25 hover:text-indigo-100"
+          >
+            <ChevronUp size={12} />
+          </button>
+          <span aria-hidden="true" className="h-px w-full shrink-0 bg-slate-600/50" />
+          <button
+            type="button"
+            aria-label="Decrease"
+            tabIndex={-1}
+            onClick={() => bump(-1)}
+            className="pointer-events-auto flex flex-1 items-center justify-center text-indigo-300 transition hover:bg-indigo-500/25 hover:text-indigo-100"
+          >
+            <ChevronDown size={12} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Select({ className, style, children, value, onChange, disabled, required, placeholder, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { placeholder?: string }) {
@@ -157,8 +215,9 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block space-y-1">
-      <span className="text-xs font-medium text-slate-300">{label}</span>
+    <label className="block">
+      {/* pl-4 lines the label up with the text inside the control below it. */}
+      <span className="mb-1.5 block pl-4 text-xs font-medium tracking-wide text-slate-400">{label}</span>
       {children}
     </label>
   );
