@@ -1,0 +1,187 @@
+/* ==========================================================================
+   Theme tokens — greenish palette + light/dark mode
+   --------------------------------------------------------------------------
+   This file is the SINGLE SOURCE OF TRUTH for the colour tokens. It is
+   imported by index.css (app styles) and inlined into the print preview
+   document (see src/lib/printTemplate.ts) so the preview window always
+   matches the site theme.
+
+   The UI is styled with Tailwind's built-in colour utilities (e.g.
+   `bg-slate-900/60`, `text-slate-300`, `border-indigo-500`). Tailwind v4 emits
+   those as `var(--color-*)` / color-mix() over the same variables, so simply
+   redefining the variables below re-skins every screen at once.
+
+   Mapping used across the app:
+     slate-*    -> neutral canvas (dark = deep green-black, light = mint-white)
+     indigo-*   -> brand green (primary buttons, active nav, badges)
+     violet-*   -> brand green (focus rings, active/hover states)
+     fuchsia-*  -> teal (gradient mid-stop, glow shadows)
+     cyan-*     -> teal (gradient end, accents)
+     sky-*      -> teal (links)
+     emerald-*  -> success (stays green)
+     amber-*    -> warning
+     rose / pink -> danger
+   ========================================================================== */
+
+:root,
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ink: #ffffff;
+
+  /* neutral canvas (green-tinted dark) */
+  --color-slate-950: #04120b;
+  --color-slate-900: #0a1f14;
+  --color-slate-700: #1e4a34;
+  --color-slate-600: #2b6046;
+  --color-slate-500: #4d8467;
+  --color-slate-400: #8bb39c;
+  --color-slate-300: #c2d9ca;
+  --color-slate-200: #dcebe2;
+  --color-slate-100: #eef8f2;
+
+  /* brand green */
+  --color-indigo-100: #d1fae5;
+  --color-indigo-200: #a7f3d0;
+  --color-indigo-300: #6ee7b7;
+  --color-indigo-400: #34d399;
+  --color-indigo-500: #12b981;
+
+  --color-violet-200: #a7f3d0;
+  --color-violet-300: #6ee7b7;
+  --color-violet-400: #34d399;
+  --color-violet-500: #10b981;
+
+  /* teal accents / gradient stops */
+  --color-fuchsia-400: #2dd4bf;
+  --color-fuchsia-500: #14b8a6;
+  --color-cyan-300: #5eead4;
+  --color-cyan-400: #2dd4bf;
+  --color-cyan-500: #14b8a6;
+
+  /* info */
+  --color-sky-300: #99f6e4;
+  --color-sky-400: #5eead4;
+
+  /* success / warning / danger */
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-amber-300: #fcd34d;
+  --color-amber-500: #f59e0b;
+  --color-rose-200: #fecdd3;
+  --color-rose-300: #fda4af;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-pink-500: #ec4899;
+
+  /* surfaces */
+  --page-bg:
+    radial-gradient(1200px 700px at 85% -10%, rgba(16, 185, 129, 0.34), transparent 60%),
+    radial-gradient(900px 600px at 10% 110%, rgba(20, 184, 166, 0.26), transparent 60%),
+    linear-gradient(160deg, #04120b 0%, #071a11 55%, #05130d 100%),
+    #04120b;
+  --bubble-1: rgba(16, 185, 129, 0.55);
+  --bubble-2: rgba(20, 184, 166, 0.38);
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03));
+  --glass-border: rgba(255, 255, 255, 0.13);
+  --glass-shadow: 0 10px 40px -15px rgba(16, 185, 129, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  --glass-hover-shadow: 0 20px 50px -14px rgba(16, 185, 129, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  --glass-hover-border: rgba(52, 211, 153, 0.40);
+  --skel: rgba(255, 255, 255, 0.09);
+  --track: rgba(255, 255, 255, 0.08);
+  --scroll-track: rgba(10, 31, 20, 0.45);
+  --scroll-thumb: rgba(18, 185, 129, 0.45);
+  --scroll-thumb-hover: rgba(18, 185, 129, 0.75);
+  --field-bg: #0a1f14;
+  --field-text: #eef8f2;
+  --primary: #12b981;
+  --accent: #2dd4bf;
+  --bg: #04120b;
+  --surface: #0a1f14;
+  --surface-2: #0e2b1d;
+  --text: #eef8f2;
+  --muted: #8bb39c;
+  --border: #1e4a34;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+
+  --ink: #0b2417;
+
+  /* neutral canvas (green-tinted light = inverted lightness) */
+  --color-slate-950: #eef7f1;
+  --color-slate-900: #e2f1e8;
+  --color-slate-700: #b4d4c2;
+  --color-slate-600: #93bca6;
+  --color-slate-500: #5c8a70;
+  --color-slate-400: #456b55;
+  --color-slate-300: #223f2e;
+  --color-slate-200: #142e1e;
+  --color-slate-100: #0b2417;
+
+  /* brand green (darkened so it reads on a light canvas) */
+  --color-indigo-100: #064e3b;
+  --color-indigo-200: #065f46;
+  --color-indigo-300: #047857;
+  --color-indigo-400: #047857;
+  --color-indigo-500: #059669;
+
+  --color-violet-200: #065f46;
+  --color-violet-300: #047857;
+  --color-violet-400: #047857;
+  --color-violet-500: #059669;
+
+  /* teal accents — gradient stops stay saturated so white button text reads */
+  --color-fuchsia-400: #14b8a6;
+  --color-fuchsia-500: #0d9488;
+  --color-cyan-300: #0f766e;
+  --color-cyan-400: #14b8a6;
+  --color-cyan-500: #0d9488;
+
+  /* info */
+  --color-sky-300: #0f766e;
+  --color-sky-400: #0f766e;
+
+  /* success / warning / danger */
+  --color-emerald-300: #047857;
+  --color-emerald-400: #047857;
+  --color-emerald-500: #059669;
+  --color-amber-300: #b45309;
+  --color-amber-500: #d97706;
+  --color-rose-200: #9f1239;
+  --color-rose-300: #be123c;
+  --color-rose-400: #be123c;
+  --color-rose-500: #e11d48;
+  --color-pink-500: #db2777;
+
+  /* surfaces */
+  --page-bg:
+    radial-gradient(1200px 700px at 85% -10%, rgba(16, 185, 129, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 10% 110%, rgba(20, 184, 166, 0.16), transparent 60%),
+    linear-gradient(160deg, #f5fbf7 0%, #e9f6ee 55%, #f2fbf5 100%),
+    #f5fbf7;
+  --bubble-1: rgba(16, 185, 129, 0.22);
+  --bubble-2: rgba(20, 184, 166, 0.18);
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.62));
+  --glass-border: rgba(6, 95, 70, 0.14);
+  --glass-shadow: 0 10px 34px -18px rgba(6, 95, 70, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.55) inset;
+  --glass-hover-shadow: 0 20px 46px -18px rgba(6, 95, 70, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  --glass-hover-border: rgba(5, 150, 105, 0.38);
+  --skel: rgba(6, 95, 70, 0.11);
+  --track: rgba(6, 95, 70, 0.12);
+  --scroll-track: rgba(6, 95, 70, 0.08);
+  --scroll-thumb: rgba(5, 150, 105, 0.40);
+  --scroll-thumb-hover: rgba(5, 150, 105, 0.70);
+  --field-bg: #ffffff;
+  --field-text: #0b2417;
+  --primary: #059669;
+  --accent: #0d9488;
+  --bg: #f5fbf7;
+  --surface: #ffffff;
+  --surface-2: #e9f6ee;
+  --text: #0b2417;
+  --muted: #456b55;
+  --border: #b4d4c2;
+}
