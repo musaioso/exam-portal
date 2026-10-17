@@ -14,6 +14,14 @@ export default function Users() {
   };
   useEffect(() => { load(); }, []);
 
+  // Dashboard quick action lands on /users?new=1 — open the add-student form.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("new") === "1") {
+      window.history.replaceState({}, "", window.location.pathname);
+      setShow(true);
+    }
+  }, []);
+
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     await api.post("/users/students", form);

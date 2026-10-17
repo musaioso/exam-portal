@@ -151,6 +151,10 @@ export function Badge({ children, className }: { children: React.ReactNode; clas
   return <span className={cn("inline-block px-2 py-0.5 text-xs rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30", className)}>{children}</span>;
 }
 
+export function Skeleton({ className }: { className?: string }) {
+  return <div aria-hidden="true" className={cn("skeleton", className)} />;
+}
+
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block space-y-1">

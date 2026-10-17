@@ -41,6 +41,14 @@ export default function Questions() {
   };
 
   useEffect(() => { api.get("/subjects").then(r => setSubjects(r.data.subjects)); }, []);
+
+  // Dashboard quick action lands on /questions?new=1 — open the create form.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("new") === "1") {
+      window.history.replaceState({}, "", window.location.pathname);
+      setShowForm(true);
+    }
+  }, []);
   useEffect(() => {
     setSelectedChapter("");
     if (selectedSubject) api.get(`/subjects/${selectedSubject}/chapters`).then(r => setChapters(r.data.chapters));

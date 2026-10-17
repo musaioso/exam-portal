@@ -54,6 +54,14 @@ export default function Exams() {
   };
   useEffect(() => { load(); api.get("/subjects").then(r => setSubjects(r.data.subjects || [])); }, []);
 
+  // Dashboard quick action lands on /exams?new=1 — open the create form.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("new") === "1") {
+      window.history.replaceState({}, "", window.location.pathname);
+      setShowForm(true);
+    }
+  }, []);
+
   useEffect(() => {
     if (form.subjectIds.length) {
       api.get(`/questions?subject_ids=${subjectKey}`).then(r => setAvailableQs(r.data.questions || []));

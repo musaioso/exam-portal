@@ -91,6 +91,8 @@ html[data-theme="dark"] {
   --glass-shadow: 0 10px 40px -15px rgba(16, 185, 129, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
   --glass-hover-shadow: 0 20px 50px -14px rgba(16, 185, 129, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   --glass-hover-border: rgba(52, 211, 153, 0.40);
+  --skel: rgba(255, 255, 255, 0.09);
+  --track: rgba(255, 255, 255, 0.08);
   --scroll-track: rgba(10, 31, 20, 0.45);
   --scroll-thumb: rgba(18, 185, 129, 0.45);
   --scroll-thumb-hover: rgba(18, 185, 129, 0.75);
@@ -170,6 +172,8 @@ html[data-theme="light"] {
   --glass-shadow: 0 10px 34px -18px rgba(6, 95, 70, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.55) inset;
   --glass-hover-shadow: 0 20px 46px -18px rgba(6, 95, 70, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
   --glass-hover-border: rgba(5, 150, 105, 0.38);
+  --skel: rgba(6, 95, 70, 0.11);
+  --track: rgba(6, 95, 70, 0.12);
   --scroll-track: rgba(6, 95, 70, 0.08);
   --scroll-thumb: rgba(5, 150, 105, 0.40);
   --scroll-thumb-hover: rgba(5, 150, 105, 0.70);
@@ -272,7 +276,25 @@ body::after {
   .card-icon { transition: none !important; }
   .card-hover:hover { transform: none; }
   .card-hover:hover .card-icon { transform: none; }
+  .skeleton { animation: none; }
 }
+
+/* --------------------------------------------------------------------------
+   Dashboard helpers: loading skeletons and thin meter tracks.
+   The skeleton only pulses its opacity — no sweeping colour — to keep the
+   page calm and consistent with the card hover.
+   -------------------------------------------------------------------------- */
+.skeleton {
+  background: var(--skel);
+  border-radius: 0.75rem;
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.meter-track { background: var(--track); }
 
 /* Custom scrollbar — soft, bubbly */
 * {
