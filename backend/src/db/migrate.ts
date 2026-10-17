@@ -5,6 +5,9 @@ import { getDb, run, all, execScript } from "./database";
 // warmup can skip the whole schema script (see serverless.ts).
 export const SCHEMA_VERSION = "2";
 
+// NOTE: `pin` is a 4-digit code a student types after tapping their own name on
+// the sign-in page. It sits in the clear on purpose so the teacher can read it
+// back and hand it out again — only the admin/teacher endpoints ever return it.
 const SCHEMA = `
 PRAGMA foreign_keys = ON;
 
@@ -16,9 +19,6 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT NOT NULL CHECK (role IN ('admin','teacher','student')),
   grade TEXT,
   section TEXT,
-  -- Students sign in by picking their name and typing this 4-digit PIN, so the
-  -- teacher has to be able to read it back and hand it out again. It lives here
-  -- in the clear on purpose; only admin/teacher endpoints ever return it.
   pin TEXT,
   created_at INTEGER NOT NULL
 );

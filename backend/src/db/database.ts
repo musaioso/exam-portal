@@ -124,12 +124,23 @@ export async function get(db: AnyDb, sql: string, params: any[] = []): Promise<a
 // Runs a multi-statement script (used for the schema).
 export async function execScript(db: AnyDb, sql: string): Promise<void> {
   if (isRemote) {
-    const statements = sql.split(";").map((s) => s.trim()).filter(Boolean);
+    // libSQL executes one statement at a time, so split first — but strip
+    // comments before splitting, otherwise a `;` inside a comment would cut a
+    // statement in half (which is exactly how a schema comment once took the
+    // deployed API down).
+    const statements = stripComments(sql)
+      .split(";")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (statements.length) await db.batch(statements, "write");
     return;
   }
   db.exec(sql);
   schedulePersist();
+}
+
+function stripComments(sql: string): string {
+  return sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
 }
 
 export async function closeDb(): Promise<void> {
