@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { Button, Card, Input, Field, Select } from "../components/ui";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export default function Register() {
   const nav = useNavigate();
@@ -17,6 +18,9 @@ export default function Register() {
   };
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle compact />
+      </div>
       <Card className="w-full max-w-md">
         <h1 className="text-xl font-semibold mb-4">Create account</h1>
         <form onSubmit={onSubmit} className="space-y-3">

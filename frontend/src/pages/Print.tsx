@@ -527,14 +527,14 @@ export default function Print() {
           <button
             type="button"
             onClick={() => { setMode("exam"); }}
-            className={`px-3 py-1.5 rounded-xl border ${mode === "exam" ? "border-indigo-500 bg-indigo-500/15 text-indigo-200" : "border-slate-700 text-slate-300 hover:bg-white/5"}`}
+            className={`px-3 py-1.5 rounded-xl border ${mode === "exam" ? "border-indigo-500 bg-indigo-500/15 text-indigo-200" : "border-slate-700 text-slate-300 hover:bg-ink/5"}`}
           >
             From a ready exam
           </button>
           <button
             type="button"
             onClick={() => { setMode("manual"); setExam(null); setSelected([]); setTitle("Question Paper"); }}
-            className={`px-3 py-1.5 rounded-xl border ${mode === "manual" ? "border-indigo-500 bg-indigo-500/15 text-indigo-200" : "border-slate-700 text-slate-300 hover:bg-white/5"}`}
+            className={`px-3 py-1.5 rounded-xl border ${mode === "manual" ? "border-indigo-500 bg-indigo-500/15 text-indigo-200" : "border-slate-700 text-slate-300 hover:bg-ink/5"}`}
           >
             Pick questions manually
           </button>

@@ -291,7 +291,7 @@ export default function Exams() {
               <div className="text-sm font-medium text-slate-300 mb-2">Subjects (multi-select) — selected {form.subjectIds.length}</div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {subjects.map(s => (
-                  <label key={s.id} className={`flex items-center gap-2 text-sm p-2 rounded-lg border cursor-pointer ${form.subjectIds.includes(s.id) ? "border-indigo-500 bg-indigo-500/10" : "border-slate-700 hover:bg-white/5"}`}>
+                  <label key={s.id} className={`flex items-center gap-2 text-sm p-2 rounded-lg border cursor-pointer ${form.subjectIds.includes(s.id) ? "border-indigo-500 bg-indigo-500/10" : "border-slate-700 hover:bg-ink/5"}`}>
                     <input type="checkbox" checked={form.subjectIds.includes(s.id)} onChange={() => toggleSubject(s.id)} />
                     <span className="truncate">{s.name}</span>
                   </label>
@@ -421,13 +421,13 @@ export default function Exams() {
                       onDragStart={() => (dragIndex.current = idx)}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={() => { if (dragIndex.current != null) moveSelected(dragIndex.current, idx); dragIndex.current = null; }}
-                      className="flex items-start gap-2 text-xs bg-white/5 rounded-lg p-2 cursor-grab active:cursor-grabbing"
+                      className="flex items-start gap-2 text-xs bg-ink/5 rounded-lg p-2 cursor-grab active:cursor-grabbing"
                     >
                       <GripVertical size={14} className="text-slate-500 mt-0.5 shrink-0" />
                       <span className="flex-1 line-clamp-2">{idx + 1}. {q.prompt}</span>
                       <div className="flex items-center gap-1 shrink-0">
-                        <button type="button" onClick={() => moveSelected(idx, idx - 1)} className="text-slate-400 hover:text-white" title="Move up"><ArrowUp size={13} /></button>
-                        <button type="button" onClick={() => moveSelected(idx, idx + 1)} className="text-slate-400 hover:text-white" title="Move down"><ArrowDown size={13} /></button>
+                        <button type="button" onClick={() => moveSelected(idx, idx - 1)} className="text-slate-400 hover:text-ink" title="Move up"><ArrowUp size={13} /></button>
+                        <button type="button" onClick={() => moveSelected(idx, idx + 1)} className="text-slate-400 hover:text-ink" title="Move down"><ArrowDown size={13} /></button>
                         <button type="button" onClick={() => toggleQ(q.id)} className="text-rose-300 hover:text-rose-200" title="Remove"><X size={14} /></button>
                       </div>
                     </div>

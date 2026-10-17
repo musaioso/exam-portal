@@ -10,9 +10,9 @@ export function Button({ className, variant="primary", ...props }: React.ButtonH
   const base = "inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95";
   const v: Record<string,string> = {
     primary: "bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 text-white shadow-lg shadow-fuchsia-500/30 hover:shadow-xl hover:shadow-fuchsia-400/40 hover:-translate-y-0.5",
-    ghost: "hover:bg-white/10 text-slate-200",
+    ghost: "hover:bg-ink/10 text-slate-200",
     danger: "bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-500/30",
-    outline: "border border-slate-600/70 hover:bg-white/10 text-slate-200 hover:border-violet-400/60",
+    outline: "border border-slate-600/70 hover:bg-ink/10 text-slate-200 hover:border-violet-400/60",
   };
   return <button className={cn(base, v[variant], className)} {...props} />;
 }
@@ -120,7 +120,7 @@ export function Select({ className, style, children, value, onChange, disabled, 
                 onClick={() => handleSelect(o.value)}
                 className={cn(
                   "w-full flex items-center justify-between gap-2 text-left px-3 py-2 text-sm transition",
-                  active ? "bg-violet-500/25 text-violet-200" : "text-slate-200 hover:bg-white/10"
+                  active ? "bg-violet-500/25 text-violet-200" : "text-slate-200 hover:bg-ink/10"
                 )}
               >
                 <span className="truncate">{o.label}</span>

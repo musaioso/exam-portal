@@ -8,6 +8,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Serif+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>MCQ Studio</title>
+    <script>
+      // Apply the saved theme before first paint to avoid a flash. The site is
+      // dark-first; once the user picks a mode with the toggle it is remembered.
+      (function () {
+        try {
+          var saved = localStorage.getItem("mcq_theme");
+          var theme = saved === "light" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", theme);
+          document.documentElement.style.colorScheme = theme;
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

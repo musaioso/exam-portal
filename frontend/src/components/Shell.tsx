@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
 import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap } from "lucide-react";
+import { ThemeToggle } from "./ThemeToggle";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin","teacher","student"] },
@@ -31,14 +32,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
           const Icon = n.icon;
           const active = loc.pathname.startsWith(n.to);
           return (
-            <Link key={n.to} to={n.to} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition ${active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-white/5"}`}>
+            <Link key={n.to} to={n.to} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition ${active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-ink/10"}`}>
               <Icon size={17} /> {n.label}
             </Link>
           );
         })}
-        <div className="mt-auto pt-4 border-t border-slate-700/50">
-          <div className="text-xs text-slate-400 px-2 mb-2">{user?.name}<br/><span className="text-slate-500">{user?.role}</span></div>
-          <button onClick={() => { logout(); nav("/login"); }} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-white/5 w-full">
+        <div className="mt-auto pt-4 border-t border-slate-700/50 space-y-1">
+          <ThemeToggle />
+          <div className="text-xs text-slate-400 px-2 py-1.5">{user?.name}<br/><span className="text-slate-500">{user?.role}</span></div>
+          <button onClick={() => { logout(); nav("/login"); }} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-ink/10 w-full">
             <LogOut size={17} /> Logout
           </button>
         </div>

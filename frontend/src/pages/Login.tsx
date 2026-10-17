@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
 import { Button, Card, Input, Field } from "../components/ui";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export default function Login() {
   const { login } = useAuth();
@@ -21,6 +22,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle compact />
+      </div>
       <Card className="w-full max-w-md">
         <div className="text-center mb-6">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center text-2xl font-bold mb-3">M</div>
