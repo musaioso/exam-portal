@@ -159,7 +159,7 @@ export default function Results() {
         {isTeacher && <div className="text-xs text-slate-500">{attempts.length} attempt{attempts.length === 1 ? "" : "s"}</div>}
       </div>
 
-      {error && <Card className="border border-rose-500/40 text-rose-300 text-sm">{error}</Card>}
+      {error && <Card hover={false} className="border border-rose-500/40 text-rose-300 text-sm">{error}</Card>}
 
       {isTeacher && (
         <Card className="space-y-3">

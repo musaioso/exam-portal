@@ -17,8 +17,8 @@ export function Button({ className, variant="primary", ...props }: React.ButtonH
   return <button className={cn(base, v[variant], className)} {...props} />;
 }
 
-export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn("glass rounded-2xl p-6 shadow-xl", className)}>{children}</div>;
+export function Card({ className, children, hover = true }: { className?: string; children: React.ReactNode; hover?: boolean }) {
+  return <div className={cn("glass rounded-2xl p-6 shadow-xl", hover && "card-hover", className)}>{children}</div>;
 }
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {

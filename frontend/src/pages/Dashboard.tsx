@@ -47,7 +47,7 @@ const cards = isStudent
                   <div className="text-xs text-slate-400">{c.label}</div>
                   <div className="text-3xl font-bold mt-1">{c.value}</div>
                 </div>
-                <Icon size={28} className={c.color} />
+                <Icon size={28} className={`card-icon ${c.color}`} />
               </div>
             </Card>
           );

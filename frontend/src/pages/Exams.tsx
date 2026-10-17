@@ -480,7 +480,7 @@ export default function Exams() {
           );
         })}
         {exams.filter(e => isTeacher || e.is_published).length === 0 && (
-          <Card className="text-sm text-slate-400 flex items-center gap-2"><FileText size={16}/> No exams yet.</Card>
+          <Card hover={false} className="text-sm text-slate-400 flex items-center gap-2"><FileText size={16}/> No exams yet.</Card>
         )}
       </div>
     </div>

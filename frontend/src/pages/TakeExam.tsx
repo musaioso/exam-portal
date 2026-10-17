@@ -95,7 +95,7 @@ export default function TakeExam() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <Card className="sticky top-0 z-10 !p-4 space-y-2">
+      <Card hover={false} className="sticky top-0 z-10 !p-4 space-y-2">
         <div className="flex items-center justify-between">
           <div>
             <div className="font-semibold">{exam.title}</div>
