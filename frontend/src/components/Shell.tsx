@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
 import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { StorageWarning } from "./StorageWarning";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin","teacher","student"] },
@@ -45,7 +46,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto p-6">{children}</main>
+      <main className="flex-1 overflow-auto p-6">
+        <StorageWarning className="mb-6" />
+        {children}
+      </main>
     </div>
   );
 }

@@ -26,6 +26,14 @@ const REMOTE_TOKEN = process.env.TURSO_AUTH_TOKEN || process.env.LIBSQL_AUTH_TOK
 export const isRemote = !!REMOTE_URL && !REMOTE_URL.startsWith("file:");
 const IN_MEMORY = !isRemote && (!!process.env.VERCEL || process.env.DB_IN_MEMORY === "1");
 
+// Where the data actually lives right now. `memory` means we fell back to an
+// ephemeral in-process database, so everything written is thrown away on
+// restart — reported by /api/health so the UI can warn instead of silently
+// losing the user's work.
+export type StorageKind = "remote" | "file" | "memory";
+export const storage: StorageKind = isRemote ? "remote" : IN_MEMORY ? "memory" : "file";
+export const isPersistent = storage !== "memory";
+
 type AnyDb = any;
 
 let remoteClient: AnyDb = null;

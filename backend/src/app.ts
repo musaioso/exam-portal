@@ -7,6 +7,7 @@ import examsRouter from "./routes/exams";
 import usersRouter from "./routes/users";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
+import { storage, isPersistent } from "./db/database";
 
 function createApp() {
   const app = express();
@@ -52,7 +53,11 @@ function createApp() {
       });
   });
 
-  app.get("/api/health", (_req, res) => res.json({ ok: true }));
+  // `db`/`persistent` let the UI warn when the server fell back to an
+  // ephemeral in-memory database (i.e. TURSO_DATABASE_URL is not configured).
+  app.get("/api/health", (_req, res) =>
+    res.json({ ok: true, db: storage, persistent: isPersistent })
+  );
 
   app.use("/api/auth", authRouter);
   app.use("/api/subjects", subjectsRouter);
