@@ -146,23 +146,40 @@ export function buildPrintHtml(data: PrintData): string {
         .settings input[type=text], .settings input[type=number], .settings select, .settings textarea {
           width: 100%; padding: 8px 12px; border-radius: 1rem; border: 1px solid var(--border); background: var(--field-bg); color: var(--field-text); font-size: 13px; font-family: inherit;
         }
-        /* Native selects + dropdown popups follow the theme, with the same
-           rules as index.css so they match the app exactly in both modes:
-           themed chevron, app-matched padding, themed popup options. */
-        .settings select {
-          appearance: none;
-          -webkit-appearance: none;
-          padding: 10px 34px 10px 14px;
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238bb39c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-          background-repeat: no-repeat;
-          background-position: right 12px center;
-          background-size: 14px 14px;
+        /* Dropdowns: the native select is visually hidden (kept for its state
+           and the input bindings) and replaced by the site's own dropdown
+           design — same rounded-2xl button, rotating chevron and portal-style
+           menu — so the open menu is ours, not the browser's OS-styled popup. */
+        .settings select.tselect-native { position: absolute; inset: 0; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+        .tselect { position: relative; }
+        .tselect-btn {
+          width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+          background: color-mix(in srgb, var(--color-slate-900) 60%, transparent);
+          border: 1px solid color-mix(in srgb, var(--color-slate-600) 70%, transparent);
+          border-radius: 1rem; padding: 10px 36px 10px 16px; font-size: 14px; text-align: left;
+          color: var(--color-slate-100); cursor: pointer;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
-        html[data-theme="light"] .settings select {
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23456b55' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        .tselect-btn:hover { border-color: var(--color-violet-400); }
+        .tselect-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-violet-500) 70%, transparent); }
+        .tselect.open .tselect-btn { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-violet-500) 70%, transparent); }
+        .tselect-btn .chev { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--color-slate-400); pointer-events: none; transition: transform 0.2s ease; }
+        .tselect.open .chev { transform: translateY(-50%) rotate(180deg); }
+        .tselect-menu {
+          position: fixed; z-index: 100001; max-height: 16rem; overflow: auto;
+          border-radius: 0.75rem; border: 1px solid color-mix(in srgb, var(--color-slate-600) 80%, transparent);
+          background: color-mix(in srgb, var(--color-slate-900) 98%, transparent);
+          backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); padding: 4px 0;
         }
-        .settings option, .settings optgroup { background-color: var(--field-bg); color: var(--field-text); color-scheme: dark; }
-        html[data-theme="light"] .settings option, html[data-theme="light"] .settings optgroup { color-scheme: light; }
+        .tselect-opt {
+          width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+          text-align: left; padding: 8px 12px; font-size: 14px; cursor: pointer;
+          background: none; border: 0; color: var(--color-slate-200); transition: background-color 0.15s ease;
+        }
+        .tselect-opt:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+        .tselect-opt.active { background: color-mix(in srgb, var(--color-violet-500) 25%, transparent); color: var(--color-violet-200); }
+        .tselect-opt .tick { color: var(--color-violet-300); font-size: 12px; }
         /* Themed stepper replacing the native (unthemeable) spin buttons. */
         .settings input[type=number] { -moz-appearance: textfield; appearance: textfield; }
         .settings input[type=number]::-webkit-outer-spin-button,
@@ -275,6 +292,7 @@ export function buildPrintHtml(data: PrintData): string {
           body::before, body::after { display: none !important; }
           .app { display: block; height: auto; }
           .settings { display: none !important; }
+          .tselect-menu { display: none !important; }
           .stage { overflow: visible; padding: 0; }
           .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
         }
@@ -564,6 +582,98 @@ export function buildPrintHtml(data: PrintData): string {
           }
           document.getElementById('fs-minus').addEventListener('click', function(){ nudge(-0.5); });
           document.getElementById('fs-plus').addEventListener('click', function(){ nudge(0.5); });
+        })();
+        (function(){
+          /* Custom dropdowns replicating the site's own Select component: the
+             native select is visually hidden (kept for its value and the bind()
+             listeners) and replaced by a themed button opening a portal-style
+             listbox, so the open menu is ours instead of the browser's
+             OS-styled popup. */
+          var tselects = [];
+          function enhanceSelect(sel){
+            var wrap = document.createElement('div');
+            wrap.className = 'tselect';
+            /* Grab the field label while the select is still in place — it is
+               the accessible name of the custom button. */
+            var prev = sel.previousElementSibling;
+            var label0 = prev && prev.tagName === 'LABEL' ? prev.textContent.trim() : '';
+            sel.parentNode.insertBefore(wrap, sel);
+            wrap.appendChild(sel);
+            sel.classList.add('tselect-native');
+            /* The hidden select leaves the tab order — the button below is the
+               real, focusable control (same as the site's Select component). */
+            sel.tabIndex = -1;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'tselect-btn';
+            btn.setAttribute('aria-haspopup', 'listbox');
+            btn.setAttribute('aria-expanded', 'false');
+            if (label0) btn.setAttribute('aria-label', label0);
+            btn.innerHTML = '<span class="tselect-label"></span><svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+            wrap.appendChild(btn);
+            var label = btn.querySelector('.tselect-label');
+            var menu = null;
+            function syncLabel(){
+              var o = sel.options[sel.selectedIndex];
+              label.textContent = o ? o.textContent : '';
+            }
+            function close(){
+              if (menu){ menu.remove(); menu = null; }
+              wrap.classList.remove('open');
+              btn.setAttribute('aria-expanded', 'false');
+            }
+            function open(){
+              var r = btn.getBoundingClientRect();
+              menu = document.createElement('div');
+              menu.className = 'tselect-menu';
+              menu.setAttribute('role', 'listbox');
+              menu.style.top = (r.bottom + 4) + 'px';
+              menu.style.left = r.left + 'px';
+              menu.style.width = r.width + 'px';
+              for (var i = 0; i < sel.options.length; i++){
+                (function(o, idx){
+                  var b = document.createElement('button');
+                  b.type = 'button';
+                  b.setAttribute('role', 'option');
+                  var active = idx === sel.selectedIndex;
+                  b.className = 'tselect-opt' + (active ? ' active' : '');
+                  b.innerHTML = '<span class="to-label"></span>' + (active ? '<span class="tick">&#10003;</span>' : '');
+                  b.querySelector('.to-label').textContent = o.textContent;
+                  b.addEventListener('click', function(){
+                    sel.value = o.value;
+                    sel.dispatchEvent(new Event('input', { bubbles: true }));
+                    syncLabel();
+                    close();
+                  });
+                  menu.appendChild(b);
+                })(sel.options[i], i);
+              }
+              document.body.appendChild(menu);
+              var mr = menu.getBoundingClientRect();
+              if (mr.bottom > window.innerHeight - 8 && r.top - 4 > mr.height){
+                menu.style.top = (r.top - mr.height - 4) + 'px';
+              }
+              wrap.classList.add('open');
+              btn.setAttribute('aria-expanded', 'true');
+            }
+            btn.addEventListener('click', function(e){
+              e.stopPropagation();
+              if (menu) close(); else open();
+            });
+            tselects.push({ wrap: wrap, close: close, menu: function(){ return menu; } });
+            syncLabel();
+          }
+          var sels = document.querySelectorAll('.settings select');
+          for (var i = 0; i < sels.length; i++) enhanceSelect(sels[i]);
+          document.addEventListener('mousedown', function(e){
+            tselects.forEach(function(t){
+              var m = t.menu();
+              if (t.wrap.classList.contains('open') && !t.wrap.contains(e.target) && !(m && m.contains(e.target))) t.close();
+            });
+          });
+          document.addEventListener('keydown', function(e){
+            if (e.key === 'Escape') tselects.forEach(function(t){ t.close(); });
+          });
         })();
         document.getElementById('printBtn').addEventListener('click', function(){
           if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function(){ window.print(); }); }
