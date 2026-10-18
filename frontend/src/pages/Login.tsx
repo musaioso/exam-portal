@@ -286,7 +286,7 @@ function StudentSignIn() {
       ) : students.length === 0 ? (
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-5 text-center">
           <p className="text-sm font-medium text-amber-200">এখনো কোনো ছাত্র যোগ করা হয়নি</p>
-          <p className="mt-1 text-xs leading-relaxed text-amber-200/80">
+          <p className="mt-1 text-xs leading-relaxed text-amber-200/90">
             শিক্ষক <b>Add Student</b> থেকে শুধু নাম আর ক্লাস দিয়ে ছাত্র যোগ করবেন — তারপর এখানে নাম দেখা যাবে।
           </p>
         </div>
