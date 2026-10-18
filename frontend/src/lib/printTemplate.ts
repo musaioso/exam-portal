@@ -104,7 +104,7 @@ export function buildPrintHtml(data: PrintData): string {
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <style>${themeCss}</style>
       <style>
-        @page { size: A4; margin: 0.5in 0.5in 0.15in 0.5in; }
+        @page { size: A4; margin: 12mm 12.7mm 11mm; }
         * { box-sizing: border-box; }
         html, body { margin: 0; }
         body {
@@ -280,47 +280,59 @@ export function buildPrintHtml(data: PrintData): string {
         .tog { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; font-size: 12px; }
         .tog label { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--color-slate-300); font-size: 12px; }
         .hint { font-size: 11px; color: var(--color-slate-500); margin-top: 10px; line-height: 1.5; }
+        .pginfo { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--color-slate-300); }
         .stage { overflow: auto; padding: 18px; position: relative; z-index: 1; }
-        .sheet { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #000; padding: 12.7mm 12.7mm 3.81mm; box-shadow: 0 4px 24px rgba(0,0,0,.5); }
-        .paper { font-family: "Noto Serif Bengali", "Plus Jakarta Sans", "Nirmala UI", serif; font-size: var(--fs, 9pt); line-height: 1.22; color: #000; }
-        .header { margin-bottom: 1px; }
-        .header .hrow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0 4mm; align-items: baseline; }
+        /* Screen sheet padding mirrors the @page margins exactly, so the preview
+           and the printed page share the same column width and line breaks. */
+        .sheet { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #000; padding: 12mm 12.7mm 11mm; box-shadow: 0 4px 24px rgba(0,0,0,.5); }
+        /* One type scale: every size below is relative to --fs, so the font-size
+           control grows the whole sheet (headings, marks, answer key) evenly.
+           Bangla carries matras above and below, hence the 1.35 leading. */
+        .paper { font-family: "Noto Serif Bengali", "Plus Jakarta Sans", "Nirmala UI", serif; font-size: var(--fs, 11pt); line-height: 1.35; color: #000; }
+        .header { margin-bottom: 1.6mm; }
+        .header .hrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr); gap: 0 4mm; align-items: baseline; }
         .header .hleft { text-align: left; }
-        .header .hcenter { text-align: center; }
+        .header .hcenter { text-align: center; min-width: 0; }
         .header .hright { text-align: right; }
-        .header .h-school { font-size: 12.5pt; font-weight: 700; line-height: 1.05; }
-        .header .h-title { font-size: 9.5pt; line-height: 1.1; }
-        .header .h-subject { font-size: 8.5pt; line-height: 1.1; }
-        .header .h-subject .h-per { color: #444; }
-        .header .hline { font-size: 9pt; line-height: 1.2; white-space: nowrap; }
+        .header .h-school { font-size: 1.3em; font-weight: 700; line-height: 1.08; overflow-wrap: break-word; }
+        .header .h-title { font-size: 1.05em; font-weight: 600; line-height: 1.14; overflow-wrap: break-word; }
+        .header .h-subject { font-size: 0.98em; line-height: 1.14; overflow-wrap: break-word; }
+        .header .h-subject .h-per { color: #333; }
+        .header .hline { font-size: 0.98em; line-height: 1.3; white-space: nowrap; }
         .header .hline.hwrap { white-space: normal; }
         .header .hleft .f-name { min-width: 22mm; }
         .header .hleft .f-small { min-width: 15mm; }
         .header .hright .f-date { min-width: 18mm; }
-        .header .rule { border-bottom: 1.2px solid #000; margin-top: 1px; }
+        .header .rule { border-bottom: 1.2px solid #000; margin-top: 1.5mm; }
         .fill { border-bottom: 1px dotted #555; display: inline-block; min-width: 60px; }
-        .instructions { border: 1px solid #999; border-radius: 3px; padding: 2px 5px; font-size: 8pt; margin: 0 0 3px; background: #fafafa; }
-        .qcol { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 1.4mm 6mm; align-items: start; }
-        .section { font-size: 11pt; font-weight: 700; border-bottom: 1px solid #000; padding-bottom: 1px; margin: 5px 0 3px; break-after: avoid; }
+        .instructions { border: 1px solid #999; border-radius: 3px; padding: 3px 6px; font-size: 0.9em; line-height: 1.4; margin: 0 0 2mm; background: #fafafa; }
+        /* Multi-column flow: questions run down the left column and continue in
+           the right one (classic exam paper), with both columns kept balanced. */
+        .qcol { columns: var(--cols, 2); column-gap: 6mm; }
+        .section { font-size: 1.12em; font-weight: 700; border-bottom: 1px solid #000; padding-bottom: 1px; margin: 2mm 0 1.5mm; break-after: avoid; page-break-after: avoid; }
         .hdate-btn {
           margin-left: 6px; padding: 1px 6px; border-radius: 0.5rem; border: 1px solid #999; background: #f6f6f6; color: #000; font-size: 8px; cursor: pointer; vertical-align: middle; line-height: 1.2;
           box-shadow: 0 1px 0 rgba(0,0,0,0.04);
         }
         @media print { .hdate-btn { display: none !important; } }
-        .q { break-inside: avoid; page-break-inside: avoid; margin-bottom: 1.4mm; }
-        .qp { display: grid; grid-template-columns: auto 1fr auto; gap: 0 3px; align-items: start; }
-        .qno { font-weight: 700; }
-        .qmarks { white-space: nowrap; font-size: 8pt; color: #333; }
-        .options { margin-top: 1px; }
-        .options.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 4mm; }
-        .opt { display: grid; grid-template-columns: auto 1fr; gap: 3px; break-inside: avoid; page-break-inside: avoid; }
-        .optmark { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; border: 1px solid #000; border-radius: 50%; font-size: 7.5pt; line-height: 1; }
+        .q { break-inside: avoid; page-break-inside: avoid; margin-bottom: 2.2mm; }
+        .qp { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 1.6mm; align-items: start; }
+        .qno { font-weight: 700; min-width: 5.5mm; }
+        .qmarks { white-space: nowrap; font-size: 0.88em; color: #222; }
+        .options { margin-top: 0.8mm; }
+        .options.two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.4mm 4mm; }
+        .options.one-col .opt + .opt { margin-top: 0.4mm; }
+        .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 1.6mm; align-items: start; break-inside: avoid; page-break-inside: avoid; }
+        .opttext { overflow-wrap: break-word; }
+        /* The bubble scales with the body font, so it stays a comfortable
+           ~4mm tick target at 11pt and shrinks with the font-size control. */
+        .optmark { display: inline-flex; align-items: center; justify-content: center; width: 1.3em; height: 1.3em; margin-top: 0.12em; border: 1.2px solid #000; border-radius: 50%; font-size: 0.78em; line-height: 1; font-weight: 600; }
         .answers { break-before: page; page-break-before: always; margin-top: 4px; }
-        .answers h2 { font-size: 12pt; border-bottom: 1.2px solid #000; padding-bottom: 2px; margin: 0 0 5px; }
+        .answers h2 { font-size: 1.18em; border-bottom: 1.2px solid #000; padding-bottom: 2px; margin: 0 0 1.5mm; break-after: avoid; page-break-after: avoid; }
         .anscol { columns: 2; column-gap: 6mm; }
-        .a { font-size: 9pt; break-inside: avoid; page-break-inside: avoid; margin-bottom: 1.5mm; }
-        .ansubj { color: #555; font-size: 8pt; }
-        .exp { font-size: 8pt; color: #555; margin-left: 12px; }
+        .a { font-size: 0.98em; break-inside: avoid; page-break-inside: avoid; margin-bottom: 1.8mm; }
+        .ansubj { color: #444; font-size: 0.85em; }
+        .exp { font-size: 0.88em; color: #333; margin-left: 4mm; }
 
         /* Bubbly scrollbar, same as the site. */
         * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) var(--scroll-track); }
@@ -396,6 +408,7 @@ export function buildPrintHtml(data: PrintData): string {
           <button class="btn2" id="shuffleBtn">⇄ Shuffle options</button>
           <button class="btn2" id="resetBtn">↺ Reset option order</button>
           <button class="btn" id="printBtn">Print / Save PDF</button>
+          <div class="pginfo" id="pginfo"></div>
           <div class="hint">Chrome print dialog: Destination <b>Save as PDF</b>, Paper size <b>A4</b>, Margins <b>Default</b>.</div>
         </aside>
         <main class="stage"><div class="sheet"><div class="paper" id="paper"></div></div></main>
@@ -586,6 +599,39 @@ export function buildPrintHtml(data: PrintData): string {
           DATA.groups.forEach(function(g){ g.questions.forEach(function(q){ if (q._orig) q.options = q._orig.slice(); }); });
           render();
         }
+        /* Option layout, automatic: if any option wraps onto a second line in
+           the two-column grid it drops back to one column, so long Bangla
+           options keep a comfortable measure instead of a cramped one. */
+        function autoOptions(){
+          var lists = paper.querySelectorAll('.options.two-col');
+          for (var i = 0; i < lists.length; i++) {
+            var kids = lists[i].children, wraps = false;
+            for (var j = 0; j < kids.length; j++) {
+              var t = kids[j].querySelector ? kids[j].querySelector('.opttext') : null;
+              if (!t) continue;
+              var cs = window.getComputedStyle(t);
+              var lh = parseFloat(cs.lineHeight);
+              if (!(lh > 0)) lh = parseFloat(cs.fontSize) * 1.35;
+              if (t.getBoundingClientRect().height > lh * 1.45) { wraps = true; break; }
+            }
+            if (wraps) { lists[i].classList.remove('two-col'); lists[i].classList.add('one-col'); }
+          }
+        }
+        /* Rough A4 sheet count, shown in the settings panel. Both the questions
+           and the answer key are laid out in balanced columns, so half of their
+           on-screen height fills one printed page; the answer key always starts
+           on a fresh page, so it is counted on top. */
+        function updatePages(){
+          var out = document.getElementById('pginfo');
+          if (!out) return;
+          var MM = 96 / 25.4, pageH = 274 * MM;
+          function sheetsOf(h){ return Math.max(1, Math.ceil(h / pageH - 0.02)); }
+          var pr = paper.getBoundingClientRect();
+          var ann = document.querySelector('.answers');
+          var n = sheetsOf(ann ? (ann.getBoundingClientRect().top - pr.top) : pr.height);
+          if (ann) n += sheetsOf(ann.getBoundingClientRect().height);
+          out.textContent = 'This paper: about ' + n + (n > 1 ? ' A4 pages' : ' A4 page') + (ann ? ' (answer key included)' : '');
+        }
         function render(){
           paper.style.setProperty('--fs', S.fontSize + 'pt');
           paper.style.setProperty('--cols', S.columns);
@@ -614,6 +660,8 @@ export function buildPrintHtml(data: PrintData): string {
             html += '<div class="answers"><h2>Answer Key &amp; Mark Scheme</h2><div class="anscol">' + an + '</div></div>';
           }
           paper.innerHTML = html;
+          autoOptions();
+          updatePages();
           var pgs = document.getElementById('pagestyle');
           if (pgs) pgs.textContent = pageCss();
         }
@@ -904,6 +952,10 @@ export function buildPrintHtml(data: PrintData): string {
           if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function(){ window.print(); }); }
           else { window.print(); }
         });
+        /* Bengali webfonts arrive after first paint and can widen options, so
+           re-check the option layout and the sheet count once they are in. */
+        if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function(){ autoOptions(); updatePages(); }); }
+        window.addEventListener('resize', updatePages);
         render();
       </script>
       </body></html>`;

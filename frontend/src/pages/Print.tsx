@@ -149,7 +149,7 @@ export default function Print() {
       groups,
       defaults: {
         school, title, instructions,
-        columns, fontSize: 9, showHeader: true,
+        columns, fontSize: 11, showHeader: true,
         showMarks: includeMarks, showAnswers: includeAnswers,
         showInstructions, groupBySubject, labelStyle: "auto", numStyle: "auto",
         date: new Date().toLocaleDateString("en-GB"),
