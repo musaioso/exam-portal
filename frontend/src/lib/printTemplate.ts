@@ -146,12 +146,51 @@ export function buildPrintHtml(data: PrintData): string {
         .settings input[type=text], .settings input[type=number], .settings select, .settings textarea {
           width: 100%; padding: 8px 12px; border-radius: 1rem; border: 1px solid var(--border); background: var(--field-bg); color: var(--field-text); font-size: 13px; font-family: inherit;
         }
+        /* Native dropdown popup follows the theme (same as index.css). */
+        .settings option, .settings optgroup { background-color: var(--field-bg); color: var(--field-text); }
+        /* Themed stepper replacing the native (unthemeable) spin buttons. */
+        .settings input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+        .settings input[type=number]::-webkit-outer-spin-button,
+        .settings input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .stepper { display: flex; align-items: stretch; gap: 6px; }
+        .stepper input { flex: 1; min-width: 0; text-align: center; }
+        .step {
+          width: 34px; flex: none; border: 1px solid var(--border); border-radius: 1rem;
+          background: var(--surface-2); color: var(--text); font-weight: 700; font-size: 14px; cursor: pointer;
+          transition: border-color 0.2s ease, filter 0.2s ease;
+        }
+        .step:hover { border-color: var(--color-violet-400); filter: brightness(1.12); }
         .settings input:focus, .settings select:focus, .settings textarea:focus {
           outline: none; border-color: var(--color-violet-500); box-shadow: 0 0 0 2px var(--color-violet-500);
         }
         .settings .row { display: flex; align-items: center; gap: 8px; margin: 7px 0; font-size: 13px; color: var(--color-slate-300); }
         .settings .row input { width: auto; }
-        .settings input[type=checkbox] { accent-color: var(--primary); }
+        .settings .row label, .settings .tog label { cursor: pointer; }
+        /* Tick boxes: same skin as the app (index.css), curved a little more.
+           appearance:none removes the OS focus rectangle that used to stay
+           after a click; the tick is the brand green on the themed field bg. */
+        .settings input[type=checkbox] {
+          appearance: none;
+          -webkit-appearance: none;
+          width: 16px;
+          height: 16px;
+          flex: none;
+          border: 1.5px solid var(--color-slate-600);
+          border-radius: 0.5rem;
+          background-color: var(--field-bg);
+          background-repeat: no-repeat;
+          background-position: center;
+          background-size: 0.75rem 0.75rem;
+          cursor: pointer;
+          transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .settings input[type=checkbox]:hover { border-color: var(--color-indigo-400); }
+        .settings input[type=checkbox]:checked {
+          background-color: var(--color-indigo-500);
+          border-color: var(--color-indigo-500);
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ffffff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.4 8.6l3 3 6.2-7'/%3E%3C/svg%3E");
+        }
+        .settings input[type=checkbox]:focus, .settings input[type=checkbox]:focus-visible { outline: none; box-shadow: none; }
         .settings .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .btn {
           width: 100%; margin-top: 14px; padding: 10px 12px; border: 0; border-radius: 1rem;
@@ -234,7 +273,7 @@ export function buildPrintHtml(data: PrintData): string {
           <label>Date</label><input type="text" id="f-date">
           <div class="grid2">
             <div><label>Columns</label><select id="f-cols"><option value="2">2 columns</option><option value="1">1 column</option></select></div>
-            <div><label>Font size (pt)</label><input type="number" id="f-fs" min="7" max="14" step="0.5"></div>
+            <div><label>Font size (pt)</label><div class="stepper"><button type="button" class="step" id="fs-minus" aria-label="Decrease font size">&minus;</button><input type="number" id="f-fs" min="7" max="14" step="0.5"><button type="button" class="step" id="fs-plus" aria-label="Increase font size">+</button></div></div>
           </div>
           <label>Option labels</label>
           <select id="f-labels"><option value="auto">Auto (Bangla ক, English a)</option><option value="bangla">ক খ গ ঘ</option><option value="english">a b c d</option></select>
@@ -498,6 +537,19 @@ export function buildPrintHtml(data: PrintData): string {
         bind('f-pagenumfmt', 'pageNumFmt', 'sel');
         document.getElementById('shuffleBtn').addEventListener('click', function(){ shuffleAll(); });
         document.getElementById('resetBtn').addEventListener('click', function(){ resetOrder(); });
+        (function(){
+          /* Themed +/- buttons replace the native number spinners; they drive
+             the same field, so the existing input binding re-renders. */
+          var fsField = document.getElementById('f-fs');
+          function nudge(delta){
+            var min = Number(fsField.min), max = Number(fsField.max);
+            var v = Number(fsField.value) + delta;
+            fsField.value = Math.min(max, Math.max(min, v));
+            fsField.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          document.getElementById('fs-minus').addEventListener('click', function(){ nudge(-0.5); });
+          document.getElementById('fs-plus').addEventListener('click', function(){ nudge(0.5); });
+        })();
         document.getElementById('printBtn').addEventListener('click', function(){
           if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function(){ window.print(); }); }
           else { window.print(); }
