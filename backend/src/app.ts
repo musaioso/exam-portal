@@ -8,7 +8,7 @@ import usersRouter from "./routes/users";
 import backupRouter from "./routes/backup";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
-import { storage, isPersistent, getDb, get, all } from "./db/database";
+import { storage, isPersistent, dbLabel, getDb, get, all } from "./db/database";
 
 function createApp() {
   const app = express();
@@ -55,9 +55,11 @@ function createApp() {
   });
 
   // `db`/`persistent` let the UI warn when the server fell back to an
-  // ephemeral in-memory database (i.e. TURSO_DATABASE_URL is not configured).
+  // ephemeral in-memory database (i.e. no database URL is configured).
+  // `dbName` names the database host we landed on, so a silent database swap
+  // (e.g. a deployment-scoped Turso database) is immediately visible.
   app.get("/api/health", (_req, res) =>
-    res.json({ ok: true, db: storage, persistent: isPersistent })
+    res.json({ ok: true, db: storage, persistent: isPersistent, dbName: dbLabel })
   );
 
   // TEMPORARY diagnostic — remove after debugging. Reports which database the

@@ -16,12 +16,22 @@ import path from "path";
 //    configured, on serverless (in-memory, i.e. ephemeral) so the app still
 //    runs.
 const DB_PATH = path.resolve(process.cwd(), process.env.DB_PATH || "data/mcq.db");
-const RAW_REMOTE_URL = process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL || "";
+// Which database we talk to. `MCQ_DATABASE_URL`/`MCQ_AUTH_TOKEN` win on purpose:
+// Vercel's Turso integration injects a *deployment-scoped* TURSO_DATABASE_URL
+// (a brand-new, empty database per deployment), which silently wiped all data
+// on every deploy. Names the integration does not manage are never overwritten,
+// so the app always lands on the same permanent database.
+const RAW_REMOTE_URL =
+  process.env.MCQ_DATABASE_URL || process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL || "";
 // Turso's HTTP API supports both `turso://` and `libsql://` databases, but the
 // libSQL client only understands `libsql:`/`https:`/`http:`. Normalise either
 // scheme to `https://` so one client works for every Turso database.
 const REMOTE_URL = RAW_REMOTE_URL.replace(/^(turso|libsql):\/\//, "https://");
-const REMOTE_TOKEN = process.env.TURSO_AUTH_TOKEN || process.env.LIBSQL_AUTH_TOKEN || undefined;
+const REMOTE_TOKEN =
+  process.env.MCQ_AUTH_TOKEN ||
+  process.env.TURSO_AUTH_TOKEN ||
+  process.env.LIBSQL_AUTH_TOKEN ||
+  undefined;
 
 export const isRemote = !!REMOTE_URL && !REMOTE_URL.startsWith("file:");
 const IN_MEMORY = !isRemote && (!!process.env.VERCEL || process.env.DB_IN_MEMORY === "1");
@@ -33,6 +43,22 @@ const IN_MEMORY = !isRemote && (!!process.env.VERCEL || process.env.DB_IN_MEMORY
 export type StorageKind = "remote" | "file" | "memory";
 export const storage: StorageKind = isRemote ? "remote" : IN_MEMORY ? "memory" : "file";
 export const isPersistent = storage !== "memory";
+
+// Short, human-readable label of the database host (e.g. `db-mcq`, or a
+// deployment-scoped `dpl-…` when the Turso integration takes over). Surfaced by
+// /api/health so a database swap is visible at a glance instead of silent.
+export const dbLabel = !REMOTE_URL
+  ? "none"
+  : !isRemote
+    ? "file"
+    : (() => {
+        try {
+          const host = new URL(REMOTE_URL).hostname;
+          return host.split(".")[0].replace(/-vercel-icfg-.*$/i, "") || "unknown";
+        } catch {
+          return "invalid";
+        }
+      })();
 
 type AnyDb = any;
 
