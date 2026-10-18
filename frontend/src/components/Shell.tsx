@@ -23,7 +23,41 @@ export function Shell({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen">
       <aside className="w-64 border-r border-slate-700/50 p-4 flex flex-col gap-1 bg-slate-900/40 backdrop-blur">
         <div className="flex items-center gap-2 px-2 py-3 mb-2">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-400 flex items-center justify-center font-bold">M</div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="48"
+            height="48"
+            viewBox="0 0 48 48"
+            className="h-9 w-9 shrink-0"
+          >
+            <defs>
+              <linearGradient id="logo-grad-shell" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#12b981" />
+                <stop offset="1" stopColor="#2dd4bf" />
+              </linearGradient>
+            </defs>
+            <circle cx="24" cy="24" r="24" fill="url(#logo-grad-shell)" />
+            <path
+              d="M14 32V16c0-2.2 1.8-4 4-4h12c2.2 0 4 1.8 4 4v16l-8-4-8 4z"
+              fill="white"
+              opacity="0.95"
+            />
+            <path
+              d="M18 20h12M18 24h8"
+              stroke="#059669"
+              strokeWidth="2"
+              strokeLinecap="round"
+              opacity="0.8"
+            />
+            <circle cx="32" cy="32" r="6" fill="#34d399" />
+            <path
+              d="M30 32l1.5 1.5 2.5-2.5"
+              stroke="white"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
           <div>
             <div className="font-semibold text-sm">MCQ Studio</div>
             <div className="text-[10px] text-slate-400">NCTB 2025 · English Version</div>
