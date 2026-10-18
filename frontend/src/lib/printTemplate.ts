@@ -89,6 +89,21 @@ export interface PrintDefaults {
   showPageNo: boolean;
   pageNumPos: string;
   pageNumFmt: string;
+  /* Space & look controls owned by the preview only (the Print page does not
+     send them, so the preview falls back to its own DEF values below, then to
+     the device's saved prefs). */
+  marginTop?: number;
+  marginRight?: number;
+  marginBottom?: number;
+  marginLeft?: number;
+  fontFamily?: string;
+  lineHeight?: number;
+  qgap?: number;
+  cgap?: number;
+  ansCols?: number;
+  showExplanation?: boolean;
+  qPageNo?: boolean;
+  showBreaks?: boolean;
 }
 
 export interface PrintData {
@@ -135,7 +150,9 @@ export function buildPrintHtml(data: PrintData): string {
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <style>${themeCss}</style>
       <style>
-        @page { size: A4; margin: 12mm 12.7mm 11mm; }
+        /* The A4 content-box margins are emitted dynamically by pageCss() from
+           the sidebar controls; only the paper size is fixed here. */
+        @page { size: A4; }
         * { box-sizing: border-box; }
         html, body { margin: 0; }
         body {
@@ -307,19 +324,56 @@ export function buildPrintHtml(data: PrintData): string {
           transition: border-color 0.2s ease, filter 0.2s ease;
         }
         .btn2:hover { border-color: var(--color-violet-400); filter: brightness(1.12); }
+        /* Compact themed control row: Shuffle options / Shuffle questions /
+           Reset share one line instead of two full-width buttons. */
+        .btnrow { display: flex; gap: 6px; margin-top: 10px; }
+        .btnsm {
+          flex: 1 1 0; min-width: 0; padding: 8px 4px; border: 1px solid var(--border); border-radius: 1rem;
+          background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer;
+          display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;
+          transition: border-color 0.2s ease, filter 0.2s ease, transform 0.15s ease;
+        }
+        .btnsm:hover { border-color: var(--color-violet-400); filter: brightness(1.12); }
+        .btnsm:active { transform: scale(0.97); }
+        .settings .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .grid4 input { padding: 6px 4px; text-align: center; font-size: 12px; }
         .sect { font-size: 11px; font-weight: 700; color: var(--color-slate-300); margin: 12px 0 4px; border-top: 1px solid var(--glass-border); padding-top: 8px; }
         .tog { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; font-size: 12px; }
         .tog label { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--color-slate-300); font-size: 12px; }
         .hint { font-size: 11px; color: var(--color-slate-500); margin-top: 10px; line-height: 1.5; }
         .pginfo { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--color-slate-300); }
         .stage { overflow: auto; padding: 18px; position: relative; z-index: 1; }
-        /* Screen sheet padding mirrors the @page margins exactly, so the preview
-           and the printed page share the same column width and line breaks. */
-        .sheet { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #000; padding: 12mm 12.7mm 11mm; box-shadow: 0 4px 24px rgba(0,0,0,.5); }
+        /* ---- Real A4 pages ---------------------------------------------------
+           The sheet is a stack of EXACT A4 page boxes (.pg), each padded with
+           the chosen margins on screen and framed by the same @page margins
+           when printed, so what you see — including the break lines between
+           pages — is what the printer will do. Questions are packed into them
+           down-then-across by the renderer. */
+        .sheet { width: auto; min-height: 0; margin: 0 auto; }
+        .pg {
+          position: relative; width: 210mm; min-height: 297mm; margin: 0 auto;
+          background: #fff; color: #000; padding: var(--mT, 12mm) var(--mR, 12.7mm) var(--mB, 11mm) var(--mL, 12mm);
+          box-shadow: 0 4px 24px rgba(0,0,0,.5);
+        }
+        /* Guides off: pages butt together into one continuous white sheet.
+           Guides on: pages separate with a labelled dashed rule (screen only). */
+        .paper:not(.guides) .pg { box-shadow: none; }
+        .prow { display: flex; align-items: flex-start; gap: var(--cg, 6mm); }
+        .pcol { flex: 1 1 0; min-width: 0; }
+        .pgbr {
+          display: none; width: 210mm; margin: 5mm auto; align-items: center; gap: 10px;
+          color: var(--color-violet-400); font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+        }
+        .paper.guides .pgbr { display: flex; }
+        .pgbr span { white-space: nowrap; }
+        .pgbr::before, .pgbr::after { content: ""; flex: 1; border-top: 1.5px dashed color-mix(in srgb, var(--color-violet-500) 65%, transparent); }
+        /* Offscreen measuring box: same width as a real column, so the packer
+           works from true heights (after the automatic option layout). */
+        .pmeas { position: absolute; left: -20000px; top: 0; visibility: hidden; height: auto; pointer-events: none; }
         /* One type scale: every size below is relative to --fs, so the font-size
            control grows the whole sheet (headings, marks, answer key) evenly.
-           Bangla carries matras above and below, hence the 1.35 leading. */
-        .paper { font-family: "Noto Serif Bengali", "Plus Jakarta Sans", "Nirmala UI", serif; font-size: var(--fs, 11pt); line-height: 1.35; color: #000; }
+           The family and the leading come from the sidebar controls too. */
+        .paper { font-family: var(--pfont, "Noto Serif Bengali", "Plus Jakarta Sans", "Nirmala UI", serif); font-size: var(--fs, 11pt); line-height: var(--lh, 1.35); color: #000; }
         .header { margin-bottom: 1.6mm; }
         .header .hrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr); gap: 0 4mm; align-items: baseline; }
         .header .hleft { text-align: left; }
@@ -337,19 +391,24 @@ export function buildPrintHtml(data: PrintData): string {
         .header .rule { border-bottom: 1.2px solid #000; margin-top: 1.5mm; }
         .fill { border-bottom: 1px dotted #555; display: inline-block; min-width: 60px; }
         .instructions { border: 1px solid #999; border-radius: 3px; padding: 3px 6px; font-size: 0.9em; line-height: 1.4; margin: 0 0 2mm; background: #fafafa; }
-        /* Multi-column flow: questions run down the left column and continue in
-           the right one (classic exam paper), with both columns kept balanced. */
-        .qcol { columns: var(--cols, 2); column-gap: 6mm; }
+        /* Columns are explicit .prow/.pcol boxes packed page by page (see the
+           renderer), so the screen shows exactly what the printer will do. */
         .section { font-size: 1.12em; font-weight: 700; border-bottom: 1px solid #000; padding-bottom: 1px; margin: 2mm 0 1.5mm; break-after: avoid; page-break-after: avoid; }
         .hdate-btn {
           margin-left: 6px; padding: 1px 6px; border-radius: 0.5rem; border: 1px solid #999; background: #f6f6f6; color: #000; font-size: 8px; cursor: pointer; vertical-align: middle; line-height: 1.2;
           box-shadow: 0 1px 0 rgba(0,0,0,0.04);
         }
         @media print { .hdate-btn { display: none !important; } }
-        .q { break-inside: avoid; page-break-inside: avoid; margin-bottom: 2.2mm; }
+        .q { break-inside: avoid; page-break-inside: avoid; margin-bottom: var(--qgap, 2.2mm); }
         .qp { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 1.6mm; align-items: start; }
         .qno { font-weight: 700; min-width: 5.5mm; }
         .qmarks { white-space: nowrap; font-size: 0.88em; color: #222; }
+        /* Right-hand group of the question row: marks plus the printed page
+           chip ("p3") that says which A4 sheet this question lands on. */
+        .qright { display: flex; align-items: baseline; justify-content: flex-end; gap: 1.6mm; white-space: nowrap; }
+        .qpno { font-size: 0.72em; font-weight: 700; color: #444; background: #f1f1f4; border: 1px solid #d8d8de; border-radius: 4px; padding: 0 0.5em; line-height: 1.6; }
+        /* Optional explanation printed right under the question. */
+        .qexp { font-size: 0.86em; color: #333; margin-top: 0.7mm; padding-left: 7mm; }
         .options { margin-top: 0.8mm; }
         .options.two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.4mm 4mm; }
         .options.one-col .opt + .opt { margin-top: 0.4mm; }
@@ -358,9 +417,9 @@ export function buildPrintHtml(data: PrintData): string {
         /* The bubble scales with the body font, so it stays a comfortable
            ~4mm tick target at 11pt and shrinks with the font-size control. */
         .optmark { display: inline-flex; align-items: center; justify-content: center; width: 1.3em; height: 1.3em; margin-top: 0.12em; border: 1.2px solid #000; border-radius: 50%; font-size: 0.78em; line-height: 1; font-weight: 600; }
-        .answers { break-before: page; page-break-before: always; margin-top: 4px; }
-        .answers h2 { font-size: 1.18em; border-bottom: 1.2px solid #000; padding-bottom: 2px; margin: 0 0 1.5mm; break-after: avoid; page-break-after: avoid; }
-        .anscol { columns: 2; column-gap: 6mm; }
+        /* The answer key is packed into its own pages (see the renderer), so the
+           old break-before/column rules are gone; only the heading remains. */
+        .anshead { font-size: 1.18em; border-bottom: 1.2px solid #000; padding-bottom: 2px; margin: 0 0 1.5mm; break-after: avoid; page-break-after: avoid; }
         .a { font-size: 0.98em; break-inside: avoid; page-break-inside: avoid; margin-bottom: 1.8mm; }
         .ansubj { color: #444; font-size: 0.85em; }
         .exp { font-size: 0.88em; color: #333; margin-left: 4mm; }
@@ -381,13 +440,18 @@ export function buildPrintHtml(data: PrintData): string {
           .calpop { display: none !important; }
           .stage { overflow: visible; padding: 0; }
           .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+          /* Each .pg becomes exactly one physical page: the @page margins frame
+             it (screen .pg padding drops out) and a forced break follows, so the
+             packed pages — and their numbers — survive the PDF unchanged. */
+          .pg { width: auto; min-height: 0; height: auto; margin: 0; padding: 0; box-shadow: none; break-after: page; page-break-after: always; }
+          .pg:last-child { break-after: auto; page-break-after: auto; }
+          .pgbr { display: none !important; }
         }
 
         @media screen and (max-width: 768px) {
           .app { grid-template-columns: 1fr; height: auto; }
           .settings { border-right: 0; border-bottom: 1px solid var(--glass-border); max-height: 55vh; }
           .stage { padding: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          .sheet { width: 210mm; min-height: 297mm; margin: 0 auto; }
         }
       </style><style id="pagestyle"></style></head>
       <body>
@@ -405,10 +469,35 @@ export function buildPrintHtml(data: PrintData): string {
             <div><label>Columns</label><select id="f-cols"><option value="2">2 columns</option><option value="1">1 column</option></select></div>
             <div><label>Font size (pt)</label><div class="stepper"><button type="button" class="step" id="fs-minus" aria-label="Decrease font size">&minus;</button><input type="number" id="f-fs" min="7" max="14" step="0.5"><button type="button" class="step" id="fs-plus" aria-label="Increase font size">+</button></div></div>
           </div>
+          <div class="sect">Page margins (mm)</div>
+          <div class="grid4">
+            <div><label for="m-top">Top</label><input type="number" id="m-top" min="0" max="40" step="0.5"></div>
+            <div><label for="m-right">Right</label><input type="number" id="m-right" min="0" max="40" step="0.5"></div>
+            <div><label for="m-bottom">Bottom</label><input type="number" id="m-bottom" min="0" max="40" step="0.5"></div>
+            <div><label for="m-left">Left</label><input type="number" id="m-left" min="0" max="40" step="0.5"></div>
+          </div>
+          <div class="sect">Text &amp; spacing</div>
+          <label for="f-font">Body font</label>
+          <select id="f-font"><option value="serif">Book (Noto Serif Bengali)</option><option value="sans">Modern (Jakarta Sans)</option><option value="times">Classic (Times)</option><option value="arial">Plain (Arial)</option></select>
+          <div class="grid2">
+            <div><label for="f-lh">Line height</label><input type="number" id="f-lh" min="1" max="2" step="0.05"></div>
+            <div><label for="f-qgap">Question gap (mm)</label><input type="number" id="f-qgap" min="0" max="8" step="0.5"></div>
+          </div>
+          <div class="grid2">
+            <div><label for="f-cgap">Column gap (mm)</label><input type="number" id="f-cgap" min="0" max="14" step="1"></div>
+            <div><label for="f-anscols">Answer key columns</label><select id="f-anscols"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></div>
+          </div>
+          <label>Fit more per page</label>
+          <div class="btnrow">
+            <button class="btnsm" type="button" id="dens-compact" title="Tight margins and spacing — most questions per sheet">Compact</button>
+            <button class="btnsm" type="button" id="dens-standard" title="Balanced defaults">Standard</button>
+            <button class="btnsm" type="button" id="dens-spacious" title="Roomier spacing">Spacious</button>
+          </div>
           <label>Option labels</label>
           <select id="f-labels"><option value="auto">Auto (Bangla ক, English a)</option><option value="bangla">ক খ গ ঘ</option><option value="english">a b c d</option></select>
           <label>Question numbers</label>
           <select id="f-num"><option value="auto">Auto (Bangla ১, English 1)</option><option value="bangla">১ ২ ৩ ৪</option><option value="english">1 2 3 4</option></select>
+          <div class="row"><input type="checkbox" id="f-qpgno"><label for="f-qpgno" style="margin:0">Page no. on each question</label></div>
           <div class="row"><input type="checkbox" id="f-header"><label for="f-header" style="margin:0">Show header block</label></div>
           <div class="sect">Header items</div>
           <div class="tog">
@@ -443,8 +532,13 @@ export function buildPrintHtml(data: PrintData): string {
           <label>Instructions</label><textarea id="f-instrtext" rows="2"></textarea>
           <div class="row"><input type="checkbox" id="f-group"><label for="f-group" style="margin:0">Group by subject</label></div>
           <div class="row"><input type="checkbox" id="f-answers"><label for="f-answers" style="margin:0">Include answer key</label></div>
-          <button class="btn2" id="shuffleBtn">⇄ Shuffle options</button>
-          <button class="btn2" id="resetBtn">↺ Reset option order</button>
+          <div class="row"><input type="checkbox" id="f-exp"><label for="f-exp" style="margin:0">Show explanations under questions</label></div>
+          <div class="row"><input type="checkbox" id="f-breaks"><label for="f-breaks" style="margin:0">Show page breaks (screen only)</label></div>
+          <div class="btnrow">
+            <button class="btnsm" id="shuffleBtn" type="button" title="Shuffle option order — never repeats an arrangement or answer pattern">⇄ Options</button>
+            <button class="btnsm" id="shuffleQBtn" type="button" title="Shuffle the question order">⇅ Questions</button>
+            <button class="btnsm" id="resetBtn" type="button" title="Restore the original option and question order">↺ Reset</button>
+          </div>
           <button class="btn" id="printBtn">Print / Save PDF</button>
           <div class="row" style="justify-content:space-between">
             <span class="hint" style="margin:0">Settings are remembered on this device.</span>
@@ -457,7 +551,16 @@ export function buildPrintHtml(data: PrintData): string {
       </div>
       <script>
         var DATA = ${dataJson};
-        var S = Object.assign({}, DATA.defaults);
+        /* Preview-owned defaults for the space/typography controls; the staged
+           payload (Print page) only ever sends its own keys, so these fill the
+           rest and the device prefs below can still override everything. */
+        var DEF = {
+          columns: 2, fontSize: 11,
+          marginTop: 12, marginRight: 12.7, marginBottom: 11, marginLeft: 12,
+          fontFamily: 'serif', lineHeight: 1.35, qgap: 2.2, cgap: 6, ansCols: 2,
+          showExplanation: false, qPageNo: true, showBreaks: true
+        };
+        var S = Object.assign({}, DEF, DATA.defaults);
         /* Device defaults: formatting the Print page never controls (font size,
            label styles, header items, page numbers) is remembered per device and
            re-applied over the staged payload, so every paper starts from the
@@ -466,7 +569,7 @@ export function buildPrintHtml(data: PrintData): string {
            Print page, which reads the same object. Date and paper title are
            per-paper and are never restored. */
         var PREF_KEY = 'mcq_print_prefs';
-        var PREF_RESTORE = ['fontSize','labelStyle','numStyle','showHeader','showName','showSchool','showTitle','showSubject','showTime','showFullMarks','showDate','showRollClass','runningTitle','showPageNo','pageNumPos','pageNumFmt'];
+        var PREF_RESTORE = ['fontSize','labelStyle','numStyle','showHeader','showName','showSchool','showTitle','showSubject','showTime','showFullMarks','showDate','showRollClass','runningTitle','showPageNo','pageNumPos','pageNumFmt','marginTop','marginRight','marginBottom','marginLeft','fontFamily','lineHeight','qgap','cgap','ansCols','showExplanation','qPageNo','showBreaks'];
         var PREF_SAVE = ['school','instructions','columns','groupBySubject','showMarks','showAnswers','showInstructions'].concat(PREF_RESTORE);
         (function(){
           try {
@@ -485,7 +588,9 @@ export function buildPrintHtml(data: PrintData): string {
             localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(cur, out)));
           } catch (e) {}
         }
-        DATA.groups.forEach(function(g){ g.questions.forEach(function(q){ q._orig = (q.options || []).slice(); }); });
+        /* Remember the ORIGINAL option order (for Reset) and the ORIGINAL
+           question order per group (also for Reset, once questions shuffle). */
+        DATA.groups.forEach(function(g){ g._origQ = g.questions.slice(); g.questions.forEach(function(q){ q._orig = (q.options || []).slice(); }); });
         var paper = document.getElementById('paper');
         /* Load webfonts dynamically so they can never block first paint. */
         (function(){
@@ -566,7 +671,10 @@ export function buildPrintHtml(data: PrintData): string {
         }
         function safeCss(s){ return String(s || '').split('"').join("'").split(String.fromCharCode(92)).join(' ').split(String.fromCharCode(10)).join(' ').split(String.fromCharCode(13)).join(' '); }
         function pageCss(){
-          var css = '';
+          /* One @page rule carrying the user's margins (which also frame the
+             running title and page numbers below, printed in the margin area). */
+          var g = geo();
+          var css = '@page { size: A4; margin: ' + g.mT + 'mm ' + g.mR + 'mm ' + g.mB + 'mm ' + g.mL + 'mm; }';
           if (S.runningTitle) css += '@page { @top-center { content: "' + safeCss(S.title) + '"; font-size: 8pt; color: #666; } }';
           if (S.showPageNo) {
             var fmt = S.pageNumFmt === 'of' ? '"Page " counter(page) " / " counter(pages)' : 'counter(page)';
@@ -590,8 +698,14 @@ export function buildPrintHtml(data: PrintData): string {
               return '<div class="opt"><span class="optmark">' + (L[i] || (i + 1)) + '</span><span class="opttext">' + esc(o) + '</span></div>';
             }).join('') + '</div>';
           }
-          var marks = S.showMarks ? '<span class="qmarks">[' + (q.marks || 1) + ']</span>' : '';
-          return '<div class="q"><div class="qp"><span class="qno">' + qNo(q, n) + '</span><span class="qtext">' + esc(q.prompt) + '</span>' + marks + '</div>' + opts + '</div>';
+          var right = '';
+          if (S.showMarks) right += '<span class="qmarks">[' + (q.marks || 1) + ']</span>';
+          /* The chip is measured as "p99" so the real page number stamped in
+             later can only be narrower — width never grows after packing. */
+          if (S.qPageNo) right += '<span class="qpno">p99</span>';
+          right = right ? '<span class="qright">' + right + '</span>' : '';
+          var exp = (S.showExplanation && q.explanation) ? '<div class="qexp"><b>Explanation:</b> ' + esc(q.explanation) + '</div>' : '';
+          return '<div class="q"><div class="qp"><span class="qno">' + qNo(q, n) + '</span><span class="qtext">' + esc(q.prompt) + '</span>' + right + '</div>' + opts + exp + '</div>';
         }
         function formatDate(s){
           if (!s) return s;
@@ -624,17 +738,25 @@ export function buildPrintHtml(data: PrintData): string {
             '<div class="hright">' + right + '</div>' +
             '</div><div class="rule"></div></div>';
         }
+        /* Shuffle every MCQ's options while actively fighting visible patterns
+           in the answer-key column: no run of the same position twice+, no
+           period-2/3/4 repetition at the tail, positions handed out to the
+           least-used first, identical arrangements capped (and a question may
+           never repeat the arrangement of the one above it). */
         function shuffleAll(){
           var qs = [];
           DATA.groups.forEach(function(g){ g.questions.forEach(function(q){ if (q.type === 'mcq' && q.options && q.options.length > 1) qs.push(q); }); });
-          var seq = [], last = -1, run = 0, used = {}, seen = {};
+          var seq = [], last = -1, run = 0, used = {}, seen = {}, lastSig = '';
           qs.forEach(function(q){
             var n = q.options.length, arr = q.options.slice(), correctText = q.answer, ci = arr.indexOf(correctText);
             var cands = []; for (var p = 0; p < n; p++) cands.push(p);
             function build(){
-              var o = arr.filter(function(x){ return x !== correctText; });
+              /* Pull the correct option out BY POSITION (not by text): two
+                 options with identical text must never collapse into one. */
+              var o = arr.slice(), correctVal = null;
+              if (ci >= 0) correctVal = o.splice(ci, 1)[0];
               for (var i = o.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = o[i]; o[i] = o[j]; o[j] = t; }
-              if (ci >= 0) o.splice(target, 0, correctText);
+              if (ci >= 0) o.splice(target, 0, correctVal);
               return o;
             }
             function bad(p){
@@ -655,8 +777,9 @@ export function buildPrintHtml(data: PrintData): string {
             filt.sort(function(a, b){ var da = used[a] || 0, db = used[b] || 0; if (da !== db) return da - db; return Math.random() - 0.5; });
             var target = filt[0];
             var newArr = build(), sig = JSON.stringify(newArr), tries = 0;
-            while ((seen[sig] || 0) >= 2 && tries < 8) { newArr = build(); sig = JSON.stringify(newArr); tries++; }
+            while (((seen[sig] || 0) >= 2 || sig === lastSig) && tries < 12) { newArr = build(); sig = JSON.stringify(newArr); tries++; }
             seen[sig] = (seen[sig] || 0) + 1;
+            lastSig = sig;
             q.options = newArr;
             seq.push(target);
             used[target] = (used[target] || 0) + 1;
@@ -664,15 +787,28 @@ export function buildPrintHtml(data: PrintData): string {
           });
           render();
         }
+        /* Shuffle the question order within each group (subject grouping stays
+           intact; numbering and the answer key re-derive from the new order). */
+        function shuffleQuestions(){
+          DATA.groups.forEach(function(g){
+            var a = g.questions;
+            for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+          });
+          render();
+        }
         function resetOrder(){
-          DATA.groups.forEach(function(g){ g.questions.forEach(function(q){ if (q._orig) q.options = q._orig.slice(); }); });
+          DATA.groups.forEach(function(g){
+            g.questions.forEach(function(q){ if (q._orig) q.options = q._orig.slice(); });
+            if (g._origQ) g.questions = g._origQ.slice();
+          });
           render();
         }
         /* Option layout, automatic: if any option wraps onto a second line in
            the two-column grid it drops back to one column, so long Bangla
-           options keep a comfortable measure instead of a cramped one. */
-        function autoOptions(){
-          var lists = paper.querySelectorAll('.options.two-col');
+           options keep a comfortable measure instead of a cramped one. Runs on
+           the live sheet or on an offscreen measuring box of the same width. */
+        function autoOptions(root){
+          var lists = (root || paper).querySelectorAll('.options.two-col');
           for (var i = 0; i < lists.length; i++) {
             var kids = lists[i].children, wraps = false;
             for (var j = 0; j < kids.length; j++) {
@@ -686,53 +822,173 @@ export function buildPrintHtml(data: PrintData): string {
             if (wraps) { lists[i].classList.remove('two-col'); lists[i].classList.add('one-col'); }
           }
         }
-        /* Rough A4 sheet count, shown in the settings panel. Both the questions
-           and the answer key are laid out in balanced columns, so half of their
-           on-screen height fills one printed page; the answer key always starts
-           on a fresh page, so it is counted on top. */
-        function updatePages(){
-          var out = document.getElementById('pginfo');
-          if (!out) return;
-          var MM = 96 / 25.4, pageH = 274 * MM;
-          function sheetsOf(h){ return Math.max(1, Math.ceil(h / pageH - 0.02)); }
-          var pr = paper.getBoundingClientRect();
-          var ann = document.querySelector('.answers');
-          var n = sheetsOf(ann ? (ann.getBoundingClientRect().top - pr.top) : pr.height);
-          if (ann) n += sheetsOf(ann.getBoundingClientRect().height);
-          out.textContent = 'This paper: about ' + n + (n > 1 ? ' A4 pages' : ' A4 page') + (ann ? ' (answer key included)' : '');
+        /* ---- Page geometry ---------------------------------------------------
+           Everything is derived from the sidebar controls: printable content
+           width/height in mm (297 - top - bottom), the question columns and
+           the answer-key columns. Margins are clamped so a typo can never
+           produce an unprintable sheet. */
+        function geo(){
+          function m(v, d){ v = Number(v); if (!(v >= 0)) v = d; return Math.min(v, 50); }
+          var mT = m(S.marginTop, 12), mR = m(S.marginRight, 12.7), mB = m(S.marginBottom, 11), mL = m(S.marginLeft, 12);
+          var cw = 210 - mL - mR, ch = 297 - mT - mB;
+          var cols = Number(S.columns) === 1 ? 1 : 2;
+          var cg = Number(S.cgap); if (!(cg >= 0)) cg = 6;
+          var ac = Number(S.ansCols); if (ac !== 1 && ac !== 3) ac = 2;
+          return { mT: mT, mR: mR, mB: mB, mL: mL, cw: cw, ch: ch, cols: cols, cg: cg, colW: (cw - cg * (cols - 1)) / cols, ac: ac };
+        }
+        function fontStack(v){
+          if (v === 'sans') return '"Plus Jakarta Sans", "Noto Serif Bengali", "Segoe UI", system-ui, sans-serif';
+          if (v === 'times') return '"Times New Roman", "Noto Serif Bengali", Georgia, serif';
+          if (v === 'arial') return 'Arial, "Noto Serif Bengali", "Segoe UI", sans-serif';
+          return '"Noto Serif Bengali", "Plus Jakarta Sans", "Nirmala UI", serif';
+        }
+        /* Measure a list of HTML blocks in an offscreen box of the EXACT width
+           they will occupy in a real column (running the automatic option
+           layout first so wrapped options count). One append pass, one read
+           pass; the top+bottom margins are added back because a rect excludes
+           them — over-estimating a little only ever frees space, never spills. */
+        function measureAll(list, widthPx, auto){
+          var box = document.createElement('div');
+          box.className = 'pmeas';
+          box.style.width = Math.max(1, Math.round(widthPx)) + 'px';
+          paper.appendChild(box);
+          var nodes = [], i;
+          for (i = 0; i < list.length; i++) {
+            var d = document.createElement('div');
+            d.innerHTML = list[i];
+            var el = d.firstElementChild;
+            box.appendChild(el);
+            nodes.push(el);
+          }
+          if (auto) autoOptions(box);
+          var hs = [];
+          for (i = 0; i < nodes.length; i++) {
+            var cs = window.getComputedStyle(nodes[i]);
+            hs.push(nodes[i].getBoundingClientRect().height + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0));
+          }
+          box.parentNode.removeChild(box);
+          return hs;
+        }
+        /* Greedy pack: fill column 1 to the bottom, then column 2, ... then the
+           next page. SLACK absorbs sub-pixel/font rounding so a packed column
+           can never exceed the real page; an item taller than a whole column is
+           force-placed (better a visible spill than a lost question). */
+        function pack(items, hs, cols, pageH, firstH){
+          var SLACK = 3, pages = [], cur = null, c = 0;
+          function np(){
+            var p = { cols: [], items: [] };
+            for (var i = 0; i < cols; i++) { p.cols.push(0); p.items.push([]); }
+            pages.push(p); cur = p; c = 0;
+          }
+          np();
+          function avail(){ return (pages.length === 1 ? firstH : pageH) - SLACK; }
+          for (var i = 0; i < items.length; i++) {
+            var h = hs[i] || 1, guard = 0;
+            for (;;) {
+              if (guard++ > 10000) break;
+              var a = avail();
+              if (cur.cols[c] + h <= a) { cur.items[c].push(items[i]); cur.cols[c] += h; break; }
+              if (cur.cols[c] > 0 && c < cols - 1) { c++; continue; }
+              if (cur.cols[c] === 0 && h > a) { cur.items[c].push(items[i]); cur.cols[c] += h; break; }
+              np();
+            }
+          }
+          return pages;
         }
         function render(){
+          var g = geo(), i;
           paper.style.setProperty('--fs', S.fontSize + 'pt');
-          paper.style.setProperty('--cols', S.columns);
-          var html = '';
-          if (S.showHeader) html += headerHtml();
-          if (S.showInstructions && S.instructions && S.instructions.trim()) html += '<div class="instructions"><b>Instructions:</b> ' + esc(S.instructions) + '</div>';
+          paper.style.setProperty('--lh', String(Number(S.lineHeight) > 0 ? Number(S.lineHeight) : 1.35));
+          paper.style.setProperty('--qgap', (Number(S.qgap) >= 0 ? Number(S.qgap) : 2.2) + 'mm');
+          paper.style.setProperty('--cg', g.cg + 'mm');
+          paper.style.setProperty('--mT', g.mT + 'mm');
+          paper.style.setProperty('--mR', g.mR + 'mm');
+          paper.style.setProperty('--mB', g.mB + 'mm');
+          paper.style.setProperty('--mL', g.mL + 'mm');
+          paper.style.setProperty('--pfont', fontStack(S.fontFamily));
+          paper.classList.toggle('guides', !!S.showBreaks);
+
+          /* 1 — build the blocks: full-width (header, instructions) and
+             column-width (section headings, questions, answer-key lines). */
+          var fulls = [], items = [], ansFull = [], ansItems = [];
+          if (S.showHeader) fulls.push(headerHtml());
+          if (S.showInstructions && S.instructions && S.instructions.trim()) fulls.push('<div class="instructions"><b>Instructions:</b> ' + esc(S.instructions) + '</div>');
+          var n = 0;
           if (S.groupBySubject && DATA.groups.length > 1) {
-            var n = 0;
-            DATA.groups.forEach(function(g){
-              html += '<h3 class="section">' + esc(g.name) + (g.time ? ' <span class="sectime">(' + g.time + ' min)</span>' : '') + '</h3>';
-              html += '<div class="qcol">' + g.questions.map(function(q){ n++; return qHtml(q, n); }).join('') + '</div>';
+            DATA.groups.forEach(function(gr){
+              items.push('<h3 class="section">' + esc(gr.name) + (gr.time ? ' <span class="sectime">(' + gr.time + ' min)</span>' : '') + '</h3>');
+              gr.questions.forEach(function(q){ n++; items.push(qHtml(q, n)); });
             });
           } else {
-            var all = [];
-            DATA.groups.forEach(function(g){ g.questions.forEach(function(q){ all.push(q); }); });
-            html += '<div class="qcol">' + all.map(function(q, i){ return qHtml(q, i + 1); }).join('') + '</div>';
+            DATA.groups.forEach(function(gr){ gr.questions.forEach(function(q){ n++; items.push(qHtml(q, n)); }); });
           }
           if (S.showAnswers) {
-            var an = '', k = 0;
-            DATA.groups.forEach(function(g){ g.questions.forEach(function(q){
+            ansFull.push('<h2 class="anshead">Answer Key &amp; Mark Scheme</h2>');
+            var k = 0;
+            DATA.groups.forEach(function(gr){ gr.questions.forEach(function(q){
               k++;
               var subj = DATA.groups.length > 1 ? ' <span class="ansubj">[' + esc(q.subject || '') + ']</span>' : '';
               var cl = correctLetter(q);
-              an += '<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + ')</b> ' : '') + esc(answerText(q)) + ' ' + (q.explanation ? '<div class="exp">' + esc(q.explanation) + '</div>' : '') + '</div>';
+              ansItems.push('<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + ')</b> ' : '') + esc(answerText(q)) + ' ' + (q.explanation ? '<div class="exp">' + esc(q.explanation) + '</div>' : '') + '</div>');
             }); });
-            html += '<div class="answers"><h2>Answer Key &amp; Mark Scheme</h2><div class="anscol">' + an + '</div></div>';
           }
-          paper.innerHTML = html;
-          autoOptions();
+
+          /* 2 — measure everything at its true width */
+          var MMv = 96 / 25.4, fullH = 0, ansFullH = 0;
+          if (fulls.length) { var fh = measureAll(fulls, g.cw * MMv, false); for (i = 0; i < fh.length; i++) fullH += fh[i]; }
+          var itemH = measureAll(items, g.colW * MMv, true);
+          if (ansFull.length) { var ah = measureAll(ansFull, g.cw * MMv, false); for (i = 0; i < ah.length; i++) ansFullH += ah[i]; }
+          var ansH = measureAll(ansItems, ((g.cw - g.cg * (g.ac - 1)) / g.ac) * MMv, false);
+
+          /* 3 — pack into real pages; the answer key always starts a new sheet */
+          var pageH = g.ch * MMv;
+          var qPages = items.length ? pack(items, itemH, g.cols, pageH, pageH - fullH) : [];
+          var aPages = ansItems.length ? pack(ansItems, ansH, g.ac, pageH, pageH - ansFullH) : [];
+
+          /* 4 — emit one .pg box per A4 sheet, with a labelled break guide
+             between neighbours (screen-only; print uses forced page breaks). */
+          var qn = qPages.length, an = aPages.length, total = qn + an, parts = [];
+          for (i = 0; i < total; i++) {
+            var kind = i < qn ? 'q' : 'a';
+            var P = i < qn ? qPages[i] : aPages[i - qn];
+            var first = null;
+            if (kind === 'q' && i === 0) first = fulls;
+            if (kind === 'a' && i === qn) first = (qn === 0 ? fulls : []).concat(ansFull);
+            var body = (first && first.length ? first.join('') : '') +
+              '<div class="prow">' + P.items.map(function(colHtml){ return '<div class="pcol">' + colHtml.join('') + '</div>'; }).join('') + '</div>';
+            parts.push('<div class="pg" data-kind="' + kind + '">' + body + '</div>');
+            if (i < total - 1) parts.push('<div class="pgbr"><span>Page ' + (i + 2) + ' / ' + total + '</span></div>');
+          }
+          paper.innerHTML = parts.join('');
+          autoOptions(paper);
+
+          /* 5 — stamp the real sheet number into each question's page chip */
+          if (S.qPageNo) {
+            var anyBn = false;
+            DATA.groups.forEach(function(gr){ gr.questions.forEach(function(q){ if (isBangla(q.prompt)) anyBn = true; }); });
+            var useBn = S.numStyle === 'bangla' || (S.numStyle !== 'english' && anyBn);
+            var pgEls = paper.querySelectorAll('.pg');
+            for (i = 0; i < pgEls.length; i++) {
+              var chips = pgEls[i].querySelectorAll('.qpno');
+              for (var j = 0; j < chips.length; j++) chips[j].textContent = 'p' + (useBn ? bnDigits(i + 1) : String(i + 1));
+            }
+          }
+
           updatePages();
           var pgs = document.getElementById('pagestyle');
           if (pgs) pgs.textContent = pageCss();
+        }
+        /* Exact sheet counts, read straight from the packed pages in the DOM. */
+        function updatePages(){
+          var out = document.getElementById('pginfo');
+          if (!out) return;
+          var qn = paper.querySelectorAll('.pg[data-kind="q"]').length;
+          var an = paper.querySelectorAll('.pg[data-kind="a"]').length;
+          var total = qn + an, qc = 0;
+          DATA.groups.forEach(function(g){ qc += g.questions.length; });
+          var per = qn ? Math.round(qc / qn) : 0;
+          if (an) out.textContent = 'This paper: ' + qn + ' question page' + (qn === 1 ? '' : 's') + ' + ' + an + ' answer page' + (an === 1 ? '' : 's') + ' = ' + total + ' A4 sheet' + (total === 1 ? '' : 's') + '.';
+          else out.textContent = 'This paper: ' + total + ' A4 sheet' + (total === 1 ? '' : 's') + (qn ? ' \u00b7 ' + per + ' questions per page' : '') + '.';
         }
         function bind(id, key, kind){
           var el = document.getElementById(id);
@@ -851,6 +1107,18 @@ export function buildPrintHtml(data: PrintData): string {
         })();
         document.getElementById('f-fs').value = S.fontSize;
         document.getElementById('f-cols').value = String(S.columns);
+        document.getElementById('m-top').value = S.marginTop;
+        document.getElementById('m-right').value = S.marginRight;
+        document.getElementById('m-bottom').value = S.marginBottom;
+        document.getElementById('m-left').value = S.marginLeft;
+        document.getElementById('f-font').value = S.fontFamily || 'serif';
+        document.getElementById('f-lh').value = S.lineHeight;
+        document.getElementById('f-qgap').value = S.qgap;
+        document.getElementById('f-cgap').value = S.cgap;
+        document.getElementById('f-anscols').value = String(S.ansCols || 2);
+        document.getElementById('f-qpgno').checked = S.qPageNo !== false;
+        document.getElementById('f-exp').checked = !!S.showExplanation;
+        document.getElementById('f-breaks').checked = S.showBreaks !== false;
         document.getElementById('f-labels').value = S.labelStyle || 'auto';
         document.getElementById('f-num').value = S.numStyle || 'auto';
         document.getElementById('f-header').checked = S.showHeader !== false;
@@ -876,6 +1144,18 @@ export function buildPrintHtml(data: PrintData): string {
         bind('f-date', 'date', 'text');
         bind('f-fs', 'fontSize', 'num');
         bind('f-cols', 'columns', 'num');
+        bind('m-top', 'marginTop', 'num');
+        bind('m-right', 'marginRight', 'num');
+        bind('m-bottom', 'marginBottom', 'num');
+        bind('m-left', 'marginLeft', 'num');
+        bind('f-font', 'fontFamily', 'sel');
+        bind('f-lh', 'lineHeight', 'num');
+        bind('f-qgap', 'qgap', 'num');
+        bind('f-cgap', 'cgap', 'num');
+        bind('f-anscols', 'ansCols', 'num');
+        bind('f-qpgno', 'qPageNo', 'bool');
+        bind('f-exp', 'showExplanation', 'bool');
+        bind('f-breaks', 'showBreaks', 'bool');
         bind('f-labels', 'labelStyle', 'sel');
         bind('f-num', 'numStyle', 'sel');
         bind('f-header', 'showHeader', 'bool');
@@ -897,7 +1177,34 @@ export function buildPrintHtml(data: PrintData): string {
         bind('f-pagenumpos', 'pageNumPos', 'sel');
         bind('f-pagenumfmt', 'pageNumFmt', 'sel');
         document.getElementById('shuffleBtn').addEventListener('click', function(){ shuffleAll(); });
+        document.getElementById('shuffleQBtn').addEventListener('click', function(){ shuffleQuestions(); });
         document.getElementById('resetBtn').addEventListener('click', function(){ resetOrder(); });
+        (function(){
+          /* Density presets: one click applies a whole space profile (margins,
+             leading, gaps) instead of five separate controls — Compact is the
+             one to reach for on 100–200 question papers. */
+          var PRESETS = {
+            compact: { marginTop: 10, marginRight: 10, marginBottom: 10, marginLeft: 10, lineHeight: 1.2, qgap: 1, cgap: 4 },
+            standard: { marginTop: 12, marginRight: 12.7, marginBottom: 11, marginLeft: 12, lineHeight: 1.35, qgap: 2.2, cgap: 6 },
+            spacious: { marginTop: 16, marginRight: 16, marginBottom: 15, marginLeft: 16, lineHeight: 1.5, qgap: 4, cgap: 8 }
+          };
+          var IDS = { marginTop: 'm-top', marginRight: 'm-right', marginBottom: 'm-bottom', marginLeft: 'm-left', lineHeight: 'f-lh', qgap: 'f-qgap', cgap: 'f-cgap' };
+          function apply(name){
+            var p = PRESETS[name];
+            if (!p) return;
+            Object.keys(p).forEach(function(k){
+              S[k] = p[k];
+              var el = document.getElementById(IDS[k]);
+              if (el) el.value = p[k];
+            });
+            render();
+            savePrefs();
+          }
+          ['compact', 'standard', 'spacious'].forEach(function(name){
+            var b = document.getElementById('dens-' + name);
+            if (b) b.addEventListener('click', function(){ apply(name); });
+          });
+        })();
         (function(){
           /* Themed +/- buttons replace the native number spinners; they drive
              the same field, so the existing input binding re-renders. */
@@ -1025,10 +1332,12 @@ export function buildPrintHtml(data: PrintData): string {
           try { localStorage.removeItem('mcq_print_prefs'); } catch (e) {}
           window.location.reload();
         });
-        /* Bengali webfonts arrive after first paint and can widen options, so
-           re-check the option layout and the sheet count once they are in. */
-        if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function(){ autoOptions(); updatePages(); }); }
-        window.addEventListener('resize', updatePages);
+        /* Re-draw once webfonts are ready (Bengali widens option text and can
+           flip two-col options to one-col; packing must use real heights). */
+        if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function(){ render(); }); }
+        /* On resize, no need to re-pack (pages are MM-fixed), but the info text
+           does not depend on viewport — keep a no-op-free approach; the real
+           sheet counts never change. */
         render();
       </script>
       </body></html>`;
