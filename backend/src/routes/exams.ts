@@ -44,6 +44,33 @@ router.get("/:id/attempts", requireAuth, requireRole("admin", "teacher"), async 
   res.json({ attempts: rows });
 });
 
+// Class leaderboard — every student with at least one marked attempt, ranked by
+// average score. Registered before "/:id" on purpose: that catch-all param route
+// would otherwise swallow the word "leaderboard".
+router.get("/leaderboard", requireAuth, async (req: Request, res: Response) => {
+  const db = await getDb();
+  const rows = await all(db, `
+    SELECT u.id, u.name, COUNT(*) as attempts, AVG(r.percentage) as average, MAX(r.percentage) as best
+    FROM results r
+    JOIN users u ON u.id = r.student_id
+    WHERE u.role = 'student'
+    GROUP BY u.id
+    ORDER BY average DESC, attempts DESC, u.name ASC`);
+  const table = (rows as any[]).map((r: any, i: number) => ({
+    rank: i + 1,
+    student_id: r.id,
+    name: r.name,
+    attempts: Number(r.attempts) || 0,
+    average: Math.round(Number(r.average) || 0),
+    best: Math.round(Number(r.best) || 0),
+  }));
+  res.json({
+    me: table.find((r: any) => r.student_id === req.user!.id) || null,
+    top: table.slice(0, 10),
+    total: table.length,
+  });
+});
+
 router.get("/", async (_req, res) => {
   const db = await getDb();
   const exams = (await all(db, "SELECT * FROM exams ORDER BY created_at DESC")).map((e: any) => ({
@@ -59,7 +86,7 @@ router.get("/", async (_req, res) => {
   res.json({ exams });
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireAuth, async (req, res) => {
   const db = await getDb();
   const e = await get(db, "SELECT * FROM exams WHERE id=?", [req.params.id]) as any;
   if (!e) return res.status(404).json({ error: "Not found" });
@@ -73,8 +100,14 @@ router.get("/:id", async (req, res) => {
   // attach questions
   const raw = await all(db, `SELECT * FROM questions WHERE id IN (${e.question_ids.map(()=>'?').join(',')})`, e.question_ids);
   const byId = new Map(raw.map((q: any) => [q.id, q]));
+  // Students must never receive the key here — this endpoint is what a paper
+  // is built from while they are still sitting it. The key and the explanation
+  // are served by /attempts/:attemptId/review, and only once the attempt has
+  // been submitted or graded.
+  const isStaff = req.user!.role === "teacher" || req.user!.role === "admin";
   const qs = e.question_ids.map((id: string) => byId.get(id)).filter(Boolean)
-    .map((q: any) => ({ ...q, options: q.options ? JSON.parse(q.options) : null }));
+    .map((q: any) => ({ ...q, options: q.options ? JSON.parse(q.options) : null }))
+    .map((q: any) => (isStaff ? q : { ...q, answer: null, explanation: null }));
   res.json({ exam: e, questions: qs });
 });
 
@@ -225,6 +258,77 @@ router.get("/attempts/:attemptId", requireAuth, async (req: Request, res: Respon
     return res.status(403).json({ error: "Forbidden" });
   a.answers = JSON.parse(a.answers || "{}");
   res.json({ attempt: a });
+});
+
+/**
+ * The marked-up version of one attempt: every question with what the student
+ * gave, whether it was right, and (once the attempt is submitted/graded, or for
+ * a teacher) the key plus the explanation. This is what powers the student's
+ * post-exam review and the "practice the ones you missed" flow — and it is the
+ * only place the key is ever handed to a student.
+ */
+router.get("/attempts/:attemptId/review", requireAuth, async (req: Request, res: Response) => {
+  const db = await getDb();
+  const a = await get(db, "SELECT * FROM exam_attempts WHERE id=?", [req.params.attemptId]) as any;
+  if (!a) return res.status(404).json({ error: "Not found" });
+  const isStaff = req.user!.role === "teacher" || req.user!.role === "admin";
+  if (a.student_id !== req.user!.id && !isStaff) return res.status(403).json({ error: "Forbidden" });
+
+  const exam = await get(db, "SELECT * FROM exams WHERE id=?", [a.exam_id]) as any;
+  if (!exam) return res.status(404).json({ error: "Not found" });
+  const qids: string[] = JSON.parse(exam.question_ids || "[]");
+  const raw = qids.length
+    ? ((await all(db, `SELECT * FROM questions WHERE id IN (${qids.map(() => '?').join(',')})`, qids)) as any[])
+    : [];
+  const byId = new Map(raw.map((q: any) => [q.id, q]));
+  const answers: Record<string, any> = JSON.parse(a.answers || "{}");
+  const showKey = isStaff || a.status !== "in_progress";
+
+  const questions = qids
+    .map((id: string) => byId.get(id))
+    .filter(Boolean)
+    .map((q: any) => {
+      const given = answers[q.id];
+      const answered = given != null && String(given) !== "";
+      const correct =
+        q.type === "mcq" &&
+        answered &&
+        String(given).trim().toLowerCase() === String(q.answer ?? "").trim().toLowerCase();
+      return {
+        id: q.id,
+        prompt: q.prompt,
+        type: q.type,
+        marks: q.marks ?? 1,
+        options: q.options ? JSON.parse(q.options) : null,
+        given: given ?? null,
+        answered,
+        correct: q.type === "mcq" ? correct : null,
+        answer: showKey ? (q.answer ?? null) : null,
+        explanation: showKey ? (q.explanation ?? null) : null,
+      };
+    });
+
+  res.json({
+    attempt: {
+      id: a.id,
+      exam_id: a.exam_id,
+      student_id: a.student_id,
+      status: a.status,
+      score: a.score,
+      total: a.total,
+      started_at: a.started_at,
+      submitted_at: a.submitted_at,
+    },
+    exam: {
+      id: exam.id,
+      title: exam.title,
+      subject_id: exam.subject_id,
+      total_marks: exam.total_marks,
+      duration_minutes: exam.duration_minutes,
+    },
+    questions,
+    showKey,
+  });
 });
 
 // Manual grading (teacher) - override score

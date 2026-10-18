@@ -8,7 +8,7 @@ import usersRouter from "./routes/users";
 import backupRouter from "./routes/backup";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
-import { storage, isPersistent } from "./db/database";
+import { storage, isPersistent, getDb, get } from "./db/database";
 
 function createApp() {
   const app = express();
@@ -67,8 +67,18 @@ function createApp() {
   app.use("/api/users", usersRouter);
   app.use("/api/backup", backupRouter);
 
-  // me endpoint
-  app.get("/api/me", requireAuth, (req, res) => res.json({ user: req.user }));
+  // Me endpoint — this is the profile card a student sees. It deliberately
+  // includes their own PIN: they sign in with name + PIN and must be able to
+  // read it back (nobody else can — /users stays teacher/admin only).
+  app.get("/api/me", requireAuth, async (req, res) => {
+    const db = await getDb();
+    const u = await get(
+      db,
+      "SELECT id,name,email,role,grade,section,pin,created_at FROM users WHERE id=?",
+      [req.user!.id]
+    );
+    res.json({ user: u || req.user });
+  });
 
   return app;
 }
