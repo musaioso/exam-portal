@@ -7,7 +7,7 @@ import { CircleAlert, Eye, EyeOff, UserPlus } from "lucide-react";
 
 export default function Register() {
   const nav = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", inviteCode: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -18,7 +18,7 @@ export default function Register() {
     setErr("");
     setBusy(true);
     try {
-      await api.post("/auth/register", { ...form, role: "teacher" });
+      await api.post("/auth/register", { name: form.name, email: form.email, password: form.password, inviteCode: form.inviteCode });
       nav("/login");
       return;
     } catch (x: any) {
@@ -62,6 +62,10 @@ export default function Register() {
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
+        </AuthField>
+
+        <AuthField label="Invite code (from your admin)">
+          <Input value={form.inviteCode} onChange={(e) => set("inviteCode", e.target.value)} placeholder="Ask your admin" required />
         </AuthField>
 
         {err && (

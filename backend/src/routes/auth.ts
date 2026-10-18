@@ -8,9 +8,16 @@ import { isBlocked, recordFailure, clearFailures, retryAfterSeconds } from "../m
 const router = Router();
 
 router.post("/register", async (req: Request, res: Response) => {
-  const { name, email, password, role } = req.body || {};
+  const { name, email, password, inviteCode } = req.body || {};
   if (!name || !email || !password) return res.status(400).json({ error: "Missing fields" });
-  const r = (role === "teacher" || role === "student") ? role : "student";
+  // Teacher accounts are not self-serve: an admin shares the invite code.
+  // Without a matching code the request is rejected, so a student cannot
+  // register themselves as a teacher (or anything else).
+  const expected = (process.env.TEACHER_INVITE_CODE || "school-invite").trim();
+  if (String(inviteCode || "").trim() !== expected) {
+    return res.status(403).json({ error: "Invalid or missing invite code. Ask your admin for it." });
+  }
+  const r = "teacher";
   const db = await getDb();
   const existing = await get(db, "SELECT id FROM users WHERE email = ?", [email]);
   if (existing) return res.status(409).json({ error: "Email already registered" });

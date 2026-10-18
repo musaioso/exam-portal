@@ -11,22 +11,13 @@ import {
   Delete as Backspace,
   Eye,
   EyeOff,
-  GraduationCap,
   KeyRound,
   LogIn,
   Search,
   ShieldCheck,
 } from "lucide-react";
 
-/**
- * The three seeded accounts, handy for trying the site out. Each one gets a
- * button so you can jump straight into a role without typing any credentials.
- */
-const DEMO = [
-  { role: "Admin", blurb: "Full control", email: "admin@mcq.local", password: "admin123", icon: ShieldCheck },
-  { role: "Teacher", blurb: "Build papers", email: "teacher@mcq.local", password: "teacher123", icon: GraduationCap },
-  { role: "Student", blurb: "Take exams", email: "student@mcq.local", password: "student123", icon: BookOpen },
-];
+// Demo accounts removed for security — admin creates all teacher/student accounts.
 
 interface Student {
   id: string;
@@ -378,35 +369,8 @@ function StaffSignIn() {
     void signIn(email, password, "form");
   };
 
-  const useDemo = (d: typeof DEMO[number]) => {
-    // Fill the fields too, so it is obvious which account was used.
-    setEmail(d.email);
-    setPassword(d.password);
-    void signIn(d.email, d.password, d.role);
-  };
-
   return (
     <>
-      <div>
-        <div className="mb-2 pl-4 text-xs font-medium tracking-wide text-slate-400">One-tap demo sign in</div>
-        <div className="grid grid-cols-3 gap-2">
-          {DEMO.map((d) => (
-            <button
-              key={d.role}
-              type="button"
-              title={`${d.email} / ${d.password}`}
-              disabled={busy !== null}
-              onClick={() => useDemo(d)}
-              className="flex cursor-pointer flex-col items-center gap-1 rounded-2xl border border-slate-600/50 bg-ink/5 px-2 py-3 text-center text-slate-300 transition hover:border-indigo-400/60 hover:bg-indigo-500/10 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <d.icon size={17} className="text-indigo-300" />
-              <span className="text-xs font-semibold">{busy === d.role ? "Signing in…" : d.role}</span>
-              <span className="hidden text-[10px] text-slate-400 sm:block">{d.blurb}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="my-5 flex items-center gap-3">
         <span className="h-px flex-1 bg-slate-600/40" />
         <span className="whitespace-nowrap text-[10px] uppercase tracking-wider text-slate-500">or use your own account</span>

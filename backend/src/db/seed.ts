@@ -44,17 +44,21 @@ export async function seedDatabase() {
       [uuid(), s.name, s.name_bn, s.slug, s.code, "NCTB 2025 (English Version)", now]);
   }
   // Demo accounts (INSERT OR IGNORE keeps any password the user has changed).
-  await run(db, "INSERT OR IGNORE INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)",
-    [uuid(), "Administrator", "admin@mcq.local", bcrypt.hashSync("admin123", 10), "admin", now]);
-  await run(db, "INSERT OR IGNORE INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)",
-    [uuid(), "Demo Teacher", "teacher@mcq.local", bcrypt.hashSync("teacher123", 10), "teacher", now]);
-  await run(db, "INSERT OR IGNORE INTO users (id,name,email,password_hash,role,grade,section,created_at) VALUES (?,?,?,?,?,?,?,?)",
-    [uuid(), "Demo Student", "student@mcq.local", bcrypt.hashSync("student123", 10), "student", "Class 8", "A", now]);
+  // Only seeded when SEED_DEMO=true, so production databases never ship with
+  // the well-known public passwords. Subjects are always seeded (needed).
+  if (process.env.SEED_DEMO === "true") {
+    await run(db, "INSERT OR IGNORE INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)",
+      [uuid(), "Administrator", "admin@mcq.local", bcrypt.hashSync("admin123", 10), "admin", now]);
+    await run(db, "INSERT OR IGNORE INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)",
+      [uuid(), "Demo Teacher", "teacher@mcq.local", bcrypt.hashSync("teacher123", 10), "teacher", now]);
+    await run(db, "INSERT OR IGNORE INTO users (id,name,email,password_hash,role,grade,section,created_at) VALUES (?,?,?,?,?,?,?,?)",
+      [uuid(), "Demo Student", "student@mcq.local", bcrypt.hashSync("student123", 10), "student", "Class 8", "A", now]);
+  }
 
   // Demo questions: only on an empty questions table so real data is never
-  // touched. Bodies live in seed-questions.json next to this file.
+  // touched. Only seeded alongside demo accounts (SEED_DEMO=true).
   const qCount = await get(db, "SELECT COUNT(*) AS c FROM questions") as any;
-  if (!qCount || Number(qCount.c) === 0) {
+  if (process.env.SEED_DEMO === "true" && (!qCount || Number(qCount.c) === 0)) {
     const admin = await get(db, "SELECT id FROM users WHERE email=?", ["admin@mcq.local"]) as any;
     const createdBy = admin ? admin.id : null;
     for (const q of DEMO_QUESTIONS as DemoQuestion[]) {
