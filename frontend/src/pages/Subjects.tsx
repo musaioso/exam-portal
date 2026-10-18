@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, currentUser } from "../lib/api";
-import { Card, Button, Input } from "../components/ui";
-import { Plus, Trash2, ChevronDown, ChevronRight, Pencil, Check, X } from "lucide-react";
+import { Card, Button, Input, cn } from "../components/ui";
+import { Plus, Trash2, ChevronRight, Pencil, Check, X } from "lucide-react";
 
 function slugify(value: string) {
   return value
@@ -198,8 +198,18 @@ export default function Subjects() {
                   <Input className="w-24" value={editSub.code} onChange={e => setEditSub({ ...editSub, code: e.target.value })} placeholder="Code" />
                 </div>
               ) : (
-                <button onClick={() => toggle(s.id)} className="flex items-center gap-2 font-medium">
-                  {expanded === s.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                <button
+                  onClick={() => toggle(s.id)}
+                  aria-expanded={expanded === s.id}
+                  className="group flex items-center gap-2 font-medium"
+                >
+                  <ChevronRight
+                    size={16}
+                    className={cn(
+                      "shrink-0 text-slate-400 transition-transform duration-200 ease-out group-hover:text-slate-200",
+                      expanded === s.id && "rotate-90"
+                    )}
+                  />
                   {s.name} <span className="text-slate-500 text-sm">({s.code})</span>
                 </button>
               )}
