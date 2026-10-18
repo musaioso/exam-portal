@@ -1,47 +1,82 @@
+import { useId } from "react";
 import { cn } from "./ui";
 
-export function Logo({ className, showText = true }: { className?: string; showText?: boolean }) {
+/**
+ * The MCQ Studio mark — a rounded-square app icon: an open question book with
+ * a "verified" check badge, on the brand green→teal gradient. Single source of
+ * truth for the auth pages, the sidebar and anywhere else the brand shows up.
+ *
+ * `size` only sets sensible defaults; pass `iconClassName` / className to tweak.
+ */
+export function Logo({
+  className,
+  iconClassName,
+  showText = true,
+  size = "md",
+}: {
+  className?: string;
+  /** Override the mark's box size, e.g. "h-12 w-12". */
+  iconClassName?: string;
+  showText?: boolean;
+  size?: "lg" | "md" | "sm";
+}) {
+  // React ids can contain ":" which breaks url(#…) references — strip them.
+  const uid = useId().replace(/:/g, "");
+  const gid = `mcq-logo-${uid}`;
+  const text = {
+    lg: { name: "text-lg", sub: "text-xs" },
+    md: { name: "text-sm", sub: "text-[10px]" },
+    sm: { name: "text-base", sub: "text-xs" },
+  }[size];
+
   return (
     <div className={cn("flex items-center gap-3", className)}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        width="48"
-        height="48"
-        viewBox="0 0 48 48"
-        className="h-10 w-10 shrink-0"
+        viewBox="0 0 96 96"
+        role="img"
+        aria-label="MCQ Studio logo"
+        className={cn(
+          size === "lg" ? "h-12 w-12" : size === "sm" ? "h-10 w-10" : "h-9 w-9",
+          "shrink-0",
+          iconClassName
+        )}
       >
         <defs>
-          <linearGradient id="logo-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#12b981" />
+          <linearGradient id={gid} x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#10b981" />
             <stop offset="1" stopColor="#2dd4bf" />
           </linearGradient>
         </defs>
-        <circle cx="24" cy="24" r="24" fill="url(#logo-grad)" />
+        <rect width="96" height="96" rx="26" fill={`url(#${gid})`} />
+        {/* Open question book */}
         <path
-          d="M14 32V16c0-2.2 1.8-4 4-4h12c2.2 0 4 1.8 4 4v16l-8-4-8 4z"
-          fill="white"
-          opacity="0.95"
+          d="M22 66V32c0-4.4 3.6-8 8-8h18c4.4 0 8 3.6 8 8v34l-17-8.5L22 66z"
+          fill="#ffffff"
+          opacity="0.96"
         />
         <path
-          d="M18 20h12M18 24h8"
+          d="M32 34h14M32 42h10"
           stroke="#059669"
-          strokeWidth="2"
+          strokeWidth="3.2"
           strokeLinecap="round"
-          opacity="0.8"
+          opacity="0.75"
         />
-        <circle cx="32" cy="32" r="6" fill="#34d399" />
+        {/* Verified badge */}
+        <circle cx="66" cy="64" r="14" fill="#065f46" />
         <path
-          d="M30 32l1.5 1.5 2.5-2.5"
-          stroke="white"
-          strokeWidth="2"
+          d="M60 64.5l4 4 8.5-9"
+          stroke="#ffffff"
+          strokeWidth="3.8"
+          fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
       </svg>
       {showText && (
         <div>
-          <div className="text-lg font-semibold leading-tight">MCQ Studio</div>
-          <div className="text-xs text-slate-400">NCTB 2025 · English Version</div>
+          <div className={cn("font-semibold leading-tight", text.name)}>MCQ Studio</div>
+          <div className={cn("text-slate-400", text.sub)}>NCTB 2025 · English Version</div>
         </div>
       )}
     </div>

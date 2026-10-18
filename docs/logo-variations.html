@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>MCQ Studio — Logo Variations</title>
+<style>
+  :root {
+    --bg: #0a1410;
+    --panel: rgba(255,255,255,0.04);
+    --panel-border: rgba(255,255,255,0.09);
+    --text: #e7f5ee;
+    --muted: #8fb3a3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 28px 48px;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(16,185,129,0.16), transparent 60%),
+      radial-gradient(700px 500px at 8% 110%, rgba(20,184,166,0.14), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { color: var(--muted); font-size: 13px; margin: 0 0 28px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 20px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 20px;
+    padding: 20px;
+    backdrop-filter: blur(8px);
+  }
+  .card h2 { font-size: 14px; margin: 0 0 2px; }
+  .card .desc { color: var(--muted); font-size: 12px; margin: 0 0 16px; line-height: 1.5; }
+  .hero { display: flex; align-items: center; justify-content: center; padding: 22px 0 18px; }
+  .hero svg { width: 132px; height: 132px; filter: drop-shadow(0 10px 22px rgba(0,0,0,0.45)); }
+  .row { display: flex; align-items: center; gap: 18px; padding: 12px 0; border-top: 1px dashed var(--panel-border); }
+  .row-label { width: 78px; flex: none; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  /* mock sidebar to judge the logo in real context */
+  .mock {
+    display: flex; align-items: center; gap: 9px;
+    background: rgba(15, 32, 25, 0.85);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px; padding: 8px 12px;
+  }
+  .mock .t1 { font-size: 12px; font-weight: 600; line-height: 1.2; }
+  .mock .t2 { font-size: 9px; color: var(--muted); }
+  .sizes { display: flex; align-items: center; gap: 14px; }
+  .fav { display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; }
+  .note { color: var(--muted); font-size: 11px; line-height: 1.55; margin: 14px 0 0; padding-top: 12px; border-top: 1px dashed var(--panel-border); }
+</style>
+</head>
+<body>
+  <h1>MCQ Studio — Logo Variations</h1>
+  <p class="sub">Four directions, all using the brand green→teal gradient. Each card shows the mark large, in the app sidebar, and at favicon size.</p>
+
+  <div class="grid">
+
+    <!-- ================= Variation 1: Rounded-square book + check ================= -->
+    <div class="card">
+      <h2>1 · "App Icon" — Book &amp; Check</h2>
+      <p class="desc">Modern rounded-square badge. Open question-book with a verified check — the safest, most "product logo" option.</p>
+      <div class="hero">
+        <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="v1g" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#10b981"/><stop offset="1" stop-color="#2dd4bf"/></linearGradient></defs>
+          <rect width="96" height="96" rx="26" fill="url(#v1g)"/>
+          <path d="M22 66V32c0-4.4 3.6-8 8-8h18c4.4 0 8 3.6 8 8v34l-17-8.5L22 66z" fill="#fff" opacity="0.96"/>
+          <path d="M32 34h14M32 42h10" stroke="#059669" stroke-width="3.2" stroke-linecap="round" opacity="0.75"/>
+          <circle cx="66" cy="64" r="14" fill="#065f46"/>
+          <path d="M60 64.5l4 4 8.5-9" stroke="#fff" stroke-width="3.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="row">
+        <span class="row-label">Sidebar</span>
+        <div class="mock">
+          <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:36px;height:36px;flex:none">
+            <rect width="96" height="96" rx="26" fill="url(#v1g)"/>
+            <path d="M22 66V32c0-4.4 3.6-8 8-8h18c4.4 0 8 3.6 8 8v34l-17-8.5L22 66z" fill="#fff" opacity="0.96"/>
+            <path d="M32 34h14M32 42h10" stroke="#059669" stroke-width="3.2" stroke-linecap="round" opacity="0.75"/>
+            <circle cx="66" cy="64" r="14" fill="#065f46"/>
+            <path d="M60 64.5l4 4 8.5-9" stroke="#fff" stroke-width="3.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div><div class="t1">MCQ Studio</div><div class="t2">NCTB 2025 · English Version</div></div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">Sizes</span>
+        <div class="sizes">
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:48px;height:48px"><rect width="96" height="96" rx="26" fill="url(#v1g)"/><path d="M22 66V32c0-4.4 3.6-8 8-8h18c4.4 0 8 3.6 8 8v34l-17-8.5L22 66z" fill="#fff" opacity="0.96"/><path d="M32 34h14M32 42h10" stroke="#059669" stroke-width="3.2" stroke-linecap="round" opacity="0.75"/><circle cx="66" cy="64" r="14" fill="#065f46"/><path d="M60 64.5l4 4 8.5-9" stroke="#fff" stroke-width="3.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>48</span>
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px"><rect width="96" height="96" rx="26" fill="url(#v1g)"/><path d="M22 66V32c0-4.4 3.6-8 8-8h18c4.4 0 8 3.6 8 8v34l-17-8.5L22 66z" fill="#fff" opacity="0.96"/><circle cx="66" cy="64" r="14" fill="#065f46"/><path d="M60 64.5l4 4 8.5-9" stroke="#fff" stroke-width="3.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>24</span>
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px"><rect width="96" height="96" rx="26" fill="url(#v1g)"/><path d="M22 66V32c0-4.4 3.6-8 8-8h18c4.4 0 8 3.6 8 8v34l-17-8.5L22 66z" fill="#fff" opacity="0.96"/><circle cx="66" cy="64" r="14" fill="#065f46"/><path d="M60 64.5l4 4 8.5-9" stroke="#fff" stroke-width="3.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>16</span>
+        </div>
+      </div>
+      <p class="note">Cleanest at small sizes; reads well as a favicon. Slightly "generic app icon" though.</p>
+    </div>
+
+    <!-- ================= Variation 2: MCQ monogram ================= -->
+    <div class="card">
+      <h2>2 · "Monogram" — MCQ Bullseye</h2>
+      <p class="desc">Bold typographic circle: the letters <b>MCQ</b> with a precision crosshair — "right answer on target".</p>
+      <div class="hero">
+        <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="v2g" x1="8" y1="2" x2="88" y2="94" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#34d399"/><stop offset="1" stop-color="#0d9488"/></linearGradient></defs>
+          <circle cx="48" cy="48" r="44" fill="url(#v2g)"/>
+          <text x="48" y="56" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="800" fill="#fff" letter-spacing="1.5">MCQ</text>
+          <path d="M18 68h60" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.45"/>
+          <path d="M38 78l5 5 11-11" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+        </svg>
+      </div>
+      <div class="row">
+        <span class="row-label">Sidebar</span>
+        <div class="mock">
+          <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:36px;height:36px;flex:none">
+            <circle cx="48" cy="48" r="44" fill="url(#v2g)"/>
+            <text x="48" y="56" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="800" fill="#fff" letter-spacing="1.5">MCQ</text>
+            <path d="M18 68h60" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.45"/>
+            <path d="M38 78l5 5 11-11" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>
+          </svg>
+          <div><div class="t1">MCQ Studio</div><div class="t2">NCTB 2025 · English Version</div></div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">Sizes</span>
+        <div class="sizes">
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:48px;height:48px"><circle cx="48" cy="48" r="44" fill="url(#v2g)"/><text x="48" y="56" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="800" fill="#fff" letter-spacing="1.5">MCQ</text><path d="M18 68h60" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.45"/><path d="M38 78l5 5 11-11" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/></svg>48</span>
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px"><circle cx="48" cy="48" r="44" fill="url(#v2g)"/><text x="48" y="57" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="800" fill="#fff">MCQ</text></svg>24</span>
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px"><circle cx="48" cy="48" r="44" fill="url(#v2g)"/><text x="48" y="59" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="36" font-weight="800" fill="#fff">MCQ</text></svg>16</span>
+        </div>
+      </div>
+      <p class="note">Strongest brand identity (the name IS the logo). Tiny sizes drop the check and underline automatically.</p>
+    </div>
+
+    <!-- ================= Variation 3: Bullseye + check ================= -->
+    <div class="card">
+      <h2>3 · "Precision" — Target Check</h2>
+      <p class="desc">A bullseye whose centre is the checkmark itself — accuracy, marks, the right answer. Very legible icon.</p>
+      <div class="hero">
+        <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="v3g" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#10b981"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+          <circle cx="48" cy="48" r="44" fill="url(#v3g)"/>
+          <circle cx="48" cy="48" r="30" fill="none" stroke="#fff" stroke-width="5" opacity="0.9"/>
+          <circle cx="48" cy="48" r="17" fill="none" stroke="#fff" stroke-width="5" opacity="0.9"/>
+          <path d="M39.5 48.5l6 6 12.5-13.5" stroke="#fff" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="row">
+        <span class="row-label">Sidebar</span>
+        <div class="mock">
+          <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:36px;height:36px;flex:none">
+            <circle cx="48" cy="48" r="44" fill="url(#v3g)"/>
+            <circle cx="48" cy="48" r="30" fill="none" stroke="#fff" stroke-width="5" opacity="0.9"/>
+            <circle cx="48" cy="48" r="17" fill="none" stroke="#fff" stroke-width="5" opacity="0.9"/>
+            <path d="M39.5 48.5l6 6 12.5-13.5" stroke="#fff" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div><div class="t1">MCQ Studio</div><div class="t2">NCTB 2025 · English Version</div></div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">Sizes</span>
+        <div class="sizes">
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:48px;height:48px"><circle cx="48" cy="48" r="44" fill="url(#v3g)"/><circle cx="48" cy="48" r="30" fill="none" stroke="#fff" stroke-width="5" opacity="0.9"/><circle cx="48" cy="48" r="17" fill="none" stroke="#fff" stroke-width="5" opacity="0.9"/><path d="M39.5 48.5l6 6 12.5-13.5" stroke="#fff" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>48</span>
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px"><circle cx="48" cy="48" r="44" fill="url(#v3g)"/><circle cx="48" cy="48" r="28" fill="none" stroke="#fff" stroke-width="7" opacity="0.9"/><path d="M38.5 49l6.5 6.5 13-14" stroke="#fff" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>24</span>
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px"><circle cx="48" cy="48" r="44" fill="url(#v3g)"/><circle cx="48" cy="48" r="26" fill="none" stroke="#fff" stroke-width="9" opacity="0.9"/><path d="M38 49.5l7 7 14-15" stroke="#fff" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>16</span>
+        </div>
+      </div>
+      <p class="note">Best small-size legibility of the four — the rings simplify gracefully down to favicon size.</p>
+    </div>
+
+    <!-- ================= Variation 4: Answer sheet ================= -->
+    <div class="card">
+      <h2>4 · "Answer Sheet" — Ticked Paper</h2>
+      <p class="desc">A question paper with ticked boxes — the most literal "MCQ" story: questions graded, one left to answer.</p>
+      <div class="hero">
+        <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="v4g" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#10b981"/><stop offset="1" stop-color="#2dd4bf"/></linearGradient></defs>
+          <rect width="96" height="96" rx="26" fill="url(#v4g)"/>
+          <rect x="24" y="20" width="48" height="58" rx="8" fill="#fff"/>
+          <rect x="32" y="29" width="11" height="11" rx="3.5" fill="#10b981"/>
+          <path d="M34.5 34.5l2.2 2.2 4-4.4" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="47" y="32" width="17" height="5" rx="2.5" fill="#a7f3d0"/>
+          <rect x="32" y="45" width="11" height="11" rx="3.5" fill="#10b981"/>
+          <path d="M34.5 50.5l2.2 2.2 4-4.4" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="47" y="48" width="13" height="5" rx="2.5" fill="#a7f3d0"/>
+          <rect x="32.8" y="61.8" width="9.4" height="9.4" rx="3" fill="none" stroke="#d1fae5" stroke-width="2.4"/>
+          <rect x="47" y="64" width="10" height="5" rx="2.5" fill="#d1fae5"/>
+        </svg>
+      </div>
+      <div class="row">
+        <span class="row-label">Sidebar</span>
+        <div class="mock">
+          <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:36px;height:36px;flex:none">
+            <rect width="96" height="96" rx="26" fill="url(#v4g)"/>
+            <rect x="24" y="20" width="48" height="58" rx="8" fill="#fff"/>
+            <rect x="32" y="29" width="11" height="11" rx="3.5" fill="#10b981"/>
+            <path d="M34.5 34.5l2.2 2.2 4-4.4" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="47" y="32" width="17" height="5" rx="2.5" fill="#a7f3d0"/>
+            <rect x="32" y="45" width="11" height="11" rx="3.5" fill="#10b981"/>
+            <path d="M34.5 50.5l2.2 2.2 4-4.4" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="47" y="48" width="13" height="5" rx="2.5" fill="#a7f3d0"/>
+            <rect x="32.8" y="61.8" width="9.4" height="9.4" rx="3" fill="none" stroke="#d1fae5" stroke-width="2.4"/>
+            <rect x="47" y="64" width="10" height="5" rx="2.5" fill="#d1fae5"/>
+          </svg>
+          <div><div class="t1">MCQ Studio</div><div class="t2">NCTB 2025 · English Version</div></div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">Sizes</span>
+        <div class="sizes">
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:48px;height:48px"><rect width="96" height="96" rx="26" fill="url(#v4g)"/><rect x="24" y="20" width="48" height="58" rx="8" fill="#fff"/><rect x="32" y="29" width="11" height="11" rx="3.5" fill="#10b981"/><path d="M34.5 34.5l2.2 2.2 4-4.4" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="47" y="32" width="17" height="5" rx="2.5" fill="#a7f3d0"/><rect x="32" y="45" width="11" height="11" rx="3.5" fill="#10b981"/><path d="M34.5 50.5l2.2 2.2 4-4.4" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="47" y="48" width="13" height="5" rx="2.5" fill="#a7f3d0"/><rect x="32.8" y="61.8" width="9.4" height="9.4" rx="3" fill="none" stroke="#d1fae5" stroke-width="2.4"/><rect x="47" y="64" width="10" height="5" rx="2.5" fill="#d1fae5"/></svg>48</span>
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px"><rect width="96" height="96" rx="26" fill="url(#v4g)"/><rect x="24" y="20" width="48" height="58" rx="8" fill="#fff"/><rect x="32" y="30" width="12" height="12" rx="4" fill="#10b981"/><path d="M34.8 36l2.4 2.4 4.4-4.8" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="32" y="50" width="12" height="12" rx="4" fill="#10b981"/><path d="M34.8 56l2.4 2.4 4.4-4.8" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>24</span>
+          <span class="fav"><svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px"><rect width="96" height="96" rx="26" fill="url(#v4g)"/><rect x="24" y="20" width="48" height="58" rx="8" fill="#fff"/><rect x="33" y="33" width="14" height="14" rx="4" fill="#10b981"/><path d="M36 40l3 3 6-6.5" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="33" y="56" width="14" height="14" rx="4" fill="#10b981"/></svg>16</span>
+        </div>
+      </div>
+      <p class="note">Most literal / educational feel; detail softens at 16px but still reads as "paper with ticks".</p>
+    </div>
+
+  </div>
+</body>
+</html>
