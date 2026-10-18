@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { Badge, Card, Button, Input, Field, cn } from "../components/ui";
+import { confirmDialog } from "../components/Dialog";
 import { Check, Copy, Eye, EyeOff, KeyRound, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 export default function Users() {
@@ -50,7 +51,8 @@ export default function Users() {
     const ask = student?.pin
       ? `${name}-এর জন্য নতুন PIN বানাবেন? পুরোনো PIN আর কাজ করবে না।`
       : `${name}-কে একটা ৪ সংখ্যার PIN বানিয়ে দেবেন? এরপর সে নাম আর PIN দিয়ে ঢুকতে পারবে।`;
-    if (!confirm(ask)) return;
+    const ok = await confirmDialog({ title: "Set a new PIN?", message: ask, confirmLabel: "Set new PIN" });
+    if (!ok) return;
     const { data } = await api.post(`/users/${id}/reset-pin`);
     setFresh({ name, pin: data.pin });
     setRevealed((r) => ({ ...r, [id]: true }));
@@ -69,7 +71,13 @@ export default function Users() {
 
   const del = async (id: string) => {
     const student = users.find((u) => u.id === id);
-    if (!confirm(`${student?.name || "এই ইউজার"}-কে মুছে ফেলবেন?`)) return;
+    const ok = await confirmDialog({
+      title: `${student?.name || "এই ইউজার"}-কে মুছে ফেলবেন?`,
+      message: "এটা আর ফেরানো যাবে না।",
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
     await api.delete(`/users/${id}`);
     load();
   };

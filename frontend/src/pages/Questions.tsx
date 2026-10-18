@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge } from "../components/ui";
+import { confirmDialog, alertDialog } from "../components/Dialog";
 import { Plus, Trash2, Upload } from "lucide-react";
 
 const empty = { subject_id: "", chapter_id: "", type: "mcq", difficulty: "medium", prompt: "", options: ["", "", "", ""], answer: "", explanation: "", marks: 1 };
@@ -33,10 +34,13 @@ export default function Questions() {
         const details = data.errors.slice(0, 8).map((e: any) => `• row ${e.index + 1}: ${e.error}`).join("\n");
         msg += `\n\n${details}` + (data.errors.length > 8 ? `\n…and ${data.errors.length - 8} more` : "");
       }
-      alert(msg);
+      await alertDialog({ title: "Import result", message: msg });
       loadQuestions();
     } catch (e: any) {
-      alert(e?.response?.data?.error || e?.message || "Import failed");
+      await alertDialog({
+        title: "Import failed",
+        message: e?.response?.data?.error || e?.message || "The file could not be imported.",
+      });
     }
   };
 
@@ -74,14 +78,23 @@ export default function Questions() {
 
   const undoImport = async () => {
     if (!lastBatchId) return;
-    if (!confirm("Undo last import? This will delete all questions from that import.")) return;
+    const ok = await confirmDialog({
+      title: "Undo the last import?",
+      message: "Every question from that import gets deleted.",
+      confirmLabel: "Undo import",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       const { data } = await api.delete(`/questions/imports/${lastBatchId}`);
-      alert(`Undo complete: deleted ${data.deleted} questions`);
+      await alertDialog({ title: "Import undone", message: `Deleted ${data.deleted} questions.` });
       setLastBatchId(null);
       loadQuestions();
     } catch (e: any) {
-      alert(e?.response?.data?.error || e?.message || "Undo failed");
+      await alertDialog({
+        title: "Could not undo",
+        message: e?.response?.data?.error || e?.message || "The import could not be undone.",
+      });
     }
   };
 
@@ -106,7 +119,13 @@ export default function Questions() {
   };
 
   const del = async (id: string) => {
-    if (!confirm("Delete question?")) return;
+    const ok = await confirmDialog({
+      title: "Delete this question?",
+      message: "This can't be undone.",
+      confirmLabel: "Delete question",
+      tone: "danger",
+    });
+    if (!ok) return;
     await api.delete(`/questions/${id}`); loadQuestions();
   };
 

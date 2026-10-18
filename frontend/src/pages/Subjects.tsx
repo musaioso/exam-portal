@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, currentUser } from "../lib/api";
 import { Card, Button, Input, cn } from "../components/ui";
+import { confirmDialog } from "../components/Dialog";
 import { Plus, Trash2, ChevronRight, Pencil, Check, X } from "lucide-react";
 
 function slugify(value: string) {
@@ -93,7 +94,13 @@ export default function Subjects() {
   };
 
   const delSubject = async (id: string) => {
-    if (!confirm("Delete subject?")) return;
+    const ok = await confirmDialog({
+      title: "Delete this subject?",
+      message: "This can't be undone.",
+      confirmLabel: "Delete subject",
+      tone: "danger",
+    });
+    if (!ok) return;
     setError(null);
     try {
       await api.delete(`/subjects/${id}`);
@@ -150,7 +157,13 @@ export default function Subjects() {
   };
 
   const delChapter = async (id: string, sid: string) => {
-    if (!confirm("Delete chapter?")) return;
+    const ok = await confirmDialog({
+      title: "Delete this chapter?",
+      message: "This can't be undone.",
+      confirmLabel: "Delete chapter",
+      tone: "danger",
+    });
+    if (!ok) return;
     setError(null);
     try {
       await api.delete(`/subjects/chapters/${id}`);

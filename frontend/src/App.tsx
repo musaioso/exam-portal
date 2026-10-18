@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth-context";
 import { Shell } from "./components/Shell";
+import { DialogHost } from "./components/Dialog";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -24,6 +25,7 @@ function Private({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <AuthProvider>
+      <DialogHost />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />

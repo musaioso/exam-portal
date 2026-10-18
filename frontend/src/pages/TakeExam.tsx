@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { Card, Button, Input, Textarea } from "../components/ui";
+import { confirmDialog } from "../components/Dialog";
 import { CheckCircle2 } from "lucide-react";
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -48,10 +49,12 @@ export default function TakeExam() {
     if (submitting) return;
     if (!auto) {
       const missing = questions.filter((q) => !isAnswered(q)).length;
-      const msg = missing > 0
-        ? `You have ${missing} unanswered question${missing > 1 ? "s" : ""}. Submit anyway?`
-        : "Submit exam?";
-      if (!confirm(msg)) return;
+      const ok = await confirmDialog({
+        title: "Submit exam?",
+        message: missing > 0 ? `You still have ${missing} unanswered question${missing > 1 ? "s" : ""}.` : undefined,
+        confirmLabel: "Submit exam",
+      });
+      if (!ok) return;
     }
     setSubmitting(true);
     try {

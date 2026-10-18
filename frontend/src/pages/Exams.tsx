@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { Card, Button, Input, NumberInput, Field, Select, Badge, cn } from "../components/ui";
+import { confirmDialog, alertDialog } from "../components/Dialog";
 import {
   Plus, Trash2, PlayCircle, Shuffle, X, Wand2, Printer, ArrowUp, ArrowDown, GripVertical,
   FileText, Pencil, ClipboardList, BookOpen, Settings2, ListChecks, Check, Clock, Trophy,
@@ -230,7 +231,13 @@ export default function Exams() {
       .map((t) => ({ type: t, ids: groups[t], marks: typeMarks[t] }));
     if (!jobs.length) return;
     const summary = jobs.map((j) => `${j.type.toUpperCase()}: ${j.ids.length} × ${j.marks}`).join("\n");
-    if (!confirm(`Set marks on the selected questions in the question bank?\n\n${summary}\n\n(This updates the shared questions.)`)) return;
+    const ok = await confirmDialog({
+      title: "Update the shared question bank?",
+      message: `${summary}\n\nThese questions are shared, so the new marks will apply everywhere they are used.`,
+      confirmLabel: "Update marks",
+      tone: "danger",
+    });
+    if (!ok) return;
     await Promise.all(jobs.map((j) => api.post("/questions/bulk-update", { ids: j.ids, patch: { marks: j.marks } })));
     const { data } = await api.get(`/questions?subject_ids=${subjectKey}`);
     setAvailableQs(data.questions || []);
@@ -288,7 +295,7 @@ export default function Exams() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.subjectIds.length || form.question_ids.length === 0) {
-      alert("Select at least one subject and one question.");
+      await alertDialog({ title: "Nothing selected", message: "Select at least one subject and one question." });
       return;
     }
     const times = form.subjectIds.map((id) => ({ subject_id: id, minutes: subjectTimes[id] ?? 0 }));
@@ -315,7 +322,13 @@ export default function Exams() {
     load();
   };
   const del = async (id: string) => {
-    if (!confirm("Delete exam?")) return;
+    const ok = await confirmDialog({
+      title: "Delete this exam?",
+      message: "The paper and its schedule go away. The questions themselves stay in the question bank.",
+      confirmLabel: "Delete exam",
+      tone: "danger",
+    });
+    if (!ok) return;
     await api.delete(`/exams/${id}`); load();
   };
 
