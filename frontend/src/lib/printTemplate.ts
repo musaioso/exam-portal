@@ -146,8 +146,23 @@ export function buildPrintHtml(data: PrintData): string {
         .settings input[type=text], .settings input[type=number], .settings select, .settings textarea {
           width: 100%; padding: 8px 12px; border-radius: 1rem; border: 1px solid var(--border); background: var(--field-bg); color: var(--field-text); font-size: 13px; font-family: inherit;
         }
-        /* Native dropdown popup follows the theme (same as index.css). */
-        .settings option, .settings optgroup { background-color: var(--field-bg); color: var(--field-text); }
+        /* Native selects + dropdown popups follow the theme, with the same
+           rules as index.css so they match the app exactly in both modes:
+           themed chevron, app-matched padding, themed popup options. */
+        .settings select {
+          appearance: none;
+          -webkit-appearance: none;
+          padding: 10px 34px 10px 14px;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238bb39c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 12px center;
+          background-size: 14px 14px;
+        }
+        html[data-theme="light"] .settings select {
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23456b55' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        }
+        .settings option, .settings optgroup { background-color: var(--field-bg); color: var(--field-text); color-scheme: dark; }
+        html[data-theme="light"] .settings option, html[data-theme="light"] .settings optgroup { color-scheme: light; }
         /* Themed stepper replacing the native (unthemeable) spin buttons. */
         .settings input[type=number] { -moz-appearance: textfield; appearance: textfield; }
         .settings input[type=number]::-webkit-outer-spin-button,
