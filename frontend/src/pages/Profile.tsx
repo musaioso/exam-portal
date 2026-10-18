@@ -241,7 +241,7 @@ export default function Profile() {
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          s.average >= 80 ? "bg-emerald-400" : s.average >= 50 ? "bg-amber-400" : "bg-rose-400"
+                          s.average >= 80 ? "bg-emerald-400" : s.average >= 50 ? "bg-amber-500" : "bg-rose-400"
                         )}
                         style={{ width: `${Math.max(3, s.average)}%` }}
                       />

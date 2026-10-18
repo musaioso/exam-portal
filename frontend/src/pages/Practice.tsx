@@ -186,9 +186,9 @@ export default function Practice() {
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs ${
                     answered && isKey
-                      ? "border-emerald-400 bg-emerald-500/30 text-emerald-100"
+                      ? "border-emerald-400 bg-emerald-500/30 text-emerald-300"
                       : answered && isPicked
-                        ? "border-rose-400 bg-rose-500/30 text-rose-100"
+                        ? "border-rose-400 bg-rose-500/30 text-rose-300"
                         : "border-slate-600 text-slate-400"
                   }`}
                 >
@@ -209,7 +209,7 @@ export default function Practice() {
             <div
               className={`rounded-xl border px-3 py-2 text-sm ${
                 right
-                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                   : "border-rose-500/40 bg-rose-500/10 text-rose-200"
               }`}
             >

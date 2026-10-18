@@ -296,7 +296,7 @@ export default function Results() {
                           q.answer != null &&
                           String(q.answer).trim().toLowerCase() === String(o).trim().toLowerCase();
                         const tone = isKey
-                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                           : isGiven
                             ? "border-rose-500/40 bg-rose-500/10 text-rose-200"
                             : "border-slate-700/40 text-slate-400";

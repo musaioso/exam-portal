@@ -10,7 +10,7 @@ type ToastItem = { id: number; kind: ToastKind; message: string; action?: { labe
 const ToastContext = createContext<{ push: (kind: ToastKind, message: string, opts?: { action?: { label: string; onClick: () => void }; duration?: number }) => void } | null>(null);
 
 const KIND_STYLE: Record<ToastKind, string> = {
-  success: "border-emerald-500/40 text-emerald-200",
+  success: "border-emerald-500/40 text-emerald-300",
   error: "border-rose-500/40 text-rose-200",
   info: "border-indigo-500/40 text-indigo-200",
 };

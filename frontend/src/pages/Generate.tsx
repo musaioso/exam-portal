@@ -76,6 +76,8 @@ export default function Generate() {
   const [modelsLoading, setModelsLoading] = useState(true);
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
+  // Optional seed from the server (AI_DEFAULT_MODEL), e.g. a Gemini model.
+  const [preferredModel, setPreferredModel] = useState("");
   const [count, setCount] = useState("10");
   const [difficulty, setDifficulty] = useState("mixed");
   const [types, setTypes] = useState<string[]>(["mcq"]);
@@ -116,6 +118,7 @@ export default function Generate() {
     try {
       const { data } = await api.get(`/ai/models${refresh ? "?refresh=1" : ""}`);
       setProviders(data.providers || []);
+      if (data.defaultModel) setPreferredModel(String(data.defaultModel));
     } catch (e) {
       toast.error(errorMessage(e, "Could not load the AI model list."));
     } finally {
@@ -135,14 +138,19 @@ export default function Generate() {
   // Default the pickers to the first usable provider/model (lists are sorted
   // server-callable-first, newest-first by the backend; app-only free-tier
   // models sink to the bottom because this backend cannot call them).
+  // A server-provided seed (AI_DEFAULT_MODEL, e.g. a Gemini model) wins when
+  // that model is actually offered by the provider.
   useEffect(() => {
     if (enabledProviders.length === 0) return;
     const stillValid = enabledProviders.some((p) => p.id === providerId);
     const p = stillValid ? enabledProviders.find((x) => x.id === providerId)! : enabledProviders[0];
     if (!stillValid) setProviderId(p.id);
+    const usable = p.models.filter((m) => !m.appOnly);
+    const seed = preferredModel ? usable.find((m) => m.id === preferredModel) : undefined;
     if (!p.models.some((m) => m.id === modelId && !m.appOnly)) {
-      const pick = p.models.find((m) => !m.appOnly) || p.models[0];
-      setModelId(pick?.id || "");
+      setModelId((seed || usable[0] || p.models[0])?.id || "");
+    } else if (seed && !modelId) {
+      setModelId(seed.id);
     }
   }, [providers]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -580,7 +588,7 @@ export default function Generate() {
                 </Select>
               )}
               {currentProvider && currentModel?.appOnly && (
-                <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+                <p className="mt-1.5 text-xs text-amber-500">
                   This free model only works inside the OpenCode app — generation from this server will fail. Pick a
                   non-free model and make sure the OpenCode account has credits.
                 </p>
@@ -755,7 +763,7 @@ export default function Generate() {
                       {it.options && (
                         <ul className="mt-2 space-y-1 text-sm">
                           {it.options.map((o, oi) => (
-                            <li key={oi} className={cn("rounded-lg px-2 py-1", o === it.answer ? "bg-emerald-500/15 text-emerald-200" : "text-slate-300")}>
+                            <li key={oi} className={cn("rounded-lg px-2 py-1", o === it.answer ? "bg-emerald-500/15 text-emerald-300" : "text-slate-300")}>
                               {String.fromCharCode(65 + oi)}. {o} {o === it.answer && "✓"}
                             </li>
                           ))}
@@ -783,7 +791,7 @@ export default function Generate() {
           </div>
 
           <p className="flex items-start gap-2 rounded-xl bg-slate-900/40 px-4 py-3 text-xs text-slate-500">
-            <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-400" />
+            <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-300" />
             Saving re-runs the duplicate check server-side — anything already in the bank is skipped, never overwritten.
           </p>
         </div>
