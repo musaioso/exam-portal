@@ -247,19 +247,20 @@ export function buildPrintHtml(data: PrintData): string {
         .sheet { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #000; padding: 12.7mm 12.7mm 3.81mm; box-shadow: 0 4px 24px rgba(0,0,0,.5); }
         .paper { font-family: "Noto Serif Bengali", "Plus Jakarta Sans", "Nirmala UI", serif; font-size: var(--fs, 9pt); line-height: 1.22; color: #000; }
         .header { margin-bottom: 1px; }
-        .header .hrow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 4mm; align-items: baseline; }
+        .header .hrow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0 4mm; align-items: baseline; }
         .header .hleft { text-align: left; }
         .header .hcenter { text-align: center; }
         .header .hright { text-align: right; }
-        .header .h-school { font-size: 12.5pt; font-weight: 700; line-height: 1.1; }
-        .header .h-title { font-size: 9.5pt; line-height: 1.15; }
-        .header .h-subject { font-size: 8.5pt; line-height: 1.15; }
-        .header .h-meta { font-size: 8.5pt; line-height: 1.15; }
-        .header .hname, .header .hdate { font-size: 9pt; }
-        .header .hleft .fill { min-width: 32mm; }
-        .header .hright .fill { min-width: 26mm; }
+        .header .h-school { font-size: 12.5pt; font-weight: 700; line-height: 1.05; }
+        .header .h-title { font-size: 9.5pt; line-height: 1.1; }
+        .header .h-subject { font-size: 8.5pt; line-height: 1.1; }
+        .header .h-subject .h-per { color: #444; }
+        .header .hline { font-size: 9pt; line-height: 1.2; white-space: nowrap; }
+        .header .hline.hwrap { white-space: normal; }
+        .header .hleft .f-name { min-width: 22mm; }
+        .header .hleft .f-small { min-width: 15mm; }
+        .header .hright .f-date { min-width: 18mm; }
         .header .rule { border-bottom: 1.2px solid #000; margin-top: 1px; }
-        .studentinfo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 9pt; margin: 1px 0 3px; }
         .fill { border-bottom: 1px dotted #555; display: inline-block; min-width: 60px; }
         .instructions { border: 1px solid #999; border-radius: 3px; padding: 2px 5px; font-size: 8pt; margin: 0 0 3px; background: #fafafa; }
         .qcol { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 1.4mm 6mm; align-items: start; }
@@ -413,23 +414,29 @@ export function buildPrintHtml(data: PrintData): string {
           return '<div class="q"><div class="qp"><span class="qno">' + qNo(q, n) + '</span><span class="qtext">' + esc(q.prompt) + '</span>' + marks + '</div>' + opts + '</div>';
         }
         function headerHtml(){
-          var left = S.showName ? '<div class="hname">Name: <span class="fill"></span></div>' : '';
+          /* Compact header: identity fields (Name, Roll, Class) stack in the
+             left column and Date/Time/Marks in the right, so the block is
+             exactly as tall as the title stack — no extra rows below. */
+          var left = '';
+          if (S.showName) left += '<div class="hline">Name: <span class="fill f-name"></span></div>';
+          if (S.showRollClass) {
+            left += '<div class="hline">Roll: <span class="fill f-small"></span></div>';
+            left += '<div class="hline">Class/Sec: <span class="fill f-small"></span></div>';
+          }
           var c = '';
           if (S.showSchool) c += '<div class="h-school">' + esc(S.school) + '</div>';
           if (S.showTitle) c += '<div class="h-title">' + esc(S.title) + '</div>';
-          if (S.showSubject) c += '<div class="h-subject">Subject: <b>' + esc(DATA.subjectLine) + '</b></div>';
-          var meta = [];
-          if (S.showTime) meta.push('Time: <b>' + DATA.time + ' minutes</b>' + esc(DATA.perSubjectTime));
-          if (S.showFullMarks) meta.push('Full Marks: <b>' + DATA.totalMarks + '</b>');
-          if (meta.length) c += '<div class="h-meta">' + meta.join(' &nbsp;&middot;&nbsp; ') + '</div>';
-          var right = S.showDate ? '<div class="hdate">Date: ' + (S.date ? '<b>' + esc(S.date) + '</b>' : '<span class="fill"></span>') + '</div>' : '';
-          var html = '<div class="header"><div class="hrow">' +
+          var perSubj = (S.showTime && S.showSubject) ? DATA.perSubjectTime : '';
+          if (S.showSubject) c += '<div class="h-subject">Subject: <b>' + esc(DATA.subjectLine) + '</b>' + (perSubj ? ' <span class="h-per">' + esc(perSubj) + '</span>' : '') + '</div>';
+          var right = '';
+          if (S.showDate) right += '<div class="hline">Date: ' + (S.date ? '<b>' + esc(S.date) + '</b>' : '<span class="fill f-date"></span>') + '</div>';
+          if (S.showTime) right += '<div class="hline' + (!S.showSubject && DATA.perSubjectTime ? ' hwrap' : '') + '">Time: <b>' + DATA.time + ' minutes</b>' + (!S.showSubject ? esc(DATA.perSubjectTime) : '') + '</div>';
+          if (S.showFullMarks) right += '<div class="hline">Full Marks: <b>' + DATA.totalMarks + '</b></div>';
+          return '<div class="header"><div class="hrow">' +
             '<div class="hleft">' + left + '</div>' +
             '<div class="hcenter">' + c + '</div>' +
             '<div class="hright">' + right + '</div>' +
             '</div><div class="rule"></div></div>';
-          if (S.showRollClass) html += '<div class="studentinfo"><span>Roll: <span class="fill"></span></span><span>Class/Sec: <span class="fill"></span></span></div>';
-          return html;
         }
         function shuffleAll(){
           var qs = [];
