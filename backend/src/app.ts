@@ -8,7 +8,7 @@ import usersRouter from "./routes/users";
 import backupRouter from "./routes/backup";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
-import { storage, isPersistent, dbLabel, getDb, get, all } from "./db/database";
+import { storage, isPersistent, dbLabel, getDb, get } from "./db/database";
 
 function createApp() {
   const app = express();
@@ -61,33 +61,6 @@ function createApp() {
   app.get("/api/health", (_req, res) =>
     res.json({ ok: true, db: storage, persistent: isPersistent, dbName: dbLabel })
   );
-
-  // TEMPORARY diagnostic — remove after debugging. Reports which database the
-  // live function is really talking to (host, database id, tables, seed state).
-  app.get("/api/diag", async (_req, res) => {
-    const out: Record<string, unknown> = {
-      storage,
-      isPersistent,
-      vercelEnv: process.env.VERCEL_ENV || null,
-      gitSha: (process.env.VERCEL_GIT_COMMIT_SHA || "").slice(0, 7) || null,
-      envHost: (process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL || "(unset)"),
-      tokenLen: (process.env.TURSO_AUTH_TOKEN || process.env.LIBSQL_AUTH_TOKEN || "").length,
-    };
-    const db = await getDb();
-    const q = async (name: string, sql: string) => {
-      try {
-        out[name] = await all(db, sql);
-      } catch (e) {
-        out[name] = "ERR " + String((e as Error)?.message || e);
-      }
-    };
-    await q("databaseList", "PRAGMA database_list");
-    await q("tables", "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
-    await q("appMeta", "SELECT key, value FROM app_meta ORDER BY key");
-    await q("users", "SELECT name, role, created_at FROM users ORDER BY created_at");
-    await q("subjectCount", "SELECT COUNT(*) AS n FROM subjects");
-    res.json(out);
-  });
 
   app.use("/api/auth", authRouter);
   app.use("/api/subjects", subjectsRouter);
