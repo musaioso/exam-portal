@@ -561,10 +561,10 @@ export function buildPrintHtml(data: PrintData): string {
           });
         })();
         bind('f-date', 'date', 'text');
+        document.getElementById('f-fs').value = S.fontSize;
         document.getElementById('f-cols').value = String(S.columns);
         document.getElementById('f-labels').value = S.labelStyle || 'auto';
         document.getElementById('f-num').value = S.numStyle || 'auto';
-        document.getElementById('f-header').checked = S.showHeader !== false;
         document.getElementById('f-marks').checked = !!S.showMarks;
         document.getElementById('f-instr').checked = !!S.showInstructions;
         document.getElementById('f-instrtext').value = S.instructions || '';
