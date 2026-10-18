@@ -9,6 +9,7 @@ import Questions from "./pages/Questions";
 import Exams from "./pages/Exams";
 import TakeExam from "./pages/TakeExam";
 import Print from "./pages/Print";
+import PrintPreview from "./pages/PrintPreview";
 import Users from "./pages/Users";
 import Results from "./pages/Results";
 
@@ -31,6 +32,8 @@ export default function App() {
           <Route path="/exams" element={<Private><Exams /></Private>} />
           <Route path="/take-exam/:attemptId" element={<Private><TakeExam /></Private>} />
           <Route path="/print" element={<Private><Print /></Private>} />
+          {/* Full-viewport preview document — intentionally outside Private/Shell. */}
+          <Route path="/print/preview" element={<PrintPreview />} />
           <Route path="/users" element={<Private><Users /></Private>} />
           <Route path="/results" element={<Private><Results /></Private>} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
