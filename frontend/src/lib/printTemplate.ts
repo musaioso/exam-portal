@@ -146,6 +146,18 @@ export function buildPrintHtml(data: PrintData): string {
         .settings input[type=text], .settings input[type=number], .settings select, .settings textarea {
           width: 100%; padding: 8px 12px; border-radius: 1rem; border: 1px solid var(--border); background: var(--field-bg); color: var(--field-text); font-size: 13px; font-family: inherit;
         }
+        .settings input[type=date] {
+          width: 100%; padding: 8px 12px 8px 10px; border-radius: 1rem; border: 1px solid var(--border); background: var(--field-bg); color: var(--field-text); font-size: 13px; font-family: inherit;
+          color-scheme: dark;
+        }
+        html[data-theme="light"] .settings input[type=date] { color-scheme: light; }
+        .drow { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
+        .btn-xs {
+          padding: 7px 10px; border-radius: 1rem; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+          transition: border-color 0.2s ease, filter 0.2s ease, transform 0.15s ease;
+        }
+        .btn-xs:hover { border-color: var(--color-violet-400); filter: brightness(1.08); }
+        .btn-xs:active { transform: scale(0.985); }
         /* Dropdowns: the native select is visually hidden (kept for its state
            and the input bindings) and replaced by the site's own dropdown
            design — same rounded-2xl button, rotating chevron and portal-style
@@ -265,7 +277,11 @@ export function buildPrintHtml(data: PrintData): string {
         .instructions { border: 1px solid #999; border-radius: 3px; padding: 2px 5px; font-size: 8pt; margin: 0 0 3px; background: #fafafa; }
         .qcol { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 1.4mm 6mm; align-items: start; }
         .section { font-size: 11pt; font-weight: 700; border-bottom: 1px solid #000; padding-bottom: 1px; margin: 5px 0 3px; break-after: avoid; }
-        .sectime { font-size: 8.5pt; font-weight: normal; color: #444; }
+        .hdate-btn {
+          margin-left: 6px; padding: 1px 6px; border-radius: 0.5rem; border: 1px solid #999; background: #f6f6f6; color: #000; font-size: 8px; cursor: pointer; vertical-align: middle; line-height: 1.2;
+          box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+        }
+        @media print { .hdate-btn { display: none !important; } }
         .q { break-inside: avoid; page-break-inside: avoid; margin-bottom: 1.4mm; }
         .qp { display: grid; grid-template-columns: auto 1fr auto; gap: 0 3px; align-items: start; }
         .qno { font-weight: 700; }
@@ -304,7 +320,7 @@ export function buildPrintHtml(data: PrintData): string {
           <h2>Print settings</h2>
           <label>School / Institute</label><input type="text" id="f-school">
           <label>Paper title</label><input type="text" id="f-title">
-          <label>Date</label><input type="text" id="f-date">
+          <label>Date</label><div class="drow"><input type="date" id="f-date"><button type="button" class="btn-xs" id="dateTodayBtn" title="Set to today">Today</button></div>
           <div class="grid2">
             <div><label>Columns</label><select id="f-cols"><option value="2">2 columns</option><option value="1">1 column</option></select></div>
             <div><label>Font size (pt)</label><div class="stepper"><button type="button" class="step" id="fs-minus" aria-label="Decrease font size">&minus;</button><input type="number" id="f-fs" min="7" max="14" step="0.5"><button type="button" class="step" id="fs-plus" aria-label="Increase font size">+</button></div></div>
@@ -413,6 +429,12 @@ export function buildPrintHtml(data: PrintData): string {
           var marks = S.showMarks ? '<span class="qmarks">[' + (q.marks || 1) + ']</span>' : '';
           return '<div class="q"><div class="qp"><span class="qno">' + qNo(q, n) + '</span><span class="qtext">' + esc(q.prompt) + '</span>' + marks + '</div>' + opts + '</div>';
         }
+        function formatDate(s){
+          if (!s) return s;
+          var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          if (m) return m[3] + '/' + m[2] + '/' + m[1];
+          return s;
+        }
         function headerHtml(){
           /* Compact header: identity fields (Name, Roll, Class) stack in the
              left column and Date/Time/Marks in the right, so the block is
@@ -429,7 +451,7 @@ export function buildPrintHtml(data: PrintData): string {
           var perSubj = (S.showTime && S.showSubject) ? DATA.perSubjectTime : '';
           if (S.showSubject) c += '<div class="h-subject">Subject: <b>' + esc(DATA.subjectLine) + '</b>' + (perSubj ? ' <span class="h-per">' + esc(perSubj) + '</span>' : '') + '</div>';
           var right = '';
-          if (S.showDate) right += '<div class="hline">Date: ' + (S.date ? '<b>' + esc(S.date) + '</b>' : '<span class="fill f-date"></span>') + '</div>';
+          if (S.showDate) right += '<div class="hline">Date: ' + (S.date ? '<b>' + esc(formatDate(S.date)) + '</b>' : '<span class="fill f-date"></span>') + '<button type="button" class="hdate-btn" id="hdatePick" title="Pick a date">Pick</button></div>';
           if (S.showTime) right += '<div class="hline' + (!S.showSubject && DATA.perSubjectTime ? ' hwrap' : '') + '">Time: <b>' + DATA.time + ' minutes</b>' + (!S.showSubject ? esc(DATA.perSubjectTime) : '') + '</div>';
           if (S.showFullMarks) right += '<div class="hline">Full Marks: <b>' + DATA.totalMarks + '</b></div>';
           return '<div class="header"><div class="hrow">' +
@@ -527,8 +549,18 @@ export function buildPrintHtml(data: PrintData): string {
         }
         document.getElementById('f-school').value = S.school || '';
         document.getElementById('f-title').value = S.title || '';
-        document.getElementById('f-date').value = S.date || '';
-        document.getElementById('f-fs').value = S.fontSize;
+        (function(){
+          var fd = document.getElementById('f-date');
+          if (fd) fd.value = S.date || '';
+          var dtBtn = document.getElementById('dateTodayBtn');
+          if (dtBtn) dtBtn.addEventListener('click', function(){
+            var d = new Date();
+            var y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+            fd.value = y + '-' + m + '-' + day;
+            fd.dispatchEvent(new Event('input', { bubbles: true }));
+          });
+        })();
+        bind('f-date', 'date', 'text');
         document.getElementById('f-cols').value = String(S.columns);
         document.getElementById('f-labels').value = S.labelStyle || 'auto';
         document.getElementById('f-num').value = S.numStyle || 'auto';
@@ -589,6 +621,19 @@ export function buildPrintHtml(data: PrintData): string {
           }
           document.getElementById('fs-minus').addEventListener('click', function(){ nudge(-0.5); });
           document.getElementById('fs-plus').addEventListener('click', function(){ nudge(0.5); });
+        })();
+        (function(){
+          /* "Pick" button in the Date cell of the printed header — matches site
+             theme and jumps to the date picker in the sidebar. */
+          var hdatePick = document.getElementById('hdatePick');
+          if (hdatePick) hdatePick.addEventListener('click', function(){
+            var el = document.getElementById('f-date');
+            if (!el) return;
+            el.focus();
+            if (el.showPicker) el.showPicker();
+            var box = document.querySelector('.settings');
+            if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          });
         })();
         (function(){
           /* Custom dropdowns replicating the site's own Select component: the
