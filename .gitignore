@@ -6,3 +6,6 @@ dist/
 backend/data/
 worktrees/
 .DS_Store
+.vercel
+.env*
+!.env.example
