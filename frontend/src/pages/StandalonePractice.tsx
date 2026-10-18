@@ -7,6 +7,15 @@ import { ArrowLeft, ArrowRight, CheckCircle2, PartyPopper, RotateCcw, Target, XC
 const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const LIMIT = 10;
 
+function shuffleArray<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 /**
  * Standalone self-study: pick a subject (or any subject), answer randomized MCQs
  * from the question bank with instant feedback. Nothing is saved — this is for
@@ -42,7 +51,12 @@ export default function StandalonePractice() {
         params: { subject_id: selectedSubject || undefined, limit: LIMIT },
       })
       .then(({ data }) => {
-        setQuestions(data.questions || []);
+        const qs = (data.questions || []).map((q: any) => ({
+          ...q,
+          // Shuffle options on each round so the correct answer isn't pinned to the same letter
+          options: Array.isArray(q.options) ? shuffleArray(q.options) : q.options,
+        }));
+        setQuestions(qs);
         setIdx(0);
         setPicked(null);
         setHits(0);
@@ -76,11 +90,8 @@ export default function StandalonePractice() {
   };
 
   const restart = () => {
-    setIdx(0);
-    setPicked(null);
-    setHits(0);
-    setDone(false);
-    setError("");
+    // Pull a fresh set of randomized questions + re-shuffle options for a new round
+    start();
   };
 
   const subjectName = (id: string) => subjects.find((s) => s.id === id)?.name || "বিষয়";
