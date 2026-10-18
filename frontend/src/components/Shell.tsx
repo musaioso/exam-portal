@@ -5,6 +5,7 @@ import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, Gradu
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import { StorageWarning } from "./StorageWarning";
+import { cn } from "./ui";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin","teacher","student"] },
@@ -28,8 +29,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   const close = () => setOpen(false);
 
-  const sidebar = (
-    <aside className="flex h-full w-64 flex-col gap-1 border-r border-slate-700/50 bg-slate-900/40 p-4 backdrop-blur">
+  const sidebar = (solid = false) => (
+    <aside className={cn(
+      "flex h-full w-64 flex-col gap-1 p-4",
+      solid
+        ? "bg-slate-900 shadow-2xl"
+        : "border-r border-slate-700/50 bg-slate-900/40 backdrop-blur",
+    )}>
       <div className="mb-2 px-2 py-3">
         <Logo size="md" className="gap-2" />
       </div>
@@ -70,19 +76,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen">
       {/* Desktop sidebar */}
-      <div className="hidden md:block">{sidebar}</div>
+      <div className="hidden md:block">{sidebar()}</div>
 
       {/* Mobile drawer */}
       {open && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={close} />
-          <div className="absolute inset-y-0 left-0 z-50">{sidebar}</div>
+          <div className="absolute inset-y-0 left-0 z-50">{sidebar(true)}</div>
         </div>
       )}
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile top bar */}
-        <header className="flex items-center gap-3 border-b border-slate-700/50 bg-slate-900/40 px-4 py-3 backdrop-blur md:hidden">
+        <header className="flex items-center gap-3 border-b border-slate-700/50 bg-slate-900 px-4 py-3 backdrop-blur md:hidden">
           <button
             type="button"
             onClick={() => setOpen(true)}
