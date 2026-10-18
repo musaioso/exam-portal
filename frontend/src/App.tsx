@@ -15,6 +15,7 @@ import PrintPreview from "./pages/PrintPreview";
 import Users from "./pages/Users";
 import Results from "./pages/Results";
 import Practice from "./pages/Practice";
+import StandalonePractice from "./pages/StandalonePractice";
 import Profile from "./pages/Profile";
 
 function Private({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,8 @@ export default function App() {
             <Route path="/print/preview" element={<PrintPreview />} />
             <Route path="/users" element={<Private><Users /></Private>} />
             <Route path="/results" element={<Private><Results /></Private>} />
+            {/* Standalone practice is a static segment — keep it before the param route. */}
+            <Route path="/practice/standalone" element={<Private><StandalonePractice /></Private>} />
             <Route path="/practice/:attemptId" element={<Private><Practice /></Private>} />
             <Route path="/profile" element={<Private><Profile /></Private>} />
             <Route path="*" element={<Navigate to="/dashboard" />} />

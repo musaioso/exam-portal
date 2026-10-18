@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, Info } from "lucide-react";
 import { Button, cn } from "./ui";
@@ -28,9 +28,26 @@ export type AlertOptions = {
   okLabel?: string;
 };
 
+/** One button in a choiceDialog. Mark exactly one with `safe` if you can. */
+export type DialogAction = {
+  label: string;
+  /** What the promise resolves with when this button is pressed. */
+  value: string;
+  variant?: "primary" | "ghost" | "danger" | "outline";
+  /** The button that gets focus when the dialog opens. */
+  safe?: boolean;
+};
+
+export type ChoiceOptions = {
+  title?: string;
+  message?: string;
+  actions: DialogAction[];
+};
+
 type Entry =
   | { kind: "confirm"; message: string; options: ConfirmOptions; resolve: (ok: boolean) => void }
-  | { kind: "alert"; message: string; options: AlertOptions; resolve: () => void };
+  | { kind: "alert"; message: string; options: AlertOptions; resolve: () => void }
+  | { kind: "choice"; message: string; options: ChoiceOptions; resolve: (value: string | null) => void };
 
 // A single dialog at a time, held outside React so it can be opened from anywhere.
 let current: Entry | null = null;
@@ -44,12 +61,13 @@ const subscribe = (l: () => void) => {
 const getSnapshot = () => current;
 
 /** Close whatever is showing and hand the answer back to whoever asked. */
-function settle(ok: boolean) {
+function settle(answer: boolean | string | null) {
   const entry = current;
   if (!entry) return;
   current = null;
   emit();
-  if (entry.kind === "confirm") entry.resolve(ok);
+  if (entry.kind === "confirm") entry.resolve(answer === true);
+  else if (entry.kind === "choice") entry.resolve(typeof answer === "string" ? answer : null);
   else entry.resolve();
 }
 
@@ -65,6 +83,18 @@ export function alertDialog(options: AlertOptions): Promise<void> {
   return new Promise((resolve) => {
     settle(false);
     current = { kind: "alert", message: options.message, options, resolve };
+    emit();
+  });
+}
+
+/**
+ * More than yes/no: resolves with the value of the chosen action, or null if the
+ * dialog was dismissed (Esc / clicking away).
+ */
+export function choiceDialog(options: ChoiceOptions): Promise<string | null> {
+  return new Promise((resolve) => {
+    settle(false);
+    current = { kind: "choice", message: options.message ?? "", options, resolve };
     emit();
   });
 }
@@ -123,23 +153,48 @@ export function DialogHost() {
 
   let title: string;
   let body: string | undefined;
-  let confirmLabel: string;
-  let cancelLabel: string | undefined;
   let danger = false;
+  let footer: ReactNode;
 
   if (entry.kind === "confirm") {
     const o = entry.options;
     title = o.title ?? "Are you sure?";
     body = entry.message || undefined;
-    confirmLabel = o.confirmLabel ?? "Confirm";
-    cancelLabel = o.cancelLabel ?? "Cancel";
     danger = o.tone === "danger";
+    footer = (
+      <>
+        <Button data-dialog-safe variant="ghost" onClick={() => settle(false)}>
+          {o.cancelLabel ?? "Cancel"}
+        </Button>
+        <Button variant={danger ? "danger" : "primary"} onClick={() => settle(true)}>
+          {o.confirmLabel ?? "Confirm"}
+        </Button>
+      </>
+    );
+  } else if (entry.kind === "choice") {
+    const o = entry.options;
+    title = o.title ?? "Choose one";
+    body = entry.message || undefined;
+    const safeIdx = Math.max(0, o.actions.findIndex((a) => a.safe));
+    footer = o.actions.map((a, i) => (
+      <Button
+        key={a.value}
+        data-dialog-safe={i === safeIdx ? true : undefined}
+        variant={a.variant ?? "outline"}
+        onClick={() => settle(a.value)}
+      >
+        {a.label}
+      </Button>
+    ));
   } else {
     const o = entry.options;
     title = o.title ?? "Heads up";
     body = entry.message || undefined;
-    confirmLabel = o.okLabel ?? "OK";
-    cancelLabel = undefined;
+    footer = (
+      <Button data-dialog-safe variant="primary" onClick={() => settle(true)}>
+        {o.okLabel ?? "OK"}
+      </Button>
+    );
   }
 
   return createPortal(
@@ -178,20 +233,7 @@ export function DialogHost() {
             )}
           </div>
         </div>
-        <div className="mt-6 flex justify-end gap-3">
-          {cancelLabel && (
-            <Button data-dialog-safe variant="ghost" onClick={() => settle(false)}>
-              {cancelLabel}
-            </Button>
-          )}
-          <Button
-            data-dialog-safe={cancelLabel ? undefined : true}
-            variant={danger ? "danger" : "primary"}
-            onClick={() => settle(true)}
-          >
-            {confirmLabel}
-          </Button>
-        </div>
+        <div className="mt-6 flex flex-wrap justify-end gap-3">{footer}</div>
       </div>
     </div>,
     document.body,

@@ -6,6 +6,7 @@ import questionsRouter from "./routes/questions";
 import examsRouter from "./routes/exams";
 import usersRouter from "./routes/users";
 import backupRouter from "./routes/backup";
+import aiRouter from "./routes/ai";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
 import { storage, isPersistent, dbLabel, getDb, get } from "./db/database";
@@ -104,6 +105,7 @@ function createApp() {
   app.use("/api/exams", examsRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/backup", backupRouter);
+  app.use("/api/ai", aiRouter);
 
   // Me endpoint — this is the profile card a student sees. It deliberately
   // includes their own PIN: they sign in with name + PIN and must be able to

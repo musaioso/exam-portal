@@ -14,6 +14,7 @@ const NAV = [
   { to: "/print", label: "Print Paper", icon: Printer, roles: ["admin","teacher"] },
   { to: "/users", label: "Students", icon: Users, roles: ["admin","teacher"] },
   { to: "/results", label: "Results", icon: GraduationCap, roles: ["admin","teacher","student"] },
+  { to: "/practice/standalone", label: "Standalone Practice", icon: Target, roles: ["admin","teacher","student"] },
   { to: "/profile", label: "My Profile", icon: UserCircle, roles: ["admin","teacher","student"] },
 ];
 

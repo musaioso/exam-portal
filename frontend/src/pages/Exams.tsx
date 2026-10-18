@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { Card, Button, Input, NumberInput, Field, Select, Badge, cn } from "../components/ui";
-import { confirmDialog, alertDialog } from "../components/Dialog";
+import { confirmDialog, alertDialog, choiceDialog } from "../components/Dialog";
 import {
   Plus, Trash2, PlayCircle, Shuffle, X, Wand2, Printer, ArrowUp, ArrowDown, GripVertical,
-  FileText, Pencil, ClipboardList, BookOpen, Settings2, ListChecks, Check, Clock, Trophy,
+  FileText, Pencil, ClipboardList, BookOpen, Settings2, ListChecks, Check, Clock, Trophy, Search,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -28,14 +28,22 @@ const emptyForm = {
 };
 
 /** One numbered block of the exam builder. Keeps the long form scannable. */
-function FormSection({ step, title, hint, icon: Icon, right, children }: {
-  step: number; title: string; hint?: string; icon: any; right?: React.ReactNode; children: React.ReactNode;
+function FormSection({ step, title, hint, icon: Icon, right, done, children }: {
+  step: number; title: string; hint?: string; icon: any; right?: React.ReactNode; done?: boolean; children: React.ReactNode;
 }) {
   return (
     <section className="rounded-2xl border border-slate-600/40 p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-indigo-500/25 bg-indigo-500/15 text-xs font-bold text-indigo-300">{step}</span>
+          <span
+            className={cn(
+              "grid h-7 w-7 shrink-0 place-items-center rounded-full border text-xs font-bold",
+              done ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300" : "border-indigo-500/25 bg-indigo-500/15 text-indigo-300",
+            )}
+            title={done ? "Done" : undefined}
+          >
+            {done ? <Check size={14} strokeWidth={3} /> : step}
+          </span>
           <div className="min-w-0">
             <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">
               <Icon size={15} className="text-indigo-300" /> {title}
@@ -96,7 +104,13 @@ export default function Exams() {
   const [typeMarks, setTypeMarks] = useState({ mcq: 1, short: 5, long: 10 });
   const [subjectTimes, setSubjectTimes] = useState<Record<string, number>>({});
   const [qPage, setQPage] = useState(1);
+  // Search + filters for the exam list below.
+  const [examQuery, setExamQuery] = useState("");
+  const [examStatus, setExamStatus] = useState("");
+  const [examSubject, setExamSubject] = useState("");
+  const [examSort, setExamSort] = useState("newest");
   const dragIndex = useRef<number | null>(null);
+  const publishAfter = useRef(false);
   const PAGE_SIZE = 40;
 
   const subjectKey = form.subjectIds.join(",");
@@ -135,7 +149,6 @@ export default function Exams() {
       ...f,
       subjectIds: f.subjectIds.includes(id) ? f.subjectIds.filter((x) => x !== id) : [...f.subjectIds, id],
     }));
-    setSubjectTimes((prev) => (prev[id] != null ? prev : { ...prev, [id]: 10 }));
   };
 
   const toggleQ = (id: string) => {
@@ -223,6 +236,17 @@ export default function Exams() {
   const effectiveDuration = anySubjectTimes ? subjectTimesSum : (form.duration_minutes || 0);
   const typeKeyOrder = ["mcq", "short", "long"] as const;
 
+  // What still blocks the create button — shown beside it, not only after a failed submit.
+  const issues: string[] = [];
+  if (!form.title.trim()) issues.push("a title");
+  if (!form.subjectIds.length) issues.push("a subject");
+  if (!form.question_ids.length) issues.push("at least one question");
+
+  // Rough reading time for the picked paper: 1 min per MCQ, 3 per short, 6 per long.
+  const suggestedDuration = form.question_ids.length
+    ? Math.max(5, marksByType.mcq.count * 1 + marksByType.short.count * 3 + marksByType.long.count * 6)
+    : null;
+
   const applyTypeMarks = async () => {
     const groups: Record<string, string[]> = { mcq: [], short: [], long: [] };
     for (const q of selectedQs as any[]) if (groups[q.type]) groups[q.type].push(q.id);
@@ -268,15 +292,12 @@ export default function Exams() {
 
   const startEdit = (e: any) => {
     const subjIds: string[] = Array.isArray(e.subject_ids) && e.subject_ids.length ? e.subject_ids : [e.subject_id].filter(Boolean);
+    // Only carry over per-subject times the exam actually has. Inventing a split
+    // here would silently override the duration set in step 1.
     const existingTimes: Record<string, number> = {};
     for (const t of (e.subject_times || [])) existingTimes[t.subject_id] = t.minutes;
-    const base = Math.max(1, Math.floor((e.duration_minutes || 30) / Math.max(1, subjIds.length)));
     const t: Record<string, number> = {};
-    subjIds.forEach((id) => { t[id] = existingTimes[id] ?? base; });
-    if (!(e.subject_times || []).length && subjIds.length) {
-      const sum = subjIds.reduce((s, id) => s + t[id], 0);
-      t[subjIds[subjIds.length - 1]] = Math.max(1, t[subjIds[subjIds.length - 1]] + ((e.duration_minutes || 30) - sum));
-    }
+    subjIds.forEach((id) => { t[id] = existingTimes[id] ?? 0; });
     setForm({
       title: e.title || "",
       subjectIds: subjIds,
@@ -294,8 +315,8 @@ export default function Exams() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.subjectIds.length || form.question_ids.length === 0) {
-      await alertDialog({ title: "Nothing selected", message: "Select at least one subject and one question." });
+    if (issues.length) {
+      await alertDialog({ title: "Almost there", message: `This paper still needs ${issues.join(", ")}.` });
       return;
     }
     const times = form.subjectIds.map((id) => ({ subject_id: id, minutes: subjectTimes[id] ?? 0 }));
@@ -310,11 +331,46 @@ export default function Exams() {
       shuffle_questions: form.shuffle_questions,
       shuffle_options: form.shuffle_options,
     };
+    const wasEditing = editingId;
+    let savedId: string | null = editingId;
     if (editingId) await api.put(`/exams/${editingId}`, payload);
-    else await api.post("/exams", payload);
+    else {
+      const { data } = await api.post("/exams", payload);
+      savedId = data?.exam?.id ?? null;
+    }
+    const wantedPublish = publishAfter.current;
+    publishAfter.current = false;
+    if (wantedPublish && savedId) await api.put(`/exams/${savedId}/publish`);
     resetForm();
     setShowForm(false);
-    load();
+    await load();
+    if (wasEditing) {
+      await alertDialog({ title: "Changes saved", message: `“${payload.title}” has been updated.` });
+      return;
+    }
+    // Don't just drop the teacher back on the list — offer the obvious next steps.
+    const next = await choiceDialog({
+      title: wantedPublish ? "Exam published" : "Exam created",
+      message: wantedPublish
+        ? `“${payload.title}” is live — students can start it now. Print a paper copy if the class needs one.`
+        : `“${payload.title}” is saved as a draft. Students can't see it until it is published.`,
+      actions: wantedPublish
+        ? [
+            { label: "Print paper", value: "print", variant: "primary" },
+            { label: "Done", value: "done", variant: "ghost", safe: true },
+          ]
+        : [
+            { label: "Publish & print", value: "publish-print", variant: "primary" },
+            { label: "Publish now", value: "publish" },
+            { label: "Keep as draft", value: "draft", variant: "ghost", safe: true },
+          ],
+    });
+    if (!savedId) return;
+    if (next === "publish-print" || next === "publish") {
+      await api.put(`/exams/${savedId}/publish`);
+      await load();
+    }
+    if (next === "publish-print" || next === "print") nav(`/print?exam=${savedId}`);
   };
 
   const publish = async (id: string, val: boolean) => {
@@ -338,9 +394,38 @@ export default function Exams() {
   };
 
   const isTeacher = user?.role === "admin" || user?.role === "teacher";
-  const examSubjectNames = (e: any) => {
-    const ids: string[] = Array.isArray(e.subject_ids) && e.subject_ids.length ? e.subject_ids : [e.subject_id].filter(Boolean);
-    return ids.map(subjectName).join(" + ");
+  const examSubjectIds = (e: any): string[] =>
+    Array.isArray(e.subject_ids) && e.subject_ids.length ? e.subject_ids : [e.subject_id].filter(Boolean);
+  const examSubjectNames = (e: any) => examSubjectIds(e).map(subjectName).join(" + ");
+
+  // Narrow the shelf as it grows — every card is matched on title + subject
+  // names, then put in the chosen order.
+  const examTerms = examQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const examTotal = exams.filter((e: any) => isTeacher || e.is_published).length;
+  const filtersActive = examTerms.length > 0 || !!examStatus || !!examSubject || examSort !== "newest";
+
+  const visibleExams = useMemo(() => {
+    const out = exams.filter((e: any) => {
+      if (!isTeacher && !e.is_published) return false;
+      if (examStatus === "published" && !e.is_published) return false;
+      if (examStatus === "draft" && e.is_published) return false;
+      if (examSubject && !examSubjectIds(e).includes(examSubject)) return false;
+      if (examTerms.length) {
+        const hay = `${e.title || ""} ${examSubjectNames(e)}`.toLowerCase();
+        if (!examTerms.every((t) => hay.includes(t))) return false;
+      }
+      return true;
+    });
+    if (examSort === "oldest") out.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+    else if (examSort === "title") out.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    else if (examSort === "marks") out.sort((a, b) => (b.total_marks || 0) - (a.total_marks || 0));
+    else out.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exams, examQuery, examStatus, examSubject, examSort, subjects, isTeacher]);
+
+  const clearExamFilters = () => {
+    setExamQuery(""); setExamStatus(""); setExamSubject(""); setExamSort("newest");
   };
 
   return (
@@ -379,7 +464,7 @@ export default function Exams() {
 
           <form onSubmit={save} className="space-y-5 p-5 sm:p-6">
             {/* 1 — Paper details */}
-            <FormSection step={1} icon={Settings2} title="Paper details" hint="A clear title and a realistic time limit.">
+            <FormSection step={1} done={!!form.title.trim()} icon={Settings2} title="Paper details" hint="A clear title and a realistic time limit.">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="md:col-span-2">
                   <Field label="Exam title">
@@ -388,6 +473,15 @@ export default function Exams() {
                 </div>
                 <Field label="Duration (minutes)">
                   <NumberInput min={1} value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: Number(e.target.value) })} />
+                  {suggestedDuration != null && !anySubjectTimes && suggestedDuration !== form.duration_minutes && (
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, duration_minutes: suggestedDuration }))}
+                      className="mt-1.5 block text-left text-[11px] text-indigo-300 transition hover:text-indigo-200"
+                    >
+                      Suggested {suggestedDuration} min for this paper — use it
+                    </button>
+                  )}
                 </Field>
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
@@ -399,6 +493,7 @@ export default function Exams() {
             {/* 2 — Subjects */}
             <FormSection
               step={2}
+              done={form.subjectIds.length > 0}
               icon={BookOpen}
               title="Subjects"
               hint="Pick one or more subjects — questions are pulled from all of them."
@@ -439,9 +534,13 @@ export default function Exams() {
                       <Clock size={13} className="text-indigo-300" /> Time per subject (minutes)
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className={cn("text-xs tabular-nums", subjectTimesSum !== form.duration_minutes ? "text-amber-300" : "text-slate-400")}>
-                        Total {subjectTimesSum} min{subjectTimesSum !== form.duration_minutes ? ` · paper will be ${subjectTimesSum} min` : ""}
-                      </span>
+                      {anySubjectTimes ? (
+                        <span className={cn("text-xs tabular-nums", subjectTimesSum !== form.duration_minutes ? "text-amber-300" : "text-slate-400")}>
+                          Total {subjectTimesSum} min{subjectTimesSum !== form.duration_minutes ? ` · paper will be ${subjectTimesSum} min` : ""}
+                        </span>
+                      ) : (
+                        <span className="text-xs tabular-nums text-slate-500">Off — the paper uses the {form.duration_minutes} min above</span>
+                      )}
                       <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={autoSplitTime}>Split evenly</Button>
                     </div>
                   </div>
@@ -494,6 +593,7 @@ export default function Exams() {
             {/* 4 — Questions */}
             <FormSection
               step={4}
+              done={form.question_ids.length > 0}
               icon={ListChecks}
               title="Questions"
               hint="Search the bank, tick the questions you want, then arrange their order."
@@ -558,10 +658,18 @@ export default function Exams() {
                   <div className="max-h-80 space-y-1 overflow-auto rounded-xl border border-slate-600/40 p-1.5">
                     {pageQs.map(q => {
                       const picked = form.question_ids.includes(q.id);
+                      const ch = chapters.find((c: any) => c.id === q.chapter_id);
+                      const marks = q.marks || 1;
                       return (
                         <label key={q.id} className={cn("flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition", picked ? "bg-indigo-500/10" : "hover:bg-ink/5")}>
                           <input type="checkbox" className="h-4 w-4 shrink-0 accent-indigo-500" checked={picked} onChange={() => toggleQ(q.id)} />
                           <span className="flex-1 truncate">{q.prompt}</span>
+                          {ch && (
+                            <span className="max-w-28 shrink-0 truncate text-[11px] text-slate-500">
+                              {form.subjectIds.length > 1 ? `${subjectName(ch.subject_id)} · ` : ""}Ch.{ch.number}
+                            </span>
+                          )}
+                          <span className="shrink-0 text-[11px] tabular-nums text-cyan-300">{marks} mark{marks === 1 ? "" : "s"}</span>
                           <Badge className="shrink-0">{q.type}{q.difficulty ? ` · ${q.difficulty}` : ""}</Badge>
                         </label>
                       );
@@ -645,18 +753,69 @@ export default function Exams() {
                 <StatChip icon={Trophy} tone="text-cyan-300">{selectedMarks} marks</StatChip>
                 <StatChip icon={Clock} tone="text-emerald-300">{effectiveDuration} min</StatChip>
                 <StatChip icon={BookOpen}>{form.subjectIds.length} subject{form.subjectIds.length === 1 ? "" : "s"}</StatChip>
+                {issues.length > 0 && <span className="text-xs text-rose-300">Still needed: {issues.join(" · ")}</span>}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="ghost" onClick={() => { resetForm(); setShowForm(false); }}>Cancel</Button>
-                <Button type="submit">{editingId ? <><Pencil size={14} /> Save changes</> : <><Shuffle size={14} /> Create Exam</>}</Button>
+                {!editingId && (
+                  <Button type="submit" variant="outline" disabled={issues.length > 0} onClick={() => { publishAfter.current = true; }}>
+                    <Check size={14} /> Create &amp; publish
+                  </Button>
+                )}
+                <Button type="submit" disabled={issues.length > 0} onClick={() => { publishAfter.current = false; }}>
+                  {editingId ? <><Pencil size={14} /> Save changes</> : <><Shuffle size={14} /> Create Exam</>}
+                </Button>
               </div>
             </div>
           </form>
         </Card>
       )}
 
+      {/* Search + filters for the exam list */}
+      <Card>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-56 flex-1">
+            <Field label="Search exams">
+              <div className="relative">
+                <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Input value={examQuery} onChange={e => setExamQuery(e.target.value)} placeholder="title or subject..." className="pl-9" />
+              </div>
+            </Field>
+          </div>
+          {isTeacher && (
+            <Field label="Status">
+              <Select value={examStatus} onChange={e => setExamStatus(e.target.value)}>
+                <option value="">All statuses</option>
+                <option value="published">Published</option>
+                <option value="draft">Draft</option>
+              </Select>
+            </Field>
+          )}
+          <Field label="Subject">
+            <Select value={examSubject} onChange={e => setExamSubject(e.target.value)}>
+              <option value="">All subjects</option>
+              {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Sort">
+            <Select value={examSort} onChange={e => setExamSort(e.target.value)}>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="title">Title A–Z</option>
+              <option value="marks">Most marks</option>
+            </Select>
+          </Field>
+          {filtersActive && <Button variant="ghost" onClick={clearExamFilters}>Clear</Button>}
+        </div>
+        {filtersActive && (
+          <div className="mt-3 border-t border-slate-600/40 pt-3 text-xs text-slate-400">
+            Showing {visibleExams.length} of {examTotal} exam{examTotal === 1 ? "" : "s"}
+          </div>
+        )}
+      </Card>
+
       <div className="space-y-3">
-        {exams.filter(e => isTeacher || e.is_published).map(e => {
+        {visibleExams.map(e => {
           const qCount = Array.isArray(e.question_ids) ? e.question_ids.length : 0;
           const subjIds: string[] = Array.isArray(e.subject_ids) && e.subject_ids.length ? e.subject_ids : [e.subject_id].filter(Boolean);
           return (
@@ -683,8 +842,14 @@ export default function Exams() {
             </Card>
           );
         })}
-        {exams.filter(e => isTeacher || e.is_published).length === 0 && (
-          <Card hover={false} className="text-sm text-slate-400 flex items-center gap-2"><FileText size={16}/> No exams yet.</Card>
+        {visibleExams.length === 0 && (
+          <Card hover={false} className="flex items-center justify-between gap-3 text-sm text-slate-400">
+            <span className="flex items-center gap-2">
+              <FileText size={16} />
+              {examTotal === 0 ? "No exams yet." : "No exams match your search or filters."}
+            </span>
+            {filtersActive && <Button variant="ghost" onClick={clearExamFilters}>Clear filters</Button>}
+          </Card>
         )}
       </div>
     </div>

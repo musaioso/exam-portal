@@ -667,11 +667,20 @@ export default function Dashboard() {
                   </div>
                 ))}
                 {weakSubject && (
-                  <p className="flex items-start gap-1.5 pt-1 text-[11px] text-slate-400">
+                  <div className="flex items-start gap-1.5 pt-1 text-[11px] text-slate-400">
                     <Target size={12} className="mt-0.5 shrink-0 text-amber-300" />
-                    সবচেয়ে দুর্বল বিষয়{" "}
-                    <b className="font-medium text-slate-200">{weakSubject.name}</b> — সেখানে একটু বেশি সময় দিন।
-                  </p>
+                    <div className="min-w-0 flex-1">
+                      সবচেয়ে দুর্বল বিষয়{" "}
+                      <b className="font-medium text-slate-200">{weakSubject.name}</b> — সেখানে একটু বেশি সময় দিন।
+                      <div className="mt-1">
+                        <Link to={`/practice/standalone?subject=${weakSubject.id}`}>
+                          <Button variant="outline" size="sm">
+                            এই বিষয়ে অনুশীলন করুন <ArrowRight size={12} />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

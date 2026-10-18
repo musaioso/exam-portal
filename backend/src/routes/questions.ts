@@ -2,29 +2,9 @@ import { Router, Request, Response } from "express";
 import { randomUUID as uuid } from "node:crypto";
 import { getDb, run, get, all } from "../db/database";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { normalizeText } from "../lib/text";
 
 const router = Router();
-
-/**
- * Two questions count as the same question when their prompts match once the
- * cosmetic differences are ignored: letter case, spacing, punctuation (English
- * and the Bangla danda "।") and Bangla vs ASCII digits. Punctuation becomes a
- * space rather than disappearing so "১.৫" never collapses into "১৫".
- */
-const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
-const PUNCTUATION = /[?!.,;:"'`।॥\-_/\\()[\]{}*#+=~|@$%^&<>]/g;
-
-function normalizeText(input: unknown): string {
-  return String(input ?? "")
-    .replace(/[০-৯]/g, (d) => String(BN_DIGITS.indexOf(d)))
-    .replace(/[\u2018\u2019\u201B]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/[\u2013\u2014\u2015]/g, "-")
-    .replace(PUNCTUATION, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
 
 /**
  * Do two copies agree on the answer? Choices are compared only when both sides
@@ -154,6 +134,30 @@ router.get("/", async (req: Request, res: Response) => {
     chapter_ids: undefined,
   }));
   res.json({ questions: rows, total });
+});
+
+// Standalone self-study: random MCQs from the bank for a subject (or any
+// subject). Answers and explanations are deliberately withheld — they only
+// surface in the post-submit review. Kept before "/:id" so "practice" is not
+// mistaken for a question id.
+router.get("/practice", requireAuth, async (req: Request, res: Response) => {
+  const db = await getDb();
+  const subject_id = req.query.subject_id as string | undefined;
+  const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
+  let sql = `SELECT q.id, q.subject_id, q.type, q.difficulty, q.prompt, q.options, q.marks,
+    s.name AS subject_name
+    FROM questions q
+    JOIN subjects s ON s.id = q.subject_id
+    WHERE q.type = 'mcq' AND q.options IS NOT NULL AND q.options <> '[]'`;
+  const params: any[] = [];
+  if (subject_id) { sql += " AND q.subject_id = ?"; params.push(subject_id); }
+  sql += ` ORDER BY RANDOM() LIMIT ?`;
+  params.push(limit);
+  const rows = (await all(db, sql, params)).map((q: any) => ({
+    ...q,
+    options: q.options ? JSON.parse(q.options) : [],
+  }));
+  res.json({ questions: rows, subject_id, limit });
 });
 
 router.get("/:id", async (req, res) => {

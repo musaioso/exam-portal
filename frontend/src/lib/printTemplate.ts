@@ -16,6 +16,37 @@ import themeCss from "../theme.css?inline";
 /** Session-storage key carrying the staged payload to the preview tab. */
 export const PREVIEW_STORAGE_KEY = "mcq_print_preview";
 
+/**
+ * Device-local default print settings (localStorage).
+ *
+ * The Print page writes what it knows (school, title, instructions, the four
+ * paper toggles, columns) and the preview writes the formatting choices it
+ * owns (font size, label/number style, page numbers, header items...). Both
+ * merge into the same object, so each remembers its own fields and the shared
+ * ones (columns, answer key, marks, instructions) stay in step: what you set
+ * once becomes the default for the next paper.
+ */
+export const PRINT_PREFS_KEY = "mcq_print_prefs";
+
+export function readPrintPrefs(): Record<string, any> {
+  try {
+    return JSON.parse(localStorage.getItem(PRINT_PREFS_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+export function writePrintPrefs(patch: Record<string, any>): void {
+  try {
+    localStorage.setItem(
+      PRINT_PREFS_KEY,
+      JSON.stringify(Object.assign({}, readPrintPrefs(), patch)),
+    );
+  } catch {
+    /* storage unavailable (private mode) — defaults simply don't persist */
+  }
+}
+
 export interface PrintQuestion {
   prompt: string;
   type: string;
@@ -351,6 +382,13 @@ export function buildPrintHtml(data: PrintData): string {
           .stage { overflow: visible; padding: 0; }
           .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
         }
+
+        @media screen and (max-width: 768px) {
+          .app { grid-template-columns: 1fr; height: auto; }
+          .settings { border-right: 0; border-bottom: 1px solid var(--glass-border); max-height: 55vh; }
+          .stage { padding: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .sheet { width: 210mm; min-height: 297mm; margin: 0 auto; }
+        }
       </style><style id="pagestyle"></style></head>
       <body>
       <div class="app">
@@ -408,6 +446,10 @@ export function buildPrintHtml(data: PrintData): string {
           <button class="btn2" id="shuffleBtn">⇄ Shuffle options</button>
           <button class="btn2" id="resetBtn">↺ Reset option order</button>
           <button class="btn" id="printBtn">Print / Save PDF</button>
+          <div class="row" style="justify-content:space-between">
+            <span class="hint" style="margin:0">Settings are remembered on this device.</span>
+            <button class="btn-xs" id="forgetBtn" type="button" title="Clear saved defaults and reload the paper with the site defaults">Forget defaults</button>
+          </div>
           <div class="pginfo" id="pginfo"></div>
           <div class="hint">Chrome print dialog: Destination <b>Save as PDF</b>, Paper size <b>A4</b>, Margins <b>Default</b>.</div>
         </aside>
@@ -416,6 +458,33 @@ export function buildPrintHtml(data: PrintData): string {
       <script>
         var DATA = ${dataJson};
         var S = Object.assign({}, DATA.defaults);
+        /* Device defaults: formatting the Print page never controls (font size,
+           label styles, header items, page numbers) is remembered per device and
+           re-applied over the staged payload, so every paper starts from the
+           same look. The shared paper toggles (columns, answer key, marks,
+           instructions) are also saved so preview-side tweaks carry back to the
+           Print page, which reads the same object. Date and paper title are
+           per-paper and are never restored. */
+        var PREF_KEY = 'mcq_print_prefs';
+        var PREF_RESTORE = ['fontSize','labelStyle','numStyle','showHeader','showName','showSchool','showTitle','showSubject','showTime','showFullMarks','showDate','showRollClass','runningTitle','showPageNo','pageNumPos','pageNumFmt'];
+        var PREF_SAVE = ['school','instructions','columns','groupBySubject','showMarks','showAnswers','showInstructions'].concat(PREF_RESTORE);
+        (function(){
+          try {
+            var p = JSON.parse(localStorage.getItem(PREF_KEY) || '{}') || {};
+            for (var i = 0; i < PREF_RESTORE.length; i++) {
+              var k = PREF_RESTORE[i];
+              if (p[k] !== undefined && p[k] !== null) S[k] = p[k];
+            }
+          } catch (e) {}
+        })();
+        function savePrefs(){
+          try {
+            var cur = JSON.parse(localStorage.getItem(PREF_KEY) || '{}') || {};
+            var out = {};
+            for (var i = 0; i < PREF_SAVE.length; i++) out[PREF_SAVE[i]] = S[PREF_SAVE[i]];
+            localStorage.setItem(PREF_KEY, JSON.stringify(Object.assign(cur, out)));
+          } catch (e) {}
+        }
         DATA.groups.forEach(function(g){ g.questions.forEach(function(q){ q._orig = (q.options || []).slice(); }); });
         var paper = document.getElementById('paper');
         /* Load webfonts dynamically so they can never block first paint. */
@@ -673,6 +742,7 @@ export function buildPrintHtml(data: PrintData): string {
             else if (kind === 'num') S[key] = Number(el.value);
             else S[key] = el.value;
             render();
+            savePrefs();
           };
           el.addEventListener('input', h);
           el.addEventListener('change', h);
@@ -779,7 +849,6 @@ export function buildPrintHtml(data: PrintData): string {
               drawCal(); posCal();
           });
         })();
-        bind('f-date', 'date', 'text');
         document.getElementById('f-fs').value = S.fontSize;
         document.getElementById('f-cols').value = String(S.columns);
         document.getElementById('f-labels').value = S.labelStyle || 'auto';
@@ -951,6 +1020,10 @@ export function buildPrintHtml(data: PrintData): string {
         document.getElementById('printBtn').addEventListener('click', function(){
           if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function(){ window.print(); }); }
           else { window.print(); }
+        });
+        document.getElementById('forgetBtn').addEventListener('click', function(){
+          try { localStorage.removeItem('mcq_print_prefs'); } catch (e) {}
+          window.location.reload();
         });
         /* Bengali webfonts arrive after first paint and can widen options, so
            re-check the option layout and the sheet count once they are in. */

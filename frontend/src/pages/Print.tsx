@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
-import { parseOptions, PREVIEW_STORAGE_KEY, type PrintData } from "../lib/printTemplate";
+import { parseOptions, PREVIEW_STORAGE_KEY, readPrintPrefs, writePrintPrefs, type PrintData } from "../lib/printTemplate";
 import { Card, Button, Select, Field, Input, NumberInput, Textarea } from "../components/ui";
 import { Printer, FileText } from "lucide-react";
 
@@ -25,15 +25,25 @@ export default function Print() {
   const [selected, setSelected] = useState<string[]>([]);
 
   // paper settings
-  const [title, setTitle] = useState("Question Paper");
-  const [school, setSchool] = useState("School Name");
+  const [prefs] = useState(() => readPrintPrefs());
+  const [title, setTitle] = useState(() => prefs.title || "Question Paper");
+  const [school, setSchool] = useState(() => prefs.school || "School Name");
   const [time, setTime] = useState(30);
-  const [columns, setColumns] = useState<1 | 2>(2);
-  const [groupBySubject, setGroupBySubject] = useState(true);
-  const [includeAnswers, setIncludeAnswers] = useState(true);
-  const [includeMarks, setIncludeMarks] = useState(true);
-  const [showInstructions, setShowInstructions] = useState(true);
-  const [instructions, setInstructions] = useState("Answer all questions. Marks are shown on the right side.");
+  const [columns, setColumns] = useState<1 | 2>(prefs.columns === 1 ? 1 : 2);
+  const [groupBySubject, setGroupBySubject] = useState(() => prefs.groupBySubject !== false);
+  const [includeAnswers, setIncludeAnswers] = useState(() => prefs.showAnswers !== false);
+  const [includeMarks, setIncludeMarks] = useState(() => prefs.showMarks !== false);
+  const [showInstructions, setShowInstructions] = useState(() => prefs.showInstructions !== false);
+  const [instructions, setInstructions] = useState(() => prefs.instructions || "Answer all questions. Marks are shown on the right side.");
+
+  // Remember these as this device's defaults (merged with whatever the preview
+  // saved) so the next paper starts from the same setup.
+  useEffect(() => {
+    writePrintPrefs({
+      school, title, instructions, columns, groupBySubject,
+      showAnswers: includeAnswers, showMarks: includeMarks, showInstructions,
+    });
+  }, [school, title, instructions, columns, groupBySubject, includeAnswers, includeMarks, showInstructions]);
 
   // manual filters
   const [filterType, setFilterType] = useState("");
