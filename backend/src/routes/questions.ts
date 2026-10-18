@@ -144,7 +144,10 @@ router.get("/practice", requireAuth, async (req: Request, res: Response) => {
   const db = await getDb();
   const subject_id = req.query.subject_id as string | undefined;
   const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
-  let sql = `SELECT q.id, q.subject_id, q.type, q.difficulty, q.prompt, q.options, q.marks,
+  // `answer` must ride along: the page scores and highlights the correct option
+  // instantly, which is impossible without the key. This is a practice round
+  // (nothing is saved, no mark book), so exposing it client-side is fine.
+  let sql = `SELECT q.id, q.subject_id, q.type, q.difficulty, q.prompt, q.options, q.answer, q.marks,
     s.name AS subject_name
     FROM questions q
     JOIN subjects s ON s.id = q.subject_id
