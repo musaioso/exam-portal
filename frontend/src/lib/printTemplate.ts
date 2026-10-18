@@ -400,19 +400,19 @@ export function buildPrintHtml(data: PrintData): string {
         }
         @media print { .hdate-btn { display: none !important; } }
         .q { break-inside: avoid; page-break-inside: avoid; margin-bottom: var(--qgap, 2.2mm); }
-        .qp { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 1.6mm; align-items: start; }
-        .qno { font-weight: 700; min-width: 5.5mm; }
+        .qp { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 1.2mm; align-items: start; }
+        .qno { font-weight: 700; min-width: 4.6mm; }
         .qmarks { white-space: nowrap; font-size: 0.88em; color: #222; }
         /* Right-hand group of the question row: marks plus the printed page
            chip ("p3") that says which A4 sheet this question lands on. */
-        .qright { display: flex; align-items: baseline; justify-content: flex-end; gap: 1.6mm; white-space: nowrap; }
+        .qright { display: flex; align-items: baseline; justify-content: flex-end; gap: 1.2mm; white-space: nowrap; }
         .qpno { font-size: 0.72em; font-weight: 700; color: #444; background: #f1f1f4; border: 1px solid #d8d8de; border-radius: 4px; padding: 0 0.5em; line-height: 1.6; }
         /* Optional explanation printed right under the question. */
         .qexp { font-size: 0.86em; color: #333; margin-top: 0.7mm; padding-left: 7mm; }
         .options { margin-top: 0.8mm; }
         .options.two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.4mm 4mm; }
         .options.one-col .opt + .opt { margin-top: 0.4mm; }
-        .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 1.6mm; align-items: start; break-inside: avoid; page-break-inside: avoid; }
+        .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 1.2mm; align-items: start; break-inside: avoid; page-break-inside: avoid; }
         .opttext { overflow-wrap: break-word; }
         /* The bubble scales with the body font, so it stays a comfortable
            ~4mm tick target at 11pt and shrinks with the font-size control. */
@@ -481,7 +481,7 @@ export function buildPrintHtml(data: PrintData): string {
           <select id="f-font"><option value="serif">Book (Noto Serif Bengali)</option><option value="sans">Modern (Jakarta Sans)</option><option value="times">Classic (Times)</option><option value="arial">Plain (Arial)</option></select>
           <div class="grid2">
             <div><label for="f-lh">Line height</label><input type="number" id="f-lh" min="1" max="2" step="0.05"></div>
-            <div><label for="f-qgap">Question gap (mm)</label><input type="number" id="f-qgap" min="0" max="8" step="0.5"></div>
+            <label>Question gap (mm)</label><input type="number" id="f-qgap" min="0" max="8" step="0.5" value="1.8">
           </div>
           <div class="grid2">
             <div><label for="f-cgap">Column gap (mm)</label><input type="number" id="f-cgap" min="0" max="14" step="1"></div>
@@ -557,7 +557,7 @@ export function buildPrintHtml(data: PrintData): string {
         var DEF = {
           columns: 2, fontSize: 11,
           marginTop: 12, marginRight: 12.7, marginBottom: 11, marginLeft: 12,
-          fontFamily: 'serif', lineHeight: 1.35, qgap: 2.2, cgap: 6, ansCols: 2,
+          fontFamily: 'serif', lineHeight: 1.35, qgap: 1.8, cgap: 6, ansCols: 2,
           showExplanation: false, qPageNo: true, showBreaks: true
         };
         var S = Object.assign({}, DEF, DATA.defaults);
@@ -1185,8 +1185,8 @@ export function buildPrintHtml(data: PrintData): string {
              one to reach for on 100–200 question papers. */
           var PRESETS = {
             compact: { marginTop: 10, marginRight: 10, marginBottom: 10, marginLeft: 10, lineHeight: 1.2, qgap: 1, cgap: 4 },
-            standard: { marginTop: 12, marginRight: 12.7, marginBottom: 11, marginLeft: 12, lineHeight: 1.35, qgap: 2.2, cgap: 6 },
-            spacious: { marginTop: 16, marginRight: 16, marginBottom: 15, marginLeft: 16, lineHeight: 1.5, qgap: 4, cgap: 8 }
+            standard: { marginTop: 12, marginRight: 12.7, marginBottom: 11, marginLeft: 12, lineHeight: 1.35, qgap: 1.8, cgap: 6 },
+            spacious: { marginTop: 16, marginRight: 16, marginBottom: 15, marginLeft: 16, lineHeight: 1.5, qgap: 2.8, cgap: 8 }
           };
           var IDS = { marginTop: 'm-top', marginRight: 'm-right', marginBottom: 'm-bottom', marginLeft: 'm-left', lineHeight: 'f-lh', qgap: 'f-qgap', cgap: 'f-cgap' };
           function apply(name){
