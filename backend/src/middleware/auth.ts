@@ -47,6 +47,22 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+/**
+ * Attaches `req.user` when a valid token is supplied, but never rejects the
+ * request. Used by endpoints whose payload differs by role (a student only ever
+ * sees published exams; staff see drafts too) — without this an anonymous call
+ * would fall through as "no role" and receive the staff view.
+ */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : (req as any).cookies?.token;
+  if (token) {
+    const user = verifyToken(token);
+    if (user) req.user = user;
+  }
+  next();
+}
+
 export function requireRole(...roles: AuthUser["role"][]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: "Unauthorized" });

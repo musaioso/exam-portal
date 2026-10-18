@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { randomUUID as uuid } from "node:crypto";
 import { getDb, run, get, all } from "../db/database";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { requireAuth, requireRole, optionalAuth } from "../middleware/auth";
 
 const router = Router();
 
@@ -71,9 +71,14 @@ router.get("/leaderboard", requireAuth, async (req: Request, res: Response) => {
   });
 });
 
-router.get("/", async (_req, res) => {
+// The exam catalogue. Drafts belong to their authors, so everyone except staff
+// only ever receives published papers — the client-side filter in the UI is a
+// convenience, not the access boundary.
+router.get("/", optionalAuth, async (req: Request, res: Response) => {
   const db = await getDb();
-  const exams = (await all(db, "SELECT * FROM exams ORDER BY created_at DESC")).map((e: any) => ({
+  const isStaff = req.user?.role === "admin" || req.user?.role === "teacher";
+  const visibility = isStaff ? "" : "WHERE COALESCE(is_published, 0) <> 0";
+  const exams = (await all(db, `SELECT * FROM exams ${visibility} ORDER BY created_at DESC`)).map((e: any) => ({
     ...e,
     subject_ids: e.subject_ids ? JSON.parse(e.subject_ids) : [e.subject_id].filter(Boolean),
     subject_times: e.subject_times ? JSON.parse(e.subject_times) : [],
