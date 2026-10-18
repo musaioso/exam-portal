@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "../lib/api";
+import { useToast } from "../components/Toast";
 import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { confirmDialog, alertDialog } from "../components/Dialog";
 import { CopyCheck, Plus, Trash2, Upload } from "lucide-react";
@@ -45,6 +46,8 @@ export default function Questions() {
   const [dupeLoading, setDupeLoading] = useState(false);
   const [dupeKeep, setDupeKeep] = useState<Record<string, string>>({});
   const [dupeBusy, setDupeBusy] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const toast = useToast();
   const importRef = useRef<HTMLInputElement>(null);
 
   const importJson = async (file: File) => {
@@ -96,8 +99,19 @@ export default function Questions() {
     if (searchQuery.trim()) params.set("q", searchQuery.trim());
     const { data } = await api.get(`/questions?${params.toString()}`);
     setQuestions(data.questions);
+    setSelected([]);
   };
   useEffect(() => { loadQuestions(); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, searchQuery]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (showForm) reset();
+      else if (dupeGroups !== null) setDupeGroups(null);
+      else if (selected.length) setSelected([]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showForm, dupeGroups, selected.length]);
 
   const reset = () => { setForm(empty); setEditing(null); setShowForm(false); };
 
@@ -190,7 +204,32 @@ export default function Questions() {
       tone: "danger",
     });
     if (!ok) return;
-    await api.delete(`/questions/${id}`); loadQuestions();
+    await api.delete(`/questions/${id}`); loadQuestions(); toast.success("Question deleted.");
+  };
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const selectAll = () => setSelected(questions.map((q) => q.id));
+  const clearSelection = () => setSelected([]);
+
+  const deleteSelected = async () => {
+    if (selected.length === 0) return;
+    const ok = await confirmDialog({
+      title: `Delete ${selected.length} question${selected.length > 1 ? "s" : ""}?`,
+      message: "This can't be undone.",
+      confirmLabel: "Delete selected",
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      const { data } = await api.post("/questions/bulk-delete", { ids: selected });
+      toast.success(`Deleted ${data.deleted ?? selected.length} questions.`);
+      setSelected([]);
+      loadQuestions();
+      if (dupeGroups !== null) scanDuplicates();
+    } catch (e: any) {
+      await alertDialog({ title: "Could not delete", message: errorMessage(e, "Nothing was deleted.") });
+    }
   };
 
   const scanDuplicates = async () => {
@@ -229,7 +268,7 @@ export default function Questions() {
     setDupeBusy(true);
     try {
       const { data } = await api.post("/questions/bulk-delete", { ids });
-      await alertDialog({ title: "Duplicates removed", message: `Deleted ${data.deleted ?? ids.length} questions.` });
+      toast.success(`Deleted ${data.deleted ?? ids.length} questions.`);
       await loadQuestions();
       await scanDuplicates();
     } catch (e: any) {
@@ -257,6 +296,11 @@ export default function Questions() {
           >
             <CopyCheck size={16} /> Duplicates
           </Button>
+          {selected.length > 0 && (
+            <Button variant="danger" onClick={deleteSelected}>
+              <Trash2 size={16} /> Delete selected ({selected.length})
+            </Button>
+          )}
           <Button onClick={() => { reset(); setShowForm(true); }}><Plus size={16}/> New Question</Button>
         </div>
       </div>
@@ -453,33 +497,78 @@ export default function Questions() {
       )}
 
       <div className="space-y-3">
+        {questions.length > 0 && (
+          <div className="flex items-center gap-3 px-1 text-xs text-slate-400">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={selected.length === questions.length && questions.length > 0}
+                onChange={(e) => (e.target.checked ? selectAll() : clearSelection())}
+              />
+              Select all ({questions.length})
+            </label>
+            {selected.length > 0 && (
+              <button className="text-slate-400 hover:text-slate-200 underline" onClick={clearSelection}>
+                Clear selection
+              </button>
+            )}
+          </div>
+        )}
         {questions.map(q => {
           const sub = subjects.find(s => s.id === q.subject_id);
+          const checked = selected.includes(q.id);
           return (
-            <Card key={q.id} className="p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge>{q.type.toUpperCase()}</Badge>
-                    <Badge className="bg-slate-700/40 text-slate-300 border-slate-600">{q.difficulty}</Badge>
-                    <span className="text-xs text-slate-500">{sub?.name} · {q.marks} mark(s)</span>
+            <Card key={q.id} className={cn("p-4 transition", checked && "ring-1 ring-violet-400/50")}>
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1.5 shrink-0"
+                  checked={checked}
+                  onChange={() => toggleSelect(q.id)}
+                  aria-label="Select question"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge>{q.type.toUpperCase()}</Badge>
+                        <Badge className="bg-slate-700/40 text-slate-300 border-slate-600">{q.difficulty}</Badge>
+                        <span className="text-xs text-slate-500">{sub?.name} · {q.marks} mark(s)</span>
+                      </div>
+                      <div className="text-sm">{q.prompt}</div>
+                      {q.options && (
+                        <ul className="text-xs text-slate-400 mt-2 space-y-0.5 ml-4">
+                          {(Array.isArray(q.options)?q.options:JSON.parse(q.options)).map((o: string, i: number) => <li key={i}>• {o} {q.answer === o && <span className="text-emerald-400">(correct)</span>}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="ghost" onClick={() => edit(q)}>Edit</Button>
+                      <Button variant="ghost" onClick={() => del(q.id)}><Trash2 size={14}/></Button>
+                    </div>
                   </div>
-                  <div className="text-sm">{q.prompt}</div>
-                  {q.options && (
-                    <ul className="text-xs text-slate-400 mt-2 space-y-0.5 ml-4">
-                      {(Array.isArray(q.options)?q.options:JSON.parse(q.options)).map((o: string, i: number) => <li key={i}>• {o} {q.answer === o && <span className="text-emerald-400">(correct)</span>}</li>)}
-                    </ul>
-                  )}
-                </div>
-                <div className="flex gap-1">
-                  <Button variant="ghost" onClick={() => edit(q)}>Edit</Button>
-                  <Button variant="ghost" onClick={() => del(q.id)}><Trash2 size={14}/></Button>
                 </div>
               </div>
             </Card>
           );
         })}
-        {questions.length === 0 && <div className="text-slate-500 text-sm">No questions yet.</div>}
+        {questions.length === 0 && (
+          <div className="flex flex-col items-center justify-center text-center py-12 gap-3 rounded-2xl border border-dashed border-slate-600/60 bg-slate-900/30">
+            <div className="rounded-2xl bg-ink/5 p-3">
+              <Plus size={22} className="text-slate-400" />
+            </div>
+            <div className="text-sm font-medium text-slate-200">No questions yet</div>
+            <p className="text-xs text-slate-400 max-w-xs">
+              {searchQuery || selectedSubject || selectedChapter || filterType || filterDifficulty
+                ? "Nothing matches these filters. Try clearing them."
+                : "Add your first question, or import a JSON file."}
+            </p>
+            <div className="flex gap-2 mt-1">
+              <Button onClick={() => { reset(); setShowForm(true); }}><Plus size={16} /> New Question</Button>
+              <Button variant="ghost" onClick={() => importRef.current?.click()}><Upload size={16} /> Import JSON</Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

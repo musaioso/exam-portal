@@ -22,8 +22,20 @@ const MAX_RETRIES = 2;
 
 api.interceptors.response.use(undefined, async (error) => {
   const config: any = error?.config || {};
-  const method = String(config.method || "get").toLowerCase();
+  const url = String(config.url || "");
   const status = error?.response?.status;
+
+  // A 401 outside the login/register flow means the session is gone — clear it
+  // and send the user back to the login page instead of leaving them stuck.
+  if (status === 401 && !/\/auth\/(login|register)/.test(url)) {
+    clearAuth();
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
+    throw error;
+  }
+
+  const method = String(config.method || "get").toLowerCase();
   const transient = !error?.response || RETRYABLE_STATUS.includes(status);
   const used = config.__retries || 0;
   if (method !== "get" || !transient || used >= MAX_RETRIES || config.__noRetry) throw error;
