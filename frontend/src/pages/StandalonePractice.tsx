@@ -60,7 +60,11 @@ export default function StandalonePractice() {
   const choose = (o: string) => {
     if (answered || !q) return;
     setPicked(o);
-    if (correct) setHits(h => h + 1);
+    // Correctness must be computed against the answer just picked (o), not the
+    // stale `correct` captured from the previous render (picked was still null).
+    const isCorrect =
+      String(o).trim().toLowerCase() === String(q.answer ?? "").trim().toLowerCase();
+    if (isCorrect) setHits(h => h + 1);
   };
 
   const next = () => {
