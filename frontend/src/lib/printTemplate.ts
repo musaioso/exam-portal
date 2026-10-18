@@ -146,12 +146,37 @@ export function buildPrintHtml(data: PrintData): string {
         .settings input[type=text], .settings input[type=number], .settings select, .settings textarea {
           width: 100%; padding: 8px 12px; border-radius: 1rem; border: 1px solid var(--border); background: var(--field-bg); color: var(--field-text); font-size: 13px; font-family: inherit;
         }
-        .settings input[type=date] {
-          width: 100%; padding: 8px 12px 8px 10px; border-radius: 1rem; border: 1px solid var(--border); background: var(--field-bg); color: var(--field-text); font-size: 13px; font-family: inherit;
-          color-scheme: dark;
+        /* Buttons must inherit the page stack or Bangla labels fall back to the UA font (Arial). */
+        button { font-family: inherit; }
+        .drow { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; position: relative; }
+        .calbtn { display: inline-flex; align-items: center; justify-content: center; padding: 7px 9px; }
+        .calbtn svg { width: 15px; height: 15px; }
+        /* Themed calendar popup — same surface as the .tselect menus. */
+        .calpop {
+          position: fixed; z-index: 100001; width: 252px;
+          border-radius: 0.75rem; border: 1px solid color-mix(in srgb, var(--color-slate-600) 80%, transparent);
+          background: color-mix(in srgb, var(--color-slate-900) 98%, transparent);
+          backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+          padding: 8px; font-size: 12px; color: var(--color-slate-200);
         }
-        html[data-theme="light"] .settings input[type=date] { color-scheme: light; }
-        .drow { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
+        .calhead { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; padding: 0 2px; }
+        .calmonth { font-weight: 600; font-size: 12px; }
+        .calnav {
+          width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+          border-radius: 8px; border: 1px solid transparent; background: transparent;
+          color: inherit; cursor: pointer; font-size: 15px; line-height: 1;
+        }
+        .calnav:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+        .calgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .caldow { text-align: center; font-size: 10px; font-weight: 600; padding: 2px 0; color: var(--color-slate-500); }
+        .calday {
+          width: 100%; padding: 5px 0; border: 0; border-radius: 8px; background: transparent;
+          color: inherit; font-size: 12px; cursor: pointer;
+        }
+        .calday:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+        .calday.today { box-shadow: inset 0 0 0 1px var(--color-violet-500); }
+        .calday.sel { background: color-mix(in srgb, var(--color-violet-500) 25%, transparent); color: var(--color-violet-200); font-weight: 700; }
         .btn-xs {
           padding: 7px 10px; border-radius: 1rem; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
           transition: border-color 0.2s ease, filter 0.2s ease, transform 0.15s ease;
@@ -310,6 +335,7 @@ export function buildPrintHtml(data: PrintData): string {
           .app { display: block; height: auto; }
           .settings { display: none !important; }
           .tselect-menu { display: none !important; }
+          .calpop { display: none !important; }
           .stage { overflow: visible; padding: 0; }
           .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
         }
@@ -320,7 +346,11 @@ export function buildPrintHtml(data: PrintData): string {
           <h2>Print settings</h2>
           <label>School / Institute</label><input type="text" id="f-school">
           <label>Paper title</label><input type="text" id="f-title">
-          <label>Date</label><div class="drow"><input type="date" id="f-date"><button type="button" class="btn-xs" id="dateTodayBtn" title="Set to today">Today</button></div>
+          <label>Date</label><div class="drow">
+            <input type="text" id="f-date" placeholder="DD/MM/YYYY" autocomplete="off" inputmode="numeric">
+            <button type="button" class="btn-xs" id="dateTodayBtn" title="Set to today">Today</button>
+            <button type="button" class="btn-xs calbtn" id="dateCalBtn" title="Pick a date" aria-label="Pick a date" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+          </div>
           <div class="grid2">
             <div><label>Columns</label><select id="f-cols"><option value="2">2 columns</option><option value="1">1 column</option></select></div>
             <div><label>Font size (pt)</label><div class="stepper"><button type="button" class="step" id="fs-minus" aria-label="Decrease font size">&minus;</button><input type="number" id="f-fs" min="7" max="14" step="0.5"><button type="button" class="step" id="fs-plus" aria-label="Increase font size">+</button></div></div>
@@ -431,7 +461,7 @@ export function buildPrintHtml(data: PrintData): string {
         }
         function formatDate(s){
           if (!s) return s;
-          var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          var m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
           if (m) return m[3] + '/' + m[2] + '/' + m[1];
           return s;
         }
@@ -551,13 +581,102 @@ export function buildPrintHtml(data: PrintData): string {
         document.getElementById('f-title').value = S.title || '';
         (function(){
           var fd = document.getElementById('f-date');
-          if (fd) fd.value = S.date || '';
+          if (!fd) return;
+          var calBtn = document.getElementById('dateCalBtn');
           var dtBtn = document.getElementById('dateTodayBtn');
-          if (dtBtn) dtBtn.addEventListener('click', function(){
-            var d = new Date();
-            var y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
-            fd.value = y + '-' + m + '-' + day;
+          var pop = null, vY = 0, vM = 0;
+          var MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+          var DW = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+          function pad(n){ return (n < 10 ? '0' : '') + n; }
+          function fmt(d){ return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear(); }
+          function parse(v){
+            if (!v) return null;
+            v = String(v).trim();
+            var m = v.match(/^(\\d{1,2})[/.-](\\d{1,2})[/.-](\\d{4})$/);
+            if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+            m = v.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+            if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+            return null;
+          }
+          function setDate(d){
+            fd.value = fmt(d);
             fd.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          function closeCal(){
+            if (!pop) return;
+            pop.remove(); pop = null;
+            window.removeEventListener('resize', posCal);
+            var sc = document.querySelector('.settings');
+            if (sc) sc.removeEventListener('scroll', posCal);
+          }
+          function drawCal(){
+            var first = new Date(vY, vM, 1).getDay();
+            var daysIn = new Date(vY, vM + 1, 0).getDate();
+            var prevDays = new Date(vY, vM, 0).getDate();
+            var sel = parse(fd.value), today = new Date();
+            var html = '<div class="calhead"><button type="button" class="calnav" data-mv="-1" aria-label="Previous month">&lsaquo;</button>'
+              + '<span class="calmonth">' + MN[vM] + ' ' + vY + '</span>'
+              + '<button type="button" class="calnav" data-mv="1" aria-label="Next month">&rsaquo;</button></div><div class="calgrid">';
+            DW.forEach(function(d){ html += '<span class="caldow">' + d + '</span>'; });
+            var i, d, cls;
+            for (i = first - 1; i >= 0; i--) html += '<button type="button" class="calday" data-d="' + (prevDays + i + 1) + '" data-mv="-1">' + (prevDays + i + 1) + '</button>';
+            for (d = 1; d <= daysIn; d++) {
+              cls = 'calday';
+              if (sel && sel.getFullYear() === vY && sel.getMonth() === vM && sel.getDate() === d) cls += ' sel';
+              else if (today.getFullYear() === vY && today.getMonth() === vM && today.getDate() === d) cls += ' today';
+              html += '<button type="button" class="' + cls + '" data-d="' + d + '">' + d + '</button>';
+            }
+            var lead = (7 - (first + daysIn) % 7) % 7;
+            for (i = 1; i <= lead; i++) html += '<button type="button" class="calday" data-d="' + i + '" data-mv="1">' + i + '</button>';
+            pop.innerHTML = html + '</div>';
+          }
+          function posCal(){
+            if (!pop) return;
+            var r = fd.getBoundingClientRect();
+            var w = pop.offsetWidth || 252, h = pop.offsetHeight || 230;
+            var left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+            var top = r.bottom + 6;
+            if (top + h > window.innerHeight - 8 && r.top - h - 6 > 8) top = r.top - h - 6;
+            pop.style.left = left + 'px';
+            pop.style.top = top + 'px';
+          }
+          window.openPrintDateCal = function(){
+            if (pop) { closeCal(); return; }
+            var base = parse(fd.value) || new Date();
+            vY = base.getFullYear(); vM = base.getMonth();
+            pop = document.createElement('div');
+            pop.className = 'calpop';
+            pop.setAttribute('role', 'dialog');
+            pop.setAttribute('aria-label', 'Pick a date');
+            document.body.appendChild(pop);
+            drawCal(); posCal();
+            window.addEventListener('resize', posCal);
+            var sc = document.querySelector('.settings');
+            if (sc) sc.addEventListener('scroll', posCal);
+          };
+          fd.value = S.date ? formatDate(S.date) : '';
+          if (calBtn) calBtn.addEventListener('click', function(e){ e.stopPropagation(); window.openPrintDateCal(); });
+          if (dtBtn) dtBtn.addEventListener('click', function(){ setDate(new Date()); closeCal(); });
+          document.addEventListener('mousedown', function(e){
+            if (!pop) return;
+            if (pop.contains(e.target) || (calBtn && calBtn.contains(e.target)) || e.target === fd) return;
+            closeCal();
+          });
+          document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeCal(); });
+          document.addEventListener('click', function(e){
+            if (!pop || !pop.contains(e.target)) return;
+            var t = e.target;
+            while (t && t !== pop && !(t.classList && (t.classList.contains('calnav') || t.classList.contains('calday')))) t = t.parentNode;
+            if (!t || t === pop) return;
+              var mv = Number(t.getAttribute('data-mv') || 0);
+              if (mv) { vM += mv; if (vM < 0) { vM = 11; vY--; } else if (vM > 11) { vM = 0; vY++; } }
+              var dd = t.getAttribute('data-d');
+              if (dd && !t.classList.contains('calnav')) {
+                setDate(new Date(vY, vM, Number(dd)));
+                closeCal();
+                return;
+              }
+              drawCal(); posCal();
           });
         })();
         bind('f-date', 'date', 'text');
@@ -565,6 +684,7 @@ export function buildPrintHtml(data: PrintData): string {
         document.getElementById('f-cols').value = String(S.columns);
         document.getElementById('f-labels').value = S.labelStyle || 'auto';
         document.getElementById('f-num').value = S.numStyle || 'auto';
+        document.getElementById('f-header').checked = S.showHeader !== false;
         document.getElementById('f-marks').checked = !!S.showMarks;
         document.getElementById('f-instr').checked = !!S.showInstructions;
         document.getElementById('f-instrtext').value = S.instructions || '';
@@ -623,16 +743,17 @@ export function buildPrintHtml(data: PrintData): string {
           document.getElementById('fs-plus').addEventListener('click', function(){ nudge(0.5); });
         })();
         (function(){
-          /* "Pick" button in the Date cell of the printed header — matches site
-             theme and jumps to the date picker in the sidebar. */
-          var hdatePick = document.getElementById('hdatePick');
-          if (hdatePick) hdatePick.addEventListener('click', function(){
+          /* "Pick" button in the Date cell of the printed header — the header is
+             rebuilt on every render, so bind by delegation. */
+          document.addEventListener('click', function(e){
+            var t = e.target;
+            if (!t || !t.closest || !t.closest('#hdatePick')) return;
             var el = document.getElementById('f-date');
             if (!el) return;
-            el.focus();
-            if (el.showPicker) el.showPicker();
             var box = document.querySelector('.settings');
-            if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            if (box) box.scrollIntoView({ block: 'nearest' });
+            el.focus();
+            if (window.openPrintDateCal) window.openPrintDateCal();
           });
         })();
         (function(){
