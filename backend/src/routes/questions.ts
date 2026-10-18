@@ -5,6 +5,95 @@ import { requireAuth, requireRole } from "../middleware/auth";
 
 const router = Router();
 
+/**
+ * Two questions count as the same question when their prompts match once the
+ * cosmetic differences are ignored: letter case, spacing, punctuation (English
+ * and the Bangla danda "।") and Bangla vs ASCII digits. Punctuation becomes a
+ * space rather than disappearing so "১.৫" never collapses into "১৫".
+ */
+const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
+const PUNCTUATION = /[?!.,;:"'`।॥\-_/\\()[\]{}*#+=~|@$%^&<>]/g;
+
+function normalizeText(input: unknown): string {
+  return String(input ?? "")
+    .replace(/[০-৯]/g, (d) => String(BN_DIGITS.indexOf(d)))
+    .replace(/[\u2018\u2019\u201B]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014\u2015]/g, "-")
+    .replace(PUNCTUATION, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Do two copies agree on the answer? Choices are compared only when both sides
+ * actually carry them, so re-typing a question without its options yet does not
+ * raise a false "answers differ" alarm.
+ */
+function sameAnswer(a: { answer?: unknown; options?: unknown }, b: { answer?: unknown; options?: unknown }): boolean {
+  if (normalizeText(a.answer) !== normalizeText(b.answer)) return false;
+  const aOptions = Array.isArray(a.options) ? a.options : null;
+  const bOptions = Array.isArray(b.options) ? b.options : null;
+  if (!aOptions || !bOptions) return true;
+  return normalizeText(aOptions.join(" ")) === normalizeText(bOptions.join(" "));
+}
+
+const first = (v: any) => (Array.isArray(v) ? v[0] : v);
+
+/**
+ * Group the bank by (subject, normalised prompt) and keep only the groups with
+ * two or more copies. Feeds both the "Duplicates" panel and the warning shown
+ * when a new question would repeat one that is already stored.
+ */
+async function duplicateGroups(db: any, filters: { subject_id?: any; chapter_id?: any; type?: any } = {}) {
+  const subject_id = first(filters.subject_id);
+  const chapter_id = first(filters.chapter_id);
+  const type = first(filters.type);
+  let sql = `SELECT q.id, q.subject_id, q.chapter_id, q.type, q.difficulty, q.prompt, q.options, q.answer, q.explanation, q.marks, q.created_at,
+    s.name AS subject_name, c.number AS chapter_number, c.title AS chapter_title
+    FROM questions q
+    LEFT JOIN subjects s ON s.id = q.subject_id
+    LEFT JOIN chapters c ON c.id = q.chapter_id
+    WHERE 1=1`;
+  const params: any[] = [];
+  if (subject_id) { sql += " AND q.subject_id=?"; params.push(subject_id); }
+  if (chapter_id) { sql += " AND q.chapter_id=?"; params.push(chapter_id); }
+  if (type) { sql += " AND q.type=?"; params.push(type); }
+  sql += " ORDER BY q.created_at ASC";
+  const rows = (await all(db, sql, params)) as any[];
+
+  const buckets = new Map<string, any[]>();
+  for (const row of rows) {
+    const item = { ...row, options: row.options ? JSON.parse(row.options) : null };
+    const key = `${row.subject_id}::${normalizeText(row.prompt)}`;
+    const list = buckets.get(key);
+    if (list) list.push(item);
+    else buckets.set(key, [item]);
+  }
+
+  const groups = [...buckets.entries()]
+    .filter(([, items]) => items.length > 1)
+    .map(([key, items]) => ({
+      key,
+      subject_id: items[0].subject_id,
+      subject_name: items[0].subject_name,
+      count: items.length,
+      /** true when the copies disagree on the answer/choices — deleting needs a human eye */
+      answerDiffers: !items.every((q) => sameAnswer(q, items[0])),
+      items,
+    }))
+    .sort((a, b) => b.count - a.count || String(a.subject_name).localeCompare(String(b.subject_name)) || a.key.localeCompare(b.key));
+
+  return { groups, scanned: rows.length, duplicates: groups.reduce((n, g) => n + g.count - 1, 0) };
+}
+
+router.get("/duplicates", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
+  const db = await getDb();
+  const { subject_id, chapter_id, type } = req.query as any;
+  res.json(await duplicateGroups(db, { subject_id, chapter_id, type }));
+});
+
 router.get("/export", async (req: Request, res: Response) => {
   const db = await getDb();
   const { subject_id, chapter_id, type, difficulty, q } = req.query as any;
@@ -70,9 +159,25 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
-  const { subject_id, chapter_id, type, difficulty, prompt, options, answer, explanation, marks } = req.body || {};
+  const { subject_id, chapter_id, type, difficulty, prompt, options, answer, explanation, marks, force } = req.body || {};
   if (!subject_id || !type || !prompt) return res.status(400).json({ error: "Missing fields" });
   const db = await getDb();
+  // A second copy of a question is nearly always a slip, so the first attempt
+  // comes back as 409 listing the copies already stored; the client resends with
+  // force:true after the teacher has seen them.
+  if (force !== true) {
+    const existing = (await all(db, "SELECT id, chapter_id, type, difficulty, prompt, options, answer, created_at FROM questions WHERE subject_id=?", [subject_id])) as any[];
+    const wanted = normalizeText(prompt);
+    const copies = existing.filter((q) => normalizeText(q.prompt) === wanted);
+    if (copies.length > 0) {
+      return res.status(409).json({
+        error: "duplicate",
+        message: "An identical question is already in this subject.",
+        answerDiffers: copies.some((q) => !sameAnswer(q, { answer, options })),
+        duplicates: copies.map((q) => ({ ...q, options: q.options ? JSON.parse(q.options) : null })),
+      });
+    }
+  }
   const id = uuid();
   await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -164,8 +269,21 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
   const defaultSubjectId = await findSubjectId(topSubjectId, topSubjectSlug);
   const defaultChapterCache = new Map<string, string | null>();
   const skipDuplicates = body.skip_duplicates !== false; // default: on
+  // Normalised prompts already in the bank — one lookup per subject, extended as
+  // rows land so a file that repeats itself is caught too.
+  const knownPrompts = new Map<string, Set<string>>();
+  const promptsFor = async (subjectId: string) => {
+    let set = knownPrompts.get(subjectId);
+    if (!set) {
+      const rows = (await all(db, "SELECT prompt FROM questions WHERE subject_id=?", [subjectId])) as any[];
+      set = new Set(rows.map((r) => normalizeText(r.prompt)));
+      knownPrompts.set(subjectId, set);
+    }
+    return set;
+  };
   let imported = 0;
   let skipped = 0;
+  const duplicateRows: number[] = [];
   const errors: Array<{ index: number; error: string }> = [];
   for (let i = 0; i < questions.length; i++) {
     const row = questions[i] || {};
@@ -178,9 +296,11 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
       const prompt = String(row.prompt || "").trim();
       if (!prompt) throw new Error("prompt required");
       // Skip rows whose question already exists in this subject (prevents double imports)
-      if (skipDuplicates) {
-        const dup = await get(db, "SELECT id FROM questions WHERE subject_id=? AND prompt=?", [subject_id, prompt]) as any;
-        if (dup) { skipped++; continue; }
+      const promptKey = normalizeText(prompt);
+      if (skipDuplicates && (await promptsFor(subject_id)).has(promptKey)) {
+        skipped++;
+        duplicateRows.push(i);
+        continue;
       }
       // resolve chapter (row-level wins, else top-level default; title may auto-create)
       const rowChapterTitle = row.chapter_title != null ? String(row.chapter_title) : undefined;
@@ -209,12 +329,13 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
         [id, subject_id, chapter_id, type, difficulty, prompt,
           options ? JSON.stringify(options) : null, row.answer != null ? String(row.answer) : null,
           row.explanation != null ? String(row.explanation) : null, marks, req.user!.id, Date.now()]);
+      if (skipDuplicates) (await promptsFor(subject_id)).add(promptKey);
       imported++;
     } catch (e: any) {
       errors.push({ index: i, error: e?.message || "Invalid row" });
     }
   }
-  res.json({ ok: true, imported, skipped, failed: errors.length, errors });
+  res.json({ ok: true, imported, skipped, failed: errors.length, errors, duplicateRows });
 });
 
 router.post("/:id/duplicate", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {

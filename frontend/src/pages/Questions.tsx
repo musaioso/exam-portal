@@ -1,10 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
-import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge } from "../components/ui";
+import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { confirmDialog, alertDialog } from "../components/Dialog";
-import { Plus, Trash2, Upload } from "lucide-react";
+import { CopyCheck, Plus, Trash2, Upload } from "lucide-react";
 
 const empty = { subject_id: "", chapter_id: "", type: "mcq", difficulty: "medium", prompt: "", options: ["", "", "", ""], answer: "", explanation: "", marks: 1 };
+
+type DupeItem = {
+  id: string; prompt: string; type: string; difficulty: string;
+  chapter_number: number | null; chapter_title: string | null;
+  answer: string | null; explanation: string | null; marks: number; created_at: number;
+};
+type DupeGroup = { key: string; subject_name: string | null; count: number; answerDiffers: boolean; items: DupeItem[] };
+
+/** What makes a copy worth keeping: an explanation counts most, then a chapter, then an answer. */
+const weight = (q: DupeItem) => (q.explanation ? 4 : 0) + (q.chapter_title ? 2 : 0) + (q.answer ? 1 : 0);
+/** The fullest copy wins; ties go to the older question. */
+const richest = (items: DupeItem[]) =>
+  [...items].sort((a, b) => weight(b) - weight(a) || a.created_at - b.created_at)[0];
+const clip = (s: string | null | undefined, n = 70) => {
+  const t = (s ?? "").trim();
+  return t.length > n ? `${t.slice(0, n)}…` : t;
+};
+const shortDate = (ts: number) =>
+  new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const extraCopies = (groups: DupeGroup[]) => groups.reduce((n, g) => n + g.count - 1, 0);
 
 export default function Questions() {
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -20,6 +40,11 @@ export default function Questions() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [lastBatchId, setLastBatchId] = useState<string | null>(null);
+  // null = the duplicate panel is closed; [] = scanned and nothing is repeated.
+  const [dupeGroups, setDupeGroups] = useState<DupeGroup[] | null>(null);
+  const [dupeLoading, setDupeLoading] = useState(false);
+  const [dupeKeep, setDupeKeep] = useState<Record<string, string>>({});
+  const [dupeBusy, setDupeBusy] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   const importJson = async (file: File) => {
@@ -29,7 +54,7 @@ export default function Questions() {
       const { data } = await api.post("/questions/bulk-import", payload);
       const failed = data.failed ?? 0;
       const skipped = data.skipped ?? 0;
-      let msg = `Import complete: imported ${data.imported ?? 0}, skipped ${skipped}, failed ${failed}`;
+      let msg = `Import complete: imported ${data.imported ?? 0}, skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}, failed ${failed}`;
       if (failed > 0 && Array.isArray(data.errors) && data.errors.length) {
         const details = data.errors.slice(0, 8).map((e: any) => `• row ${e.index + 1}: ${e.error}`).join("\n");
         msg += `\n\n${details}` + (data.errors.length > 8 ? `\n…and ${data.errors.length - 8} more` : "");
@@ -103,9 +128,48 @@ export default function Questions() {
     const payload: any = { ...form };
     if (payload.type === "mcq") payload.options = payload.options.filter((o: string) => o.trim() !== "");
     else payload.options = undefined;
-    if (editing) await api.put(`/questions/${editing}`, payload);
-    else await api.post("/questions", payload);
-    reset(); loadQuestions();
+    try {
+      if (editing) await api.put(`/questions/${editing}`, payload);
+      else await api.post("/questions", payload);
+    } catch (err: any) {
+      const res = err?.response;
+      // 409 = the same question is already stored, so ask before adding a copy.
+      const found: DupeItem[] = res?.status === 409 ? res.data?.duplicates || [] : [];
+      if (editing || found.length === 0) {
+        await alertDialog({
+          title: editing ? "Could not update" : "Could not save",
+          message: res?.data?.error || err?.message || "The question was not saved.",
+        });
+        return;
+      }
+      const lines = found
+        .slice(0, 5)
+        .map((d) => `• ${[d.chapter_title && `Ch.${d.chapter_number} ${d.chapter_title}`, d.type?.toUpperCase(), d.answer && `answer: ${clip(d.answer, 40)}`].filter(Boolean).join(" · ") || "no chapter"}`)
+        .join("\n");
+      const ok = await confirmDialog({
+        title: `Already in the bank (${found.length})`,
+        message:
+          `${res.data?.message || "An identical question is already in this subject."}\n\n${lines}` +
+          (found.length > 5 ? `\n…and ${found.length - 5} more` : "") +
+          (res.data?.answerDiffers ? "\n\nHeads up: the stored copy has a different answer or choices." : "") +
+          "\n\nAdd your question anyway?",
+        confirmLabel: "Add anyway",
+        cancelLabel: "Cancel",
+      });
+      if (!ok) return;
+      try {
+        await api.post("/questions", { ...payload, force: true });
+      } catch (e2: any) {
+        await alertDialog({
+          title: "Could not save",
+          message: e2?.response?.data?.error || e2?.message || "The question was not saved.",
+        });
+        return;
+      }
+    }
+    reset();
+    loadQuestions();
+    if (dupeGroups !== null) scanDuplicates();
   };
 
   const edit = (q: any) => {
@@ -129,6 +193,55 @@ export default function Questions() {
     await api.delete(`/questions/${id}`); loadQuestions();
   };
 
+  const scanDuplicates = async () => {
+    // Open the panel straight away on the first scan; a rescan keeps the old
+    // groups on screen until the fresh ones arrive.
+    setDupeGroups((prev) => prev ?? []);
+    setDupeLoading(true);
+    try {
+      const { data } = await api.get("/questions/duplicates");
+      const groups: DupeGroup[] = data.groups || [];
+      const keep: Record<string, string> = {};
+      groups.forEach((g) => { keep[g.key] = richest(g.items).id; });
+      setDupeKeep(keep);
+      setDupeGroups(groups);
+    } catch (e: any) {
+      await alertDialog({
+        title: "Could not scan",
+        message: e?.response?.data?.error || e?.message || "The duplicate scan failed.",
+      });
+    } finally {
+      setDupeLoading(false);
+    }
+  };
+
+  const deleteDuplicates = async () => {
+    if (!dupeGroups) return;
+    const ids = dupeGroups.flatMap((g) => g.items.filter((i) => i.id !== dupeKeep[g.key]).map((i) => i.id));
+    if (ids.length === 0) return;
+    const ok = await confirmDialog({
+      title: `Delete ${ids.length} duplicate question${ids.length > 1 ? "s" : ""}?`,
+      message: "The ticked question in each group stays. This can't be undone.",
+      confirmLabel: "Delete duplicates",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setDupeBusy(true);
+    try {
+      const { data } = await api.post("/questions/bulk-delete", { ids });
+      await alertDialog({ title: "Duplicates removed", message: `Deleted ${data.deleted ?? ids.length} questions.` });
+      await loadQuestions();
+      await scanDuplicates();
+    } catch (e: any) {
+      await alertDialog({
+        title: "Could not delete",
+        message: e?.response?.data?.error || e?.message || "Nothing was deleted.",
+      });
+    } finally {
+      setDupeBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2">
@@ -138,6 +251,12 @@ export default function Questions() {
             onChange={e => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = ""; }} />
           <Button variant="ghost" onClick={() => importRef.current?.click()}><Upload size={16}/> Import JSON</Button>
           {lastBatchId && <Button variant="ghost" onClick={undoImport}>Undo Last Import</Button>}
+          <Button
+            variant="ghost"
+            onClick={() => (dupeGroups === null ? scanDuplicates() : setDupeGroups(null))}
+          >
+            <CopyCheck size={16} /> Duplicates
+          </Button>
           <Button onClick={() => { reset(); setShowForm(true); }}><Plus size={16}/> New Question</Button>
         </div>
       </div>
@@ -178,6 +297,100 @@ export default function Questions() {
           <Button variant="ghost" onClick={() => { setSelectedSubject(""); setSelectedChapter(""); setFilterType(""); setFilterDifficulty(""); setSearchQuery(""); }}>Clear</Button>
         </div>
       </Card>
+
+      {dupeGroups !== null && (
+        <Card hover={false}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Duplicate questions</h2>
+              <p className="mt-0.5 text-xs text-slate-400">
+                {dupeLoading
+                  ? "Scanning the question bank…"
+                  : dupeGroups.length === 0
+                    ? "Nothing repeated — every question appears once."
+                    : `${dupeGroups.length} group${dupeGroups.length > 1 ? "s" : ""} · ${extraCopies(dupeGroups)} extra cop${extraCopies(dupeGroups) === 1 ? "y" : "ies"} to remove`}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={scanDuplicates} disabled={dupeLoading}>Rescan</Button>
+              <Button variant="ghost" onClick={() => setDupeGroups(null)}>Close</Button>
+            </div>
+          </div>
+
+          {dupeLoading && dupeGroups.length === 0 && (
+            <div className="mt-4 space-y-3">
+              <Skeleton className="h-24 w-full rounded-2xl" />
+              <Skeleton className="h-24 w-full rounded-2xl" />
+            </div>
+          )}
+
+          {!dupeLoading && dupeGroups.length === 0 && (
+            <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+              No duplicates found — nothing to clean up.
+            </div>
+          )}
+
+          {!dupeLoading && dupeGroups.length > 0 && (
+            <>
+              <div className="mt-5 space-y-4">
+                {dupeGroups.map((g) => (
+                  <div key={g.key} className="rounded-2xl border border-slate-600/60 bg-slate-900/40 p-4">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-100">{g.subject_name || "Unknown subject"}</span>
+                      <Badge className="border-amber-500/30 bg-amber-500/20 text-amber-300">{g.count} copies</Badge>
+                      {g.answerDiffers && (
+                        <Badge className="border-rose-500/30 bg-rose-500/20 text-rose-300">answers differ — check before deleting</Badge>
+                      )}
+                      <span className="ml-auto text-xs text-slate-500">the ticked one is kept</span>
+                    </div>
+                    <div className="space-y-2">
+                      {g.items.map((it) => (
+                        <label
+                          key={it.id}
+                          className={cn(
+                            "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2 transition",
+                            dupeKeep[g.key] === it.id
+                              ? "border-violet-400/60 bg-violet-500/10"
+                              : "border-slate-600/40 hover:border-violet-400/40",
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            className="mt-0.5"
+                            name={`dupe-${g.key}`}
+                            checked={dupeKeep[g.key] === it.id}
+                            onChange={() => setDupeKeep((k) => ({ ...k, [g.key]: it.id }))}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm text-slate-100">{it.prompt}</div>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
+                              <span>{it.type.toUpperCase()}</span>
+                              <span>· {it.difficulty}</span>
+                              {it.chapter_title && <span>· Ch.{it.chapter_number} {it.chapter_title}</span>}
+                              <span>· {it.marks} mark(s)</span>
+                              <span>· added {shortDate(it.created_at)}</span>
+                            </div>
+                            {it.answer && <div className="mt-1 text-xs text-emerald-400">Answer: {clip(it.answer, 80)}</div>}
+                            {it.explanation && <div className="mt-0.5 text-xs text-slate-500">Explanation: {clip(it.explanation, 80)}</div>}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Button variant="danger" onClick={deleteDuplicates} disabled={dupeBusy}>
+                  <Trash2 size={16} /> Delete {extraCopies(dupeGroups)} duplicate{extraCopies(dupeGroups) === 1 ? "" : "s"}
+                </Button>
+                <span className="text-xs text-slate-500">
+                  One copy per group stays — the ticked one, which holds the most detail by default.
+                </span>
+              </div>
+            </>
+          )}
+        </Card>
+      )}
 
       {showForm && (
         <Card>
