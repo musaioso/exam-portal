@@ -136,6 +136,12 @@ router.get("/", async (req: Request, res: Response) => {
   if (difficulty) { sql += " AND difficulty=?"; params.push(difficulty); }
   const term = (q || search || "").toString().trim();
   if (term) { sql += " AND (prompt LIKE ? OR answer LIKE ?)"; params.push(`%${term}%`, `%${term}%`); }
+
+  // Total matching rows, for pagination controls.
+  const countSql = sql.replace("SELECT * FROM questions", "SELECT COUNT(*) AS n FROM questions");
+  const countRow = await get(db, countSql, params) as any;
+  const total = Number(countRow?.n ?? 0);
+
   sql += " ORDER BY created_at DESC";
   const l = Math.max(0, parseInt(limit) || 0);
   const ps = Math.max(0, parseInt(pageSize) || 0);
@@ -147,7 +153,7 @@ router.get("/", async (req: Request, res: Response) => {
     options: r.options ? JSON.parse(r.options) : null,
     chapter_ids: undefined,
   }));
-  res.json({ questions: rows });
+  res.json({ questions: rows, total });
 });
 
 router.get("/:id", async (req, res) => {

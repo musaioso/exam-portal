@@ -47,6 +47,9 @@ export default function Questions() {
   const [dupeKeep, setDupeKeep] = useState<Record<string, string>>({});
   const [dupeBusy, setDupeBusy] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const PAGE_SIZE = 20;
   const toast = useToast();
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -97,11 +100,27 @@ export default function Questions() {
     if (filterType) params.set("type", filterType);
     if (filterDifficulty) params.set("difficulty", filterDifficulty);
     if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    params.set("pageSize", String(PAGE_SIZE));
+    params.set("page", String(page));
     const { data } = await api.get(`/questions?${params.toString()}`);
     setQuestions(data.questions);
+    setTotal(data.total ?? data.questions.length);
     setSelected([]);
+    // If the current page is now empty (e.g. after a delete), step back.
+    if ((data.questions?.length ?? 0) === 0 && page > 1) setPage((p) => p - 1);
   };
-  useEffect(() => { loadQuestions(); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, searchQuery]);
+  useEffect(() => { setPage(1); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, searchQuery]);
+  useEffect(() => { loadQuestions(); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, searchQuery, page]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (showForm) reset();
+      else if (dupeGroups !== null) setDupeGroups(null);
+      else if (selected.length) setSelected([]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showForm, dupeGroups, selected.length]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -570,6 +589,19 @@ export default function Questions() {
           </div>
         )}
       </div>
+
+      {total > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="text-xs text-slate-400">
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+          </span>
+          <div className="flex gap-2">
+            <Button variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
+            <span className="grid place-items-center px-2 text-xs text-slate-300">Page {page} of {Math.ceil(total / PAGE_SIZE)}</span>
+            <Button variant="ghost" disabled={page >= Math.ceil(total / PAGE_SIZE)} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
