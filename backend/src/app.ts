@@ -1,4 +1,4 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import authRouter from "./routes/auth";
 import subjectsRouter from "./routes/subjects";
@@ -9,6 +9,42 @@ import backupRouter from "./routes/backup";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
 import { storage, isPersistent, dbLabel, getDb, get } from "./db/database";
+
+// Express 4 never looks at the promise an async handler returns: if a database
+// call rejects (a dropped connection, a cold Turso instance) the request simply
+// hangs, and the platform eventually hands the caller a bare gateway error like
+// "502 Bad Gateway" with no explanation. Wrap every handler so a rejection goes
+// to the error middleware at the bottom of createApp() and the client gets a
+// normal JSON error it can actually show.
+const WRAPPED = Symbol("asyncWrapped");
+
+function wrapHandler(fn: any) {
+  // Arity 4 marks an error middleware — leave those (and non-functions) alone.
+  if (typeof fn !== "function" || fn.length >= 4 || fn[WRAPPED]) return fn;
+  const guarded = function (req: Request, res: Response, next: NextFunction) {
+    try {
+      const out = fn(req, res, next);
+      if (out && typeof out.then === "function") out.catch(next);
+    } catch (err) {
+      next(err);
+    }
+  };
+  (guarded as any)[WRAPPED] = true;
+  return guarded;
+}
+
+function catchRejections(router: any) {
+  const stack: any[] = router?.stack || router?._router?.stack || [];
+  for (const layer of stack) {
+    if (layer.route) {
+      for (const entry of layer.route.stack || []) entry.handle = wrapHandler(entry.handle);
+    } else if (layer.handle?.stack || layer.handle?._router) {
+      catchRejections(layer.handle); // a mounted sub-router
+    } else {
+      layer.handle = wrapHandler(layer.handle);
+    }
+  }
+}
 
 function createApp() {
   const app = express();
@@ -80,6 +116,17 @@ function createApp() {
       [req.user!.id]
     );
     res.json({ user: u || req.user });
+  });
+
+  // Wrap everything registered above (routers included) so rejected promises
+  // reach the error handler below instead of hanging the request.
+  catchRejections(app);
+
+  // Last stop for any error a route throws or rejects with.
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+    console.error(`[api] ${req.method} ${req.originalUrl} failed:`, err?.message || err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: "The server could not complete that request. Please try again." });
   });
 
   return app;

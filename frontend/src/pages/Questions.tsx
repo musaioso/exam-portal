@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../lib/api";
+import { api, errorMessage } from "../lib/api";
 import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { confirmDialog, alertDialog } from "../components/Dialog";
 import { CopyCheck, Plus, Trash2, Upload } from "lucide-react";
@@ -64,7 +64,7 @@ export default function Questions() {
     } catch (e: any) {
       await alertDialog({
         title: "Import failed",
-        message: e?.response?.data?.error || e?.message || "The file could not be imported.",
+        message: errorMessage(e, "The file could not be imported."),
       });
     }
   };
@@ -118,7 +118,7 @@ export default function Questions() {
     } catch (e: any) {
       await alertDialog({
         title: "Could not undo",
-        message: e?.response?.data?.error || e?.message || "The import could not be undone.",
+        message: errorMessage(e, "The import could not be undone."),
       });
     }
   };
@@ -162,7 +162,7 @@ export default function Questions() {
       } catch (e2: any) {
         await alertDialog({
           title: "Could not save",
-          message: e2?.response?.data?.error || e2?.message || "The question was not saved.",
+          message: errorMessage(e2, "The question was not saved."),
         });
         return;
       }
@@ -208,7 +208,7 @@ export default function Questions() {
     } catch (e: any) {
       await alertDialog({
         title: "Could not scan",
-        message: e?.response?.data?.error || e?.message || "The duplicate scan failed.",
+        message: errorMessage(e, "The duplicate scan failed."),
       });
     } finally {
       setDupeLoading(false);
@@ -235,7 +235,7 @@ export default function Questions() {
     } catch (e: any) {
       await alertDialog({
         title: "Could not delete",
-        message: e?.response?.data?.error || e?.message || "Nothing was deleted.",
+        message: errorMessage(e, "Nothing was deleted."),
       });
     } finally {
       setDupeBusy(false);
