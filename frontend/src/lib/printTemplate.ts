@@ -92,11 +92,11 @@ export function buildPrintHtml(data: PrintData): string {
         (function () {
           try {
             var saved = localStorage.getItem("mcq_theme");
-            var theme = saved === "light" ? "light" : "dark";
+            var theme = saved === "dark" ? "dark" : "light";
             document.documentElement.setAttribute("data-theme", theme);
             document.documentElement.style.colorScheme = theme;
           } catch (e) {
-            document.documentElement.setAttribute("data-theme", "dark");
+            document.documentElement.setAttribute("data-theme", "light");
           }
         })();
       </script>

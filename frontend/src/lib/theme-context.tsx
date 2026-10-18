@@ -5,8 +5,8 @@ export type Theme = "light" | "dark";
 /** Must match the boot script in index.html. */
 const STORAGE_KEY = "mcq_theme";
 
-/** The site is dark-first: absent an explicit choice, start in dark mode. */
-const DEFAULT_THEME: Theme = "dark";
+/** The site is light-first: absent an explicit choice, start in light mode. */
+const DEFAULT_THEME: Theme = "light";
 
 function readStored(): Theme | null {
   try {
