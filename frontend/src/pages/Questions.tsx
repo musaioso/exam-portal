@@ -215,7 +215,7 @@ export default function Questions() {
     setEditing(q.id); setShowForm(true);
   };
 
-  const del = async (id: string) => {
+  const del = async (q: any) => {
     const ok = await confirmDialog({
       title: "Delete this question?",
       message: "This can't be undone.",
@@ -223,7 +223,34 @@ export default function Questions() {
       tone: "danger",
     });
     if (!ok) return;
-    await api.delete(`/questions/${id}`); loadQuestions(); toast.success("Question deleted.");
+    const snapshot = {
+      subject_id: q.subject_id,
+      chapter_id: q.chapter_id || undefined,
+      type: q.type,
+      difficulty: q.difficulty,
+      prompt: q.prompt,
+      options: Array.isArray(q.options) ? q.options : (q.options ? JSON.parse(q.options) : undefined),
+      answer: q.answer || undefined,
+      explanation: q.explanation || undefined,
+      marks: q.marks,
+    };
+    await api.delete(`/questions/${q.id}`);
+    loadQuestions();
+    toast.success("Question deleted.", {
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            await api.post("/questions", snapshot);
+            toast.success("Question restored.");
+            loadQuestions();
+          } catch (e: any) {
+            await alertDialog({ title: "Could not restore", message: errorMessage(e, "The question was not restored.") });
+          }
+        },
+      },
+    });
   };
 
   const toggleSelect = (id: string) =>
@@ -563,7 +590,7 @@ export default function Questions() {
                     </div>
                     <div className="flex gap-1 shrink-0">
                       <Button variant="ghost" onClick={() => edit(q)}>Edit</Button>
-                      <Button variant="ghost" onClick={() => del(q.id)}><Trash2 size={14}/></Button>
+                      <Button variant="ghost" onClick={() => del(q)}><Trash2 size={14}/></Button>
                     </div>
                   </div>
                 </div>
