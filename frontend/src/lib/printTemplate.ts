@@ -431,6 +431,57 @@ export function buildPrintHtml(data: PrintData): string {
           var L = labels(q.prompt, S.labelStyle);
           return L[idx] || String(idx + 1);
         }
+        /* Every option already prints its label inside the marker circle, so an
+           option text that repeats the label ("ক) অন্তরীণ", "a) Apple" — typed or
+           imported that way) would read as "ক) ক) অন্তরীণ". Drop the leading
+           label when the question's options consistently carry one; a lone
+           coincidence never triggers it. */
+        function stripOneLabel(text){
+          var s = String(text == null ? '' : text);
+          if (!s) return s;
+          var seps = ').।:}],;–—-';
+          var labs = ['ক','খ','গ','ঘ','ঙ','চ','ছ','জ','a','b','c','d','e','f','g','h'];
+          function ws(p){ var c = s.charCodeAt(p); return c === 32 || c === 9 || c === 10 || c === 13 || c === 160; }
+          for (var li = 0; li < labs.length; li++) {
+            var lab = labs[li], i = 0;
+            while (i < s.length && ws(i)) i++;
+            var seg = s.substr(i, lab.length), ci = false;
+            if (seg !== lab) {
+              if (lab.length === 1 && /[A-Za-z]/.test(lab) && seg.toLowerCase() === lab) ci = true;
+              else continue;
+            }
+            var j = i + lab.length, sawWs = false;
+            while (j < s.length && ws(j)) { j++; sawWs = true; }
+            if (j < s.length && seps.indexOf(s.charAt(j)) >= 0) {
+              j++;
+              while (j < s.length && ws(j)) j++;
+            } else if (ci || !sawWs) {
+              continue;
+            }
+            var body = s.slice(j);
+            if (body) return body;
+          }
+          return s;
+        }
+        function deLabelOptions(q){
+          var opts = (q && q.options) ? q.options : [];
+          var cleaned = [], matched = 0;
+          for (var i = 0; i < opts.length; i++) {
+            var c = stripOneLabel(opts[i]);
+            cleaned.push(c);
+            if (String(opts[i] == null ? '' : opts[i]) !== c) matched++;
+          }
+          var on = opts.length > 1 && matched >= 2 && matched * 2 >= opts.length;
+          return { on: on, cleaned: on ? cleaned : opts };
+        }
+        function answerText(q){
+          var a = q.answer || '-';
+          if (!q.options || !q.options.length) return a;
+          var dl = deLabelOptions(q);
+          if (!dl.on) return a;
+          var idx = q.options.indexOf(q.answer);
+          return idx >= 0 ? dl.cleaned[idx] : a;
+        }
         function safeCss(s){ return String(s || '').split('"').join("'").split(String.fromCharCode(92)).join(' ').split(String.fromCharCode(10)).join(' ').split(String.fromCharCode(13)).join(' '); }
         function pageCss(){
           var css = '';
@@ -452,7 +503,8 @@ export function buildPrintHtml(data: PrintData): string {
         function qHtml(q, n){
           var L = labels(q.prompt, S.labelStyle), opts = '';
           if (q.type === 'mcq' && q.options && q.options.length) {
-            opts = '<div class="options two-col">' + q.options.map(function(o, i){
+            var texts = deLabelOptions(q).cleaned;
+            opts = '<div class="options two-col">' + texts.map(function(o, i){
               return '<div class="opt"><span class="optmark">' + (L[i] || (i + 1)) + '</span><span class="opttext">' + esc(o) + '</span></div>';
             }).join('') + '</div>';
           }
@@ -557,7 +609,7 @@ export function buildPrintHtml(data: PrintData): string {
               k++;
               var subj = DATA.groups.length > 1 ? ' <span class="ansubj">[' + esc(q.subject || '') + ']</span>' : '';
               var cl = correctLetter(q);
-              an += '<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + ')</b> ' : '') + esc(q.answer || '-') + ' ' + (q.explanation ? '<div class="exp">' + esc(q.explanation) + '</div>' : '') + '</div>';
+              an += '<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + ')</b> ' : '') + esc(answerText(q)) + ' ' + (q.explanation ? '<div class="exp">' + esc(q.explanation) + '</div>' : '') + '</div>';
             }); });
             html += '<div class="answers"><h2>Answer Key &amp; Mark Scheme</h2><div class="anscol">' + an + '</div></div>';
           }
