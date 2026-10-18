@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
-import { Card, Button, Input, Field, Select, Badge } from "../components/ui";
-import { Plus, Trash2, PlayCircle, Shuffle, X, Wand2, Printer, ArrowUp, ArrowDown, GripVertical, FileText, Pencil } from "lucide-react";
+import { Card, Button, Input, NumberInput, Field, Select, Badge, cn } from "../components/ui";
+import {
+  Plus, Trash2, PlayCircle, Shuffle, X, Wand2, Printer, ArrowUp, ArrowDown, GripVertical,
+  FileText, Pencil, ClipboardList, BookOpen, Settings2, ListChecks, Check, Clock, Trophy,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -22,6 +25,55 @@ const emptyForm = {
   shuffle_questions: false,
   shuffle_options: false,
 };
+
+/** One numbered block of the exam builder. Keeps the long form scannable. */
+function FormSection({ step, title, hint, icon: Icon, right, children }: {
+  step: number; title: string; hint?: string; icon: any; right?: React.ReactNode; children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-600/40 p-4 sm:p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-indigo-500/25 bg-indigo-500/15 text-xs font-bold text-indigo-300">{step}</span>
+          <div className="min-w-0">
+            <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">
+              <Icon size={15} className="text-indigo-300" /> {title}
+            </h3>
+            {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
+          </div>
+        </div>
+        {right}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Checkbox rendered as a selectable pill instead of a bare box. */
+function TogglePill({ checked, onChange, children }: {
+  checked: boolean; onChange: (v: boolean) => void; children: React.ReactNode;
+}) {
+  return (
+    <label className={cn(
+      "inline-flex cursor-pointer select-none items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
+      checked ? "border-indigo-500/60 bg-indigo-500/10 text-slate-100" : "border-slate-600/50 text-slate-300 hover:border-slate-500 hover:bg-ink/5"
+    )}>
+      <input type="checkbox" className="h-4 w-4 accent-indigo-500" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      {children}
+    </label>
+  );
+}
+
+/** Small stat chip used in the sticky summary bar. */
+function StatChip({ icon: Icon, tone = "text-indigo-300", children }: {
+  icon: any; tone?: string; children: React.ReactNode;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-600/40 bg-ink/5 px-3 py-1 text-xs text-slate-300">
+      <Icon size={13} className={tone} /> <span className="tabular-nums">{children}</span>
+    </span>
+  );
+}
 
 export default function Exams() {
   const { user } = useAuth();
@@ -166,6 +218,9 @@ export default function Exams() {
   }, [selectedQs]);
 
   const subjectTimesSum = form.subjectIds.reduce((s, id) => s + (subjectTimes[id] || 0), 0);
+  const anySubjectTimes = form.subjectIds.some((id) => (subjectTimes[id] || 0) > 0);
+  const effectiveDuration = anySubjectTimes ? subjectTimesSum : (form.duration_minutes || 0);
+  const typeKeyOrder = ["mcq", "short", "long"] as const;
 
   const applyTypeMarks = async () => {
     const groups: Record<string, string[]> = { mcq: [], short: [], long: [] };
@@ -283,177 +338,305 @@ export default function Exams() {
       </div>
 
       {showForm && (
-        <Card>
-          <form onSubmit={save} className="space-y-4">
-            <div className="text-sm font-semibold text-slate-200">{editingId ? "Edit exam" : "New exam"}{editingId ? "" : ""}</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Field label="Title"><Input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} required /></Field>
-              <Field label="Duration (min)"><Input type="number" value={form.duration_minutes} onChange={e=>setForm({...form,duration_minutes:Number(e.target.value)})} /></Field>
-              <div className="flex items-end gap-4 text-sm">
-                <label className="flex items-center gap-2"><input type="checkbox" checked={form.shuffle_questions} onChange={e=>setForm({...form, shuffle_questions:e.target.checked})} /> Shuffle questions</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={form.shuffle_options} onChange={e=>setForm({...form, shuffle_options:e.target.checked})} /> Shuffle options</label>
+        <Card hover={false} className="overflow-hidden p-0">
+          {/* Panel header */}
+          <div className="flex items-start justify-between gap-4 border-b border-slate-600/40 bg-ink/5 px-5 py-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-400 text-white shadow-lg shadow-indigo-500/25">
+                <ClipboardList size={20} className="card-icon" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold leading-tight">{editingId ? "Edit exam" : "Create a new exam"}</h2>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  {editingId
+                    ? "Update the paper details, subjects and question order."
+                    : "Name the paper, choose its subjects, then build it from your question bank."}
+                </p>
               </div>
             </div>
+            <button
+              type="button"
+              title="Close"
+              onClick={() => { resetForm(); setShowForm(false); }}
+              className="shrink-0 rounded-xl p-2 text-slate-400 transition hover:bg-ink/10 hover:text-slate-100"
+            >
+              <X size={18} />
+            </button>
+          </div>
 
-            <div>
-              <div className="text-sm font-medium text-slate-300 mb-2">Subjects (multi-select) — selected {form.subjectIds.length}</div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {subjects.map(s => (
-                  <label key={s.id} className={`flex items-center gap-2 text-sm p-2 rounded-lg border cursor-pointer ${form.subjectIds.includes(s.id) ? "border-indigo-500 bg-indigo-500/10" : "border-slate-700 hover:bg-ink/5"}`}>
-                    <input type="checkbox" checked={form.subjectIds.includes(s.id)} onChange={() => toggleSubject(s.id)} />
-                    <span className="truncate">{s.name}</span>
-                  </label>
-                ))}
+          <form onSubmit={save} className="space-y-5 p-5 sm:p-6">
+            {/* 1 — Paper details */}
+            <FormSection step={1} icon={Settings2} title="Paper details" hint="A clear title and a realistic time limit.">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="md:col-span-2">
+                  <Field label="Exam title">
+                    <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Class 8 — Half-yearly Model Test" required />
+                  </Field>
+                </div>
+                <Field label="Duration (minutes)">
+                  <NumberInput min={1} value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: Number(e.target.value) })} />
+                </Field>
               </div>
-            </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <TogglePill checked={form.shuffle_questions} onChange={v => setForm({ ...form, shuffle_questions: v })}>Shuffle question order</TogglePill>
+                <TogglePill checked={form.shuffle_options} onChange={v => setForm({ ...form, shuffle_options: v })}>Shuffle options</TogglePill>
+              </div>
+            </FormSection>
 
-            {form.subjectIds.length > 0 && (
-              <div className="rounded-xl border border-slate-700 p-3 space-y-2">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className="text-sm text-slate-300">Time per subject (minutes)</span>
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <span>Total {subjectTimesSum} min</span>
-                    {subjectTimesSum !== form.duration_minutes && <span className="text-amber-300">(paper total will be {subjectTimesSum} min)</span>}
-                    <Button type="button" variant="ghost" className="text-xs px-2 py-1" onClick={autoSplitTime}>Split evenly</Button>
+            {/* 2 — Subjects */}
+            <FormSection
+              step={2}
+              icon={BookOpen}
+              title="Subjects"
+              hint="Pick one or more subjects — questions are pulled from all of them."
+              right={<Badge className="whitespace-nowrap">{form.subjectIds.length} selected</Badge>}
+            >
+              {subjects.length === 0 ? (
+                <p className="text-xs text-slate-400">No subjects yet — add one from “Subjects &amp; Chapters” first.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {subjects.map(s => {
+                    const active = form.subjectIds.includes(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => toggleSubject(s.id)}
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
+                          active
+                            ? "border-indigo-500/60 bg-indigo-500/15 text-slate-100 shadow-sm shadow-indigo-500/20"
+                            : "border-slate-600/50 text-slate-300 hover:border-slate-500 hover:bg-ink/5"
+                        )}
+                      >
+                        <span className={cn("grid h-4 w-4 shrink-0 place-items-center rounded-full border transition", active ? "border-indigo-400 bg-indigo-500 text-white" : "border-slate-500")}>
+                          {active && <Check size={11} strokeWidth={3} />}
+                        </span>
+                        <span className="max-w-[12rem] truncate">{s.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {form.subjectIds.length > 0 && (
+                <div className="mt-4 rounded-xl border border-slate-600/40 bg-ink/5 p-3">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
+                      <Clock size={13} className="text-indigo-300" /> Time per subject (minutes)
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-xs tabular-nums", subjectTimesSum !== form.duration_minutes ? "text-amber-300" : "text-slate-400")}>
+                        Total {subjectTimesSum} min{subjectTimesSum !== form.duration_minutes ? ` · paper will be ${subjectTimesSum} min` : ""}
+                      </span>
+                      <Button type="button" variant="ghost" className="px-2 py-1 text-xs" onClick={autoSplitTime}>Split evenly</Button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                    {form.subjectIds.map(id => (
+                      <Field key={id} label={subjectName(id)}>
+                        <NumberInput min={0} value={subjectTimes[id] ?? 0}
+                          onChange={e => setSubjectTimes(t => ({ ...t, [id]: Number(e.target.value) || 0 }))} />
+                      </Field>
+                    ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {form.subjectIds.map(id => (
-                    <Field key={id} label={subjectName(id)}>
-                      <Input type="number" min={0} value={subjectTimes[id] ?? 0}
-                        onChange={e => setSubjectTimes(t => ({ ...t, [id]: Number(e.target.value) || 0 }))} />
+              )}
+            </FormSection>
+
+            {/* 3 — Smart tools */}
+            <FormSection step={3} icon={Wand2} title="Smart tools" hint="Optional shortcuts — fill the paper or set marks automatically.">
+              <div className="grid gap-3 lg:grid-cols-2">
+                <div className="space-y-3 rounded-xl border border-slate-600/40 bg-ink/5 p-3">
+                  <div className="text-xs font-medium text-slate-300">Auto paper by counts</div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <Field label="MCQ"><NumberInput min={0} value={blueprint.mcq} onChange={e => setBlueprint({ ...blueprint, mcq: Number(e.target.value) || 0 })} /></Field>
+                    <Field label="Short"><NumberInput min={0} value={blueprint.short} onChange={e => setBlueprint({ ...blueprint, short: Number(e.target.value) || 0 })} /></Field>
+                    <Field label="Long"><NumberInput min={0} value={blueprint.long} onChange={e => setBlueprint({ ...blueprint, long: Number(e.target.value) || 0 })} /></Field>
+                    <Field label="Difficulty">
+                      <Select value={blueprint.difficulty} onChange={e => setBlueprint({ ...blueprint, difficulty: e.target.value as any })}>
+                        <option value="">Any</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                      </Select>
                     </Field>
-                  ))}
+                  </div>
+                  <Button type="button" variant="outline" onClick={generateByBlueprint}><Wand2 size={14} /> Generate paper</Button>
+                </div>
+
+                <div className="space-y-3 rounded-xl border border-slate-600/40 bg-ink/5 p-3">
+                  <div className="text-xs font-medium text-slate-300">Auto marks by type</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Field label="MCQ"><NumberInput min={0} value={typeMarks.mcq} onChange={e => setTypeMarks({ ...typeMarks, mcq: Number(e.target.value) || 0 })} /></Field>
+                    <Field label="Short"><NumberInput min={0} value={typeMarks.short} onChange={e => setTypeMarks({ ...typeMarks, short: Number(e.target.value) || 0 })} /></Field>
+                    <Field label="Long"><NumberInput min={0} value={typeMarks.long} onChange={e => setTypeMarks({ ...typeMarks, long: Number(e.target.value) || 0 })} /></Field>
+                  </div>
+                  <Button type="button" variant="outline" onClick={applyTypeMarks} disabled={selectedQs.length === 0}>Apply to selected</Button>
+                  <p className="text-[11px] text-slate-500">Updates the marks on the selected questions in the shared bank.</p>
                 </div>
               </div>
-            )}
+            </FormSection>
 
-            <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-700 p-3">
-              <Wand2 size={16} className="text-indigo-300" />
-              <span className="text-sm text-slate-300 mr-2">Auto paper by counts</span>
-              <Field label="MCQ"><Input type="number" min={0} value={blueprint.mcq} onChange={e=>setBlueprint({...blueprint, mcq:Number(e.target.value)||0})} /></Field>
-              <Field label="Short"><Input type="number" min={0} value={blueprint.short} onChange={e=>setBlueprint({...blueprint, short:Number(e.target.value)||0})} /></Field>
-              <Field label="Long"><Input type="number" min={0} value={blueprint.long} onChange={e=>setBlueprint({...blueprint, long:Number(e.target.value)||0})} /></Field>
-              <Field label="Difficulty">
-                <Select value={blueprint.difficulty} onChange={e=>setBlueprint({...blueprint, difficulty:e.target.value as any})}>
-                  <option value="">Any</option>
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </Select>
-              </Field>
-              <Button type="button" variant="outline" onClick={generateByBlueprint}>Generate</Button>
-            </div>
-
-            <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-700 p-3">
-              <span className="text-sm text-slate-300 mr-2">Auto marks by type</span>
-              <Field label="MCQ marks"><Input type="number" min={0} value={typeMarks.mcq} onChange={e=>setTypeMarks({...typeMarks, mcq:Number(e.target.value)||0})} /></Field>
-              <Field label="Short marks"><Input type="number" min={0} value={typeMarks.short} onChange={e=>setTypeMarks({...typeMarks, short:Number(e.target.value)||0})} /></Field>
-              <Field label="Long marks"><Input type="number" min={0} value={typeMarks.long} onChange={e=>setTypeMarks({...typeMarks, long:Number(e.target.value)||0})} /></Field>
-              <Button type="button" variant="outline" onClick={applyTypeMarks} disabled={selectedQs.length === 0}>Apply to selected</Button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 space-y-3">
-                <div className="text-sm font-medium text-slate-300">Select questions ({form.question_ids.length} selected, {filteredQs.length} shown)</div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                  <Field label="Direction / search (type, topic, keywords)">
+            {/* 4 — Questions */}
+            <FormSection
+              step={4}
+              icon={ListChecks}
+              title="Questions"
+              hint="Search the bank, tick the questions you want, then arrange their order."
+              right={
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="whitespace-nowrap">{form.question_ids.length} selected</Badge>
+                  <Badge className="whitespace-nowrap border-cyan-500/30 bg-cyan-500/20 text-cyan-300">{selectedMarks} marks</Badge>
+                </div>
+              }
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="sm:col-span-2">
+                  <Field label="Search (type, topic, keywords)">
                     <Input value={qQuery} onChange={e => setQQuery(e.target.value)} placeholder="e.g. mcq capital geography" />
                   </Field>
-                  <Field label="Type">
-                    <Select value={qType} onChange={e => setQType(e.target.value)}>
-                      <option value="">All</option>
-                      <option value="mcq">MCQ</option>
-                      <option value="short">Short</option>
-                      <option value="long">Long</option>
-                    </Select>
-                  </Field>
-                  <Field label="Difficulty">
-                    <Select value={qDifficulty} onChange={e => setQDifficulty(e.target.value)}>
-                      <option value="">All</option>
-                      <option value="easy">Easy</option>
-                      <option value="medium">Medium</option>
-                      <option value="hard">Hard</option>
-                    </Select>
-                  </Field>
-                  <Field label="Chapter">
-                    <Select value={qChapter} onChange={e => setQChapter(e.target.value)}>
-                      <option value="">All</option>
-                      {chapters.map((c: any) => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
-                    </Select>
-                  </Field>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={selectFiltered}>Select filtered</Button>
-                  <Button type="button" variant="ghost" onClick={clearSelection}>Clear selection</Button>
-                  <Field label="Auto count"><Input type="number" min={1} value={autoCount} onChange={e => setAutoCount(Number(e.target.value) || 1)} /></Field>
+                <Field label="Type">
+                  <Select value={qType} onChange={e => setQType(e.target.value)}>
+                    <option value="">All</option>
+                    <option value="mcq">MCQ</option>
+                    <option value="short">Short</option>
+                    <option value="long">Long</option>
+                  </Select>
+                </Field>
+                <Field label="Difficulty">
+                  <Select value={qDifficulty} onChange={e => setQDifficulty(e.target.value)}>
+                    <option value="">All</option>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </Select>
+                </Field>
+                <Field label="Chapter">
+                  <Select value={qChapter} onChange={e => setQChapter(e.target.value)}>
+                    <option value="">All</option>
+                    {chapters.map((c: any) => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
+                  </Select>
+                </Field>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-end gap-x-4 gap-y-3 rounded-xl border border-slate-600/40 bg-ink/5 p-3">
+                <Button type="button" variant="outline" onClick={selectFiltered}>Select filtered ({filteredQs.length})</Button>
+                <Button type="button" variant="ghost" onClick={clearSelection} disabled={form.question_ids.length === 0}>Clear selection</Button>
+                <span aria-hidden="true" className="hidden h-9 w-px self-end bg-slate-600/50 sm:block" />
+                <div className="w-28">
+                  <Field label="Auto count"><NumberInput min={1} value={autoCount} onChange={e => setAutoCount(Number(e.target.value) || 1)} /></Field>
+                </div>
+                <div className="w-40">
                   <Field label="Mode">
                     <Select value={autoMode} onChange={e => setAutoMode(e.target.value as any)}>
                       <option value="random">Random</option>
                       <option value="first">First available</option>
                     </Select>
                   </Field>
-                  <Button type="button" variant="outline" onClick={autoSelect}>Auto-select</Button>
                 </div>
-                <div className="max-h-72 overflow-auto border border-slate-700 rounded-xl p-2 space-y-1">
-                  {pageQs.map(q => (
-                    <label key={q.id} className="flex items-center gap-2 text-sm py-1">
-                      <input type="checkbox" checked={form.question_ids.includes(q.id)} onChange={() => toggleQ(q.id)} />
-                      <span className="truncate">{q.prompt}</span>
-                      <Badge className="ml-auto">{q.type}{q.difficulty ? ` · ${q.difficulty}` : ""}</Badge>
-                    </label>
-                  ))}
-                  {availableQs.length === 0 && <div className="text-slate-500 text-xs p-2">Select a subject with questions.</div>}
-                  {availableQs.length > 0 && filteredQs.length === 0 && <div className="text-slate-500 text-xs p-2">No questions match your direction/filter.</div>}
-                </div>
-                {availableQs.length > 0 && (
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <Button type="button" variant="ghost" disabled={safePage <= 1} onClick={() => setQPage((p) => Math.max(1, p - 1))}>Prev</Button>
-                    <span>Page {safePage} / {totalPages} · {filteredQs.length} matched</span>
-                    <Button type="button" variant="ghost" disabled={safePage >= totalPages} onClick={() => setQPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
+                <Button type="button" variant="outline" onClick={autoSelect}>Auto-select</Button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div className="space-y-2 lg:col-span-2">
+                  <div className="text-xs text-slate-400">Question bank · {filteredQs.length} match{filteredQs.length === 1 ? "" : "es"}</div>
+                  <div className="max-h-80 space-y-1 overflow-auto rounded-xl border border-slate-600/40 p-1.5">
+                    {pageQs.map(q => {
+                      const picked = form.question_ids.includes(q.id);
+                      return (
+                        <label key={q.id} className={cn("flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition", picked ? "bg-indigo-500/10" : "hover:bg-ink/5")}>
+                          <input type="checkbox" className="h-4 w-4 shrink-0 accent-indigo-500" checked={picked} onChange={() => toggleQ(q.id)} />
+                          <span className="flex-1 truncate">{q.prompt}</span>
+                          <Badge className="shrink-0">{q.type}{q.difficulty ? ` · ${q.difficulty}` : ""}</Badge>
+                        </label>
+                      );
+                    })}
+                    {availableQs.length === 0 && <div className="p-2 text-xs text-slate-500">Select a subject with questions to see them here.</div>}
+                    {availableQs.length > 0 && filteredQs.length === 0 && <div className="p-2 text-xs text-slate-500">No questions match your search or filters.</div>}
                   </div>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-slate-700 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium text-slate-300">Paper order ({form.question_ids.length})</div>
-                  <div className="text-xs text-slate-400">{selectedMarks} marks</div>
-                </div>
-                <div className="text-[11px] text-slate-500">Drag to reorder, or use ▲▼.</div>
-                <div className="max-h-80 overflow-auto space-y-1">
-                  {selectedQs.map((q: any, idx: number) => (
-                    <div
-                      key={q.id}
-                      draggable
-                      onDragStart={() => (dragIndex.current = idx)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => { if (dragIndex.current != null) moveSelected(dragIndex.current, idx); dragIndex.current = null; }}
-                      className="flex items-start gap-2 text-xs bg-ink/5 rounded-lg p-2 cursor-grab active:cursor-grabbing"
-                    >
-                      <GripVertical size={14} className="text-slate-500 mt-0.5 shrink-0" />
-                      <span className="flex-1 line-clamp-2">{idx + 1}. {q.prompt}</span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button type="button" onClick={() => moveSelected(idx, idx - 1)} className="text-slate-400 hover:text-ink" title="Move up"><ArrowUp size={13} /></button>
-                        <button type="button" onClick={() => moveSelected(idx, idx + 1)} className="text-slate-400 hover:text-ink" title="Move down"><ArrowDown size={13} /></button>
-                        <button type="button" onClick={() => toggleQ(q.id)} className="text-rose-300 hover:text-rose-200" title="Remove"><X size={14} /></button>
-                      </div>
+                  {availableQs.length > 0 && (
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <Button type="button" variant="ghost" disabled={safePage <= 1} onClick={() => setQPage(p => Math.max(1, p - 1))}>Prev</Button>
+                      <span>Page {safePage} / {totalPages}</span>
+                      <Button type="button" variant="ghost" disabled={safePage >= totalPages} onClick={() => setQPage(p => Math.min(totalPages, p + 1))}>Next</Button>
                     </div>
-                  ))}
-                  {form.question_ids.length > 0 && selectedQs.length < form.question_ids.length && (
-                    <div className="text-xs text-amber-300">{form.question_ids.length - selectedQs.length} selected question(s) from hidden subjects.</div>
                   )}
-                  {form.question_ids.length === 0 && <div className="text-xs text-slate-500">No questions selected yet.</div>}
                 </div>
-                <div className="text-[11px] text-slate-400 border-t border-slate-700/50 pt-2">
-                  MCQ {marksByType.mcq.count}×{typeMarks.mcq} = {marksByType.mcq.marks}m · Short {marksByType.short.count}×{typeMarks.short} = {marksByType.short.marks}m · Long {marksByType.long.count}×{typeMarks.long} = {marksByType.long.marks}m
+
+                <div className="space-y-2 rounded-xl border border-slate-600/40 p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-300"><GripVertical size={14} className="text-indigo-300" /> Paper order</div>
+                    <span className="text-xs text-slate-400 tabular-nums">{form.question_ids.length} items</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">Drag to reorder, or use ▲▼.</p>
+                  <div className="max-h-64 space-y-1 overflow-auto">
+                    {selectedQs.map((q: any, idx: number) => (
+                      <div
+                        key={q.id}
+                        draggable
+                        onDragStart={() => (dragIndex.current = idx)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => { if (dragIndex.current != null) moveSelected(dragIndex.current, idx); dragIndex.current = null; }}
+                        className="flex cursor-grab items-start gap-2 rounded-lg bg-ink/5 p-2 text-xs active:cursor-grabbing"
+                      >
+                        <GripVertical size={14} className="mt-0.5 shrink-0 text-slate-500" />
+                        <span className="flex-1 line-clamp-2">{idx + 1}. {q.prompt}</span>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moveSelected(idx, idx - 1)}
+                            disabled={idx === 0}
+                            title="Move up"
+                            className="grid h-7 w-7 place-items-center rounded-lg border border-slate-600/50 text-slate-300 transition hover:border-indigo-400/60 hover:bg-indigo-500/10 hover:text-indigo-300 disabled:pointer-events-none disabled:opacity-40"
+                          ><ArrowUp size={16} /></button>
+                          <button
+                            type="button"
+                            onClick={() => moveSelected(idx, idx + 1)}
+                            disabled={idx === selectedQs.length - 1}
+                            title="Move down"
+                            className="grid h-7 w-7 place-items-center rounded-lg border border-slate-600/50 text-slate-300 transition hover:border-indigo-400/60 hover:bg-indigo-500/10 hover:text-indigo-300 disabled:pointer-events-none disabled:opacity-40"
+                          ><ArrowDown size={16} /></button>
+                          <button
+                            type="button"
+                            onClick={() => toggleQ(q.id)}
+                            title="Remove"
+                            className="grid h-7 w-7 place-items-center rounded-lg border border-slate-600/50 text-rose-300 transition hover:border-rose-400/60 hover:bg-rose-500/10 hover:text-rose-200"
+                          ><X size={16} /></button>
+                        </div>
+                      </div>
+                    ))}
+                    {form.question_ids.length > 0 && selectedQs.length < form.question_ids.length && (
+                      <div className="text-xs text-amber-300">{form.question_ids.length - selectedQs.length} selected question(s) from hidden subjects.</div>
+                    )}
+                    {form.question_ids.length === 0 && <div className="text-xs text-slate-500">No questions selected yet.</div>}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 border-t border-slate-600/40 pt-2">
+                    {typeKeyOrder.map((k) => (
+                      <div key={k} className="rounded-lg bg-ink/5 px-2 py-1.5 text-center">
+                        <div className="text-[11px] font-medium text-slate-400">{k === "mcq" ? "MCQ" : k === "short" ? "Short" : "Long"}</div>
+                        <div className="text-sm font-semibold tabular-nums">{marksByType[k].count}</div>
+                        <div className="text-[10px] text-slate-500">{marksByType[k].marks} marks</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            </FormSection>
 
-            <div className="flex gap-2">
-              <Button type="submit">{editingId ? <><Pencil size={14} /> Save changes</> : <><Shuffle size={14} /> Create Exam</>}</Button>
-              <Button type="button" variant="ghost" onClick={() => { resetForm(); setShowForm(false); }}>Cancel</Button>
+            {/* Summary + actions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-600/40 bg-ink/5 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatChip icon={ListChecks}>{form.question_ids.length} questions</StatChip>
+                <StatChip icon={Trophy} tone="text-cyan-300">{selectedMarks} marks</StatChip>
+                <StatChip icon={Clock} tone="text-emerald-300">{effectiveDuration} min</StatChip>
+                <StatChip icon={BookOpen}>{form.subjectIds.length} subject{form.subjectIds.length === 1 ? "" : "s"}</StatChip>
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" onClick={() => { resetForm(); setShowForm(false); }}>Cancel</Button>
+                <Button type="submit">{editingId ? <><Pencil size={14} /> Save changes</> : <><Shuffle size={14} /> Create Exam</>}</Button>
+              </div>
             </div>
           </form>
         </Card>

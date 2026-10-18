@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
-import { Card, Button, Input, Field, Badge, Select } from "../components/ui";
+import { Card, Button, Input, NumberInput, Field, Badge, Select } from "../components/ui";
 import { Eye, Save, X, Filter } from "lucide-react";
 
 function statusBadge(status: string) {
@@ -293,15 +293,13 @@ export default function Results() {
               <div className="text-sm font-medium text-slate-300">Grade</div>
               <div className="grid grid-cols-2 gap-3 max-w-sm">
                 <Field label="Score">
-                  <Input
-                    type="number"
+                  <NumberInput
                     value={gradeForm.score}
                     onChange={e => setGradeForm({ ...gradeForm, score: Number(e.target.value) })}
                   />
                 </Field>
                 <Field label="Total">
-                  <Input
-                    type="number"
+                  <NumberInput
                     value={gradeForm.total}
                     onChange={e => setGradeForm({ ...gradeForm, total: Number(e.target.value) })}
                   />

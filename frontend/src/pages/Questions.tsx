@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
-import { Card, Button, Input, Field, Textarea, Select, Badge } from "../components/ui";
+import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge } from "../components/ui";
 import { Plus, Trash2, Upload } from "lucide-react";
 
 const empty = { subject_id: "", chapter_id: "", type: "mcq", difficulty: "medium", prompt: "", options: ["", "", "", ""], answer: "", explanation: "", marks: 1 };
@@ -192,7 +192,7 @@ export default function Questions() {
                   <option value="hard">Hard</option>
                 </Select>
               </Field>
-              <Field label="Marks"><Input type="number" value={form.marks} onChange={e=>setForm({...form,marks:Number(e.target.value)})} /></Field>
+              <Field label="Marks"><NumberInput value={form.marks} onChange={e=>setForm({...form,marks:Number(e.target.value)})} /></Field>
             </div>
             <Field label="Question prompt"><Textarea rows={3} value={form.prompt} onChange={e=>setForm({...form,prompt:e.target.value})} required /></Field>
             {form.type === "mcq" && (
