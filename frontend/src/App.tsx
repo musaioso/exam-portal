@@ -12,6 +12,8 @@ import Print from "./pages/Print";
 import PrintPreview from "./pages/PrintPreview";
 import Users from "./pages/Users";
 import Results from "./pages/Results";
+import Practice from "./pages/Practice";
+import Profile from "./pages/Profile";
 
 function Private({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -36,6 +38,8 @@ export default function App() {
           <Route path="/print/preview" element={<PrintPreview />} />
           <Route path="/users" element={<Private><Users /></Private>} />
           <Route path="/results" element={<Private><Results /></Private>} />
+          <Route path="/practice/:attemptId" element={<Private><Practice /></Private>} />
+          <Route path="/profile" element={<Private><Profile /></Private>} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
       </BrowserRouter>

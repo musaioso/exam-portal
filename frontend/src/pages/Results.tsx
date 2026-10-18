@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { Card, Button, Input, NumberInput, Field, Badge, Select } from "../components/ui";
-import { Eye, Save, X, Filter } from "lucide-react";
+import { CheckCircle2, Eye, Filter, Lightbulb, Save, Target, X, XCircle } from "lucide-react";
 
 function statusBadge(status: string) {
   if (status === "graded")
@@ -36,6 +36,8 @@ export default function Results() {
 
   const [detail, setDetail] = useState<any | null>(null);
   const [questions, setQuestions] = useState<any[]>([]);
+  /** Whether the marking key + explanation may be shown for the open attempt. */
+  const [showKey, setShowKey] = useState(false);
   const [gradeForm, setGradeForm] = useState({ score: 0, total: 0 });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,16 +97,17 @@ export default function Results() {
   const openAttempt = async (id: string) => {
     setError(null);
     try {
-      const { data } = await api.get(`/exams/attempts/${id}`);
+      // One call gets the attempt, its questions, what was given, whether it was
+      // right and (when allowed) the key + explanation.
+      const { data } = await api.get(`/exams/attempts/${id}/review`);
       const a = data.attempt;
-      setDetail(a);
+      // The teacher list already knows who sat the paper; the review endpoint
+      // deliberately does not repeat it.
+      const row = attempts.find((x: any) => x.id === id);
+      setDetail({ ...a, exam_title: data.exam?.title, ...(row || {}) });
       setGradeForm({ score: a.score ?? 0, total: a.total ?? 0 });
-      try {
-        const { data: e } = await api.get(`/exams/${a.exam_id}`);
-        setQuestions(e.questions || []);
-      } catch {
-        setQuestions([]);
-      }
+      setQuestions(data.questions || []);
+      setShowKey(!!data.showKey);
     } catch {
       setError("Could not load that attempt.");
     }
@@ -118,6 +121,7 @@ export default function Results() {
   const closeDetail = () => {
     setDetail(null);
     setQuestions([]);
+    setShowKey(false);
     if (params.get("attempt")) {
       params.delete("attempt");
       setParams(params, { replace: true });
@@ -142,6 +146,9 @@ export default function Results() {
   const examOptions = exams.filter(e => !filters.subjectId || e.subject_id === filters.subjectId);
   const hasActiveFilters =
     !!(filters.subjectId || filters.studentId || filters.examId || filters.status || filters.q);
+
+  /** MCQs the student did not get right — the set offered for practice. */
+  const practiceCount = questions.filter((q: any) => q.type === "mcq" && q.correct !== true).length;
 
   const setSubject = (subjectId: string) =>
     setFilters(f => {
@@ -240,51 +247,104 @@ export default function Results() {
 
           {questions.length > 0 && (
             <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-300">Answers</div>
-              {questions.map((q, i) => {
-                const given = detail.answers?.[q.id];
-                const answered = given != null && given !== "";
-                const correct =
-                  q.type === "mcq" &&
-                  answered &&
-                  String(given).trim().toLowerCase() === String(q.answer ?? "").trim().toLowerCase();
-                return (
-                  <div key={q.id} className="rounded-xl border border-slate-700/50 p-3 text-sm space-y-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="font-medium">
-                        {i + 1}. {q.prompt}{" "}
-                        <span className="text-slate-500 text-xs">({q.marks} mark{q.marks > 1 ? "s" : ""})</span>
-                      </div>
-                      {q.type === "mcq" && (
-                        answered ? (
-                          <Badge
-                            className={
-                              correct
-                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                                : "bg-rose-500/20 text-rose-300 border-rose-500/30"
-                            }
-                          >
-                            {correct ? "Correct" : "Wrong"}
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-slate-700/40 text-slate-400 border-slate-600">No answer</Badge>
-                        )
-                      )}
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-medium text-slate-300">Answers</div>
+                {showKey && practiceCount > 0 && (
+                  <Link
+                    to={`/practice/${detail.id}`}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+                  >
+                    <Target size={14} /> ভুল {practiceCount}টি অনুশীলন
+                  </Link>
+                )}
+              </div>
+
+              {questions.map((q: any, i: number) => (
+                <div key={q.id} className="rounded-xl border border-slate-700/50 p-3 text-sm space-y-1.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="font-medium">
+                      {i + 1}. {q.prompt}{" "}
+                      <span className="text-slate-500 text-xs">({q.marks} mark{q.marks > 1 ? "s" : ""})</span>
                     </div>
+                    {q.type === "mcq" ? (
+                      q.answered ? (
+                        <Badge
+                          className={
+                            q.correct
+                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                              : "bg-rose-500/20 text-rose-300 border-rose-500/30"
+                          }
+                        >
+                          {q.correct ? "Correct" : "Wrong"}
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-slate-700/40 text-slate-400 border-slate-600">No answer</Badge>
+                      )
+                    ) : (
+                      <Badge className="bg-slate-700/40 text-slate-400 border-slate-600">{q.type}</Badge>
+                    )}
+                  </div>
+
+                  {/* Option-by-option: what they picked, and where the key sits. */}
+                  {Array.isArray(q.options) && q.options.length > 0 ? (
+                    <div className="space-y-1">
+                      {q.options.map((o: any, oi: number) => {
+                        const isGiven =
+                          q.answered && String(q.given).trim().toLowerCase() === String(o).trim().toLowerCase();
+                        const isKey =
+                          showKey &&
+                          q.answer != null &&
+                          String(q.answer).trim().toLowerCase() === String(o).trim().toLowerCase();
+                        const tone = isKey
+                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                          : isGiven
+                            ? "border-rose-500/40 bg-rose-500/10 text-rose-200"
+                            : "border-slate-700/40 text-slate-400";
+                        return (
+                          <div
+                            key={oi}
+                            className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs ${tone}`}
+                          >
+                            {isKey ? (
+                              <CheckCircle2 size={13} className="shrink-0" />
+                            ) : isGiven ? (
+                              <XCircle size={13} className="shrink-0" />
+                            ) : (
+                              <span className="w-[13px] shrink-0 text-center text-slate-600">
+                                {String.fromCharCode(65 + oi)}
+                              </span>
+                            )}
+                            <span>{String(o)}</span>
+                            <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wide opacity-80">
+                              {isKey && isGiven ? "সঠিক" : isGiven ? "আপনার উত্তর" : isKey ? "সঠিক উত্তর" : ""}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
                     <div className="text-xs text-slate-400">
                       Answer:{" "}
                       <span className="text-slate-200">
-                        {answered ? String(given) : <span className="italic text-slate-500">no answer</span>}
+                        {q.answered ? String(q.given) : <span className="italic text-slate-500">no answer</span>}
                       </span>
                     </div>
-                    {isTeacher && q.answer && (
-                      <div className="text-xs text-slate-400">
-                        Key: <span className="text-emerald-300">{q.answer}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  )}
+
+                  {showKey && !Array.isArray(q.options) && q.answer != null && (
+                    <div className="text-xs text-slate-400">
+                      সঠিক উত্তর: <span className="font-medium text-emerald-300">{String(q.answer)}</span>
+                    </div>
+                  )}
+
+                  {showKey && q.explanation && (
+                    <div className="rounded-lg border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-1.5 text-xs text-slate-300">
+                      <Lightbulb size={12} className="mr-1 inline -mt-0.5 text-indigo-300" />
+                      <span className="font-medium text-indigo-200">ব্যাখ্যা:</span> {q.explanation}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
 

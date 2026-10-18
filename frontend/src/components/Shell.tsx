@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
-import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap } from "lucide-react";
+import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import { StorageWarning } from "./StorageWarning";
@@ -13,6 +13,7 @@ const NAV = [
   { to: "/print", label: "Print Paper", icon: Printer, roles: ["admin","teacher"] },
   { to: "/users", label: "Students", icon: Users, roles: ["admin","teacher"] },
   { to: "/results", label: "Results", icon: GraduationCap, roles: ["admin","teacher","student"] },
+  { to: "/profile", label: "My Profile", icon: UserCircle, roles: ["admin","teacher","student"] },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -37,7 +38,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
         })}
         <div className="mt-auto pt-4 border-t border-slate-700/50 space-y-1">
           <ThemeToggle />
-          <div className="text-xs text-slate-400 px-2 py-1.5">{user?.name}<br/><span className="text-slate-500">{user?.role}</span></div>
+          <Link
+            to="/profile"
+            title="My profile"
+            className="block px-2 py-1.5 rounded-xl text-xs text-slate-400 hover:bg-ink/10"
+          >
+            {user?.name}<br/><span className="text-slate-500">{user?.role}</span>
+          </Link>
           <button onClick={() => { logout(); nav("/login"); }} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-ink/10 w-full">
             <LogOut size={17} /> Logout
           </button>

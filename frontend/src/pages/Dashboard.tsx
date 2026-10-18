@@ -5,10 +5,11 @@ import { useAuth } from "../lib/auth-context";
 import { Card, Button, Skeleton, cn } from "../components/ui";
 import {
   Activity, ArrowRight, Award, BookOpen, BookPlus, CalendarDays, ChartColumn, CheckCircle2,
-  CircleAlert, ClipboardList, Clock, DatabaseBackup, Download, FilePlus2, FileQuestion, Flame,
-  GraduationCap, ListChecks, Percent, PlayCircle, Printer, RotateCcw, Sparkles, Target,
-  TrendingUp, Trophy, UserPlus, Users,
+  CircleAlert, ClipboardList, Clock, Crown, DatabaseBackup, Download, FilePlus2, FileQuestion,
+  Flame, GraduationCap, ListChecks, Medal, Percent, PlayCircle, Printer, RotateCcw, Sparkles,
+  Target, TrendingUp, Trophy, UserPlus, Users,
 } from "lucide-react";
+import { badges as badgeDefs, streakDays, subjectBreakdown } from "../lib/progress";
 
 /* A pass is 33% or more — the standard NCTB mark. */
 const PASS_MARK = 33;
@@ -231,6 +232,8 @@ export default function Dashboard() {
   });
   const [starting, setStarting] = useState<string | null>(null);
   const [backup, setBackup] = useState<"idle" | "loading" | "done" | "error">("idle");
+  /** Class ranking — students only, and never allowed to block the page. */
+  const [board, setBoard] = useState<{ me: any; top: any[]; total: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -252,6 +255,11 @@ export default function Dashboard() {
           users: u.data.users || [],
           attempts: a.data.attempts || [],
         });
+        if (isStudent)
+          api
+            .get("/exams/leaderboard")
+            .then((r) => { if (alive) setBoard(r.data); })
+            .catch(() => { /* a missing rank must never spoil the dashboard */ });
       } catch {
         /* keep whatever loaded; the empty states explain what to do */
       } finally {
@@ -348,6 +356,20 @@ export default function Dashboard() {
     });
     return m;
   }, [attempts]);
+
+  /** Student-only extras: study streak, badge case, per-subject picture. */
+  const streak = isStudent ? streakDays(attempts) : 0;
+  const badgeList = isStudent
+    ? badgeDefs({
+        attempts,
+        streak,
+        passed: studentStats.finished.filter((a: any) => (percent(a.score, a.total) ?? 0) >= PASS_MARK).length,
+      })
+    : [];
+  const badgeEarned = badgeList.filter((b) => b.earned).length;
+  const subjectStats = isStudent ? subjectBreakdown(attempts, exams, data.subjects) : [];
+  /** Last in a best-first list = the subject to work on next. */
+  const weakSubject = subjectStats.length > 1 ? subjectStats[subjectStats.length - 1] : null;
 
   const startExam = async (examId: string) => {
     setStarting(examId);
@@ -567,6 +589,151 @@ export default function Dashboard() {
               )}
             </Panel>
           </div>
+
+          {/* Study streak + the badge case */}
+          <Panel
+            title="Study streak & badges"
+            icon={Flame}
+            action={<Link to="/profile" className="text-xs text-indigo-300 hover:underline">Profile</Link>}
+          >
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
+                <Flame size={26} className={streak > 0 ? "text-amber-300" : "text-slate-600"} />
+                <div className="min-w-0">
+                  <div className="text-xl font-semibold tabular-nums">{streak} দিন</div>
+                  <div className="text-xs text-slate-400">
+                    {streak > 0
+                      ? "পরপর পড়াশোনা চালিয়ে যান — আজকের দিনটাও ধরে রাখুন"
+                      : "পরপর একদিন পড়লেই স্ট্রিক শুরু হবে"}
+                  </div>
+                </div>
+                <div className="ml-auto shrink-0 text-right">
+                  <div className="text-sm font-semibold tabular-nums">{badgeEarned}/{badgeList.length}</div>
+                  <div className="text-[11px] text-slate-400">ব্যাজ</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                {badgeList.map((b) => (
+                  <div
+                    key={b.id}
+                    title={b.hint}
+                    className={cn(
+                      "rounded-2xl border px-2 py-3 text-center",
+                      b.earned ? "border-amber-500/35 bg-amber-500/10" : "border-slate-600/40 opacity-45"
+                    )}
+                  >
+                    <b.icon size={18} className={cn("mx-auto", b.earned ? "text-amber-300" : "text-slate-400")} />
+                    <div className="mt-1 text-[11px] leading-tight">{b.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Panel>
+
+          {/* Where the marks actually come from */}
+          <Panel title="Subject-wise performance" icon={ChartColumn}>
+            {loading ? (
+              <div className="space-y-3">
+                {[0, 1, 2].map((i) => <Skeleton key={i} className="h-9 w-full" />)}
+              </div>
+            ) : subjectStats.length === 0 ? (
+              <EmptyState
+                icon={ChartColumn}
+                title="No subject data yet"
+                hint="Sit a few exams across different subjects and your strengths will show up here."
+                to="/exams"
+                cta="Browse exams"
+              />
+            ) : (
+              <div className="space-y-2.5">
+                {subjectStats.map((s) => (
+                  <div key={s.id}>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate">{s.name}</span>
+                      <span className="shrink-0 tabular-nums text-slate-300">
+                        {s.average}% <span className="text-[11px] text-slate-500">· {s.attempts}×</span>
+                      </span>
+                    </div>
+                    <div className="mt-1 h-2 rounded-full bg-slate-700/50 overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          s.average >= 80 ? "bg-emerald-400" : s.average >= 50 ? "bg-amber-400" : "bg-rose-400"
+                        )}
+                        style={{ width: `${Math.max(3, s.average)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                {weakSubject && (
+                  <p className="flex items-start gap-1.5 pt-1 text-[11px] text-slate-400">
+                    <Target size={12} className="mt-0.5 shrink-0 text-amber-300" />
+                    সবচেয়ে দুর্বল বিষয়{" "}
+                    <b className="font-medium text-slate-200">{weakSubject.name}</b> — সেখানে একটু বেশি সময় দিন।
+                  </p>
+                )}
+              </div>
+            )}
+          </Panel>
+
+          {/* Class ranking */}
+          <Panel title="Class leaderboard" icon={Crown}>
+            {loading ? (
+              <div className="space-y-2">
+                {[0, 1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}
+              </div>
+            ) : !board || board.total === 0 ? (
+              <EmptyState
+                icon={Crown}
+                title="কেউ এখনো র‍্যাংক পায়নি"
+                hint="যখন সহপাঠীরা পরীক্ষা শেষ করবে, এখানে র‍্যাংকিং দেখা যাবে।"
+                to="/exams"
+                cta="Browse exams"
+              />
+            ) : (
+              <div className="space-y-2">
+                {board.me && (
+                  <div className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-500/35 bg-indigo-500/10 px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Crown size={18} className="shrink-0 text-indigo-300" />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">আপনার অবস্থান</div>
+                        <div className="text-[11px] text-slate-400">
+                          {board.total} জনের মধ্যে · {board.me.attempts} পরীক্ষার গড় {board.me.average}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-2xl font-bold tabular-nums">{board.me.rank}</div>
+                  </div>
+                )}
+                <div className="space-y-1">
+                  {board.top.slice(0, 5).map((r: any) => (
+                    <div
+                      key={r.student_id}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl border px-3 py-2 text-sm",
+                        r.student_id === board.me?.student_id
+                          ? "border-indigo-500/30 bg-indigo-500/5"
+                          : "border-slate-600/40"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "w-6 shrink-0 text-center text-xs font-semibold tabular-nums",
+                          r.rank <= 3 ? "text-amber-300" : "text-slate-500"
+                        )}
+                      >
+                        {r.rank <= 3 ? <Medal size={13} className="inline -mt-0.5" /> : r.rank}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{r.name}</span>
+                      <span className="shrink-0 tabular-nums text-slate-300">{r.average}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Panel>
         </>
       ) : (
         <>
