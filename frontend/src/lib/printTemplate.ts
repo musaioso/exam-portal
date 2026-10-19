@@ -930,10 +930,10 @@ export function buildPrintHtml(data: PrintData): string {
               var cl = correctLetter(q);
               var expStr = (S.showExplanation && q.explanation) ? '<div class="exp"><b>Explanation:</b> ' + esc(q.explanation) + '</div>' : '';
               /* Bracketed page ref right after the answer text — measured as
-                 [p99] and stamped with the real question page after packing,
+                 (99) and stamped with the real question page after packing,
                  and OUTSIDE the explanation so switching the toggle off never
                  removes it. */
-              var pno = S.qPageNo ? '<span class="anspno" data-qn="' + k + '">[p99]</span>' : '';
+              var pno = S.qPageNo ? '<span class="anspno" data-qn="' + k + '">(99)</span>' : '';
               ansItems.push('<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + ')</b> ' : '') + esc(answerText(q)) + (pno ? ' ' + pno : '') + (expStr ? ' ' + expStr : '') + '</div>');
             }); });
           }
@@ -983,7 +983,7 @@ export function buildPrintHtml(data: PrintData): string {
             var anspnos = paper.querySelectorAll('.anspno');
             for (i = 0; i < anspnos.length; i++) {
               var pn = qPage[anspnos[i].getAttribute('data-qn')];
-              if (pn) anspnos[i].textContent = '[p' + (useBn ? bnDigits(pn) : String(pn)) + ']';
+              if (pn) anspnos[i].textContent = '(' + (useBn ? bnDigits(pn) : String(pn)) + ')';
             }
           }
 
