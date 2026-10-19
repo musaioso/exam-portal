@@ -400,19 +400,19 @@ export function buildPrintHtml(data: PrintData): string {
         }
         @media print { .hdate-btn { display: none !important; } }
         .q { break-inside: avoid; page-break-inside: avoid; margin-bottom: var(--qgap, 2.2mm); }
-        .qp { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 1.2mm; align-items: start; }
-        .qno { font-weight: 700; min-width: 4.6mm; }
+        .qp { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 0.6mm; align-items: start; }
+        .qno { font-weight: 700; min-width: 4.2mm; }
         .qmarks { white-space: nowrap; font-size: 0.88em; color: #222; }
         /* Right-hand group of the question row: marks plus the printed page
            chip ("p3") that says which A4 sheet this question lands on. */
-        .qright { display: flex; align-items: baseline; justify-content: flex-end; gap: 1.2mm; white-space: nowrap; }
-        .qpno { font-size: 0.72em; font-weight: 700; color: #444; background: #f1f1f4; border: 1px solid #d8d8de; border-radius: 4px; padding: 0 0.5em; line-height: 1.6; }
-        /* Optional explanation printed right under the question. */
-        .qexp { font-size: 0.86em; color: #333; margin-top: 0.7mm; padding-left: 7mm; }
+        .qright { display: flex; align-items: baseline; justify-content: flex-end; gap: 0.6mm; white-space: nowrap; }
+        /* Bracketed page ref inside the answer key — points at the page where
+           that question is printed; independent of the explanation block. */
+        .anspno { font-size: 0.86em; font-weight: 700; color: #444; white-space: nowrap; }
         .options { margin-top: 0.8mm; }
         .options.two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.4mm 4mm; }
         .options.one-col .opt + .opt { margin-top: 0.4mm; }
-        .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 1.2mm; align-items: start; break-inside: avoid; page-break-inside: avoid; }
+        .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 0.6mm; align-items: start; break-inside: avoid; page-break-inside: avoid; }
         .opttext { overflow-wrap: break-word; }
         /* The bubble scales with the body font, so it stays a comfortable
            ~4mm tick target at 11pt and shrinks with the font-size control. */
@@ -497,7 +497,7 @@ export function buildPrintHtml(data: PrintData): string {
           <select id="f-labels"><option value="auto">Auto (Bangla ক, English a)</option><option value="bangla">ক খ গ ঘ</option><option value="english">a b c d</option></select>
           <label>Question numbers</label>
           <select id="f-num"><option value="auto">Auto (Bangla ১, English 1)</option><option value="bangla">১ ২ ৩ ৪</option><option value="english">1 2 3 4</option></select>
-          <div class="row"><input type="checkbox" id="f-qpgno"><label for="f-qpgno" style="margin:0">Page no. on each question</label></div>
+          <div class="row"><input type="checkbox" id="f-qpgno"><label for="f-qpgno" style="margin:0">Page no. on each answer</label></div>
           <div class="row"><input type="checkbox" id="f-header"><label for="f-header" style="margin:0">Show header block</label></div>
           <div class="sect">Header items</div>
           <div class="tog">
@@ -532,7 +532,7 @@ export function buildPrintHtml(data: PrintData): string {
           <label>Instructions</label><textarea id="f-instrtext" rows="2"></textarea>
           <div class="row"><input type="checkbox" id="f-group"><label for="f-group" style="margin:0">Group by subject</label></div>
           <div class="row"><input type="checkbox" id="f-answers"><label for="f-answers" style="margin:0">Include answer key</label></div>
-          <div class="row"><input type="checkbox" id="f-exp"><label for="f-exp" style="margin:0">Show explanations under questions</label></div>
+          <div class="row"><input type="checkbox" id="f-exp"><label for="f-exp" style="margin:0">Explanation after answer</label></div>
           <div class="row"><input type="checkbox" id="f-breaks"><label for="f-breaks" style="margin:0">Show page breaks (screen only)</label></div>
           <div class="btnrow">
             <button class="btnsm" id="shuffleBtn" type="button" title="Shuffle option order — never repeats an arrangement or answer pattern">⇄ Options</button>
@@ -558,7 +558,7 @@ export function buildPrintHtml(data: PrintData): string {
           columns: 2, fontSize: 11,
           marginTop: 12, marginRight: 12.7, marginBottom: 11, marginLeft: 12,
           fontFamily: 'serif', lineHeight: 1.35, qgap: 1.8, cgap: 6, ansCols: 2,
-          showExplanation: false, qPageNo: true, showBreaks: true
+          showExplanation: true, qPageNo: true, showBreaks: true
         };
         var S = Object.assign({}, DEF, DATA.defaults);
         /* Device defaults: formatting the Print page never controls (font size,
@@ -699,13 +699,12 @@ export function buildPrintHtml(data: PrintData): string {
             }).join('') + '</div>';
           }
           var right = '';
-          if (S.showMarks) right += '<span class="qmarks">[' + (q.marks || 1) + ']</span>';
-          /* The chip is measured as "p99" so the real page number stamped in
-             later can only be narrower — width never grows after packing. */
-          if (S.qPageNo) right += '<span class="qpno">p99</span>';
+          /* MCQ papers never print marks beside the question (the header's Full
+             Marks already covers them) and never a page chip — the answer key
+             carries the page reference instead. */
+          if (S.showMarks && q.type !== 'mcq') right += '<span class="qmarks">[' + (q.marks || 1) + ']</span>';
           right = right ? '<span class="qright">' + right + '</span>' : '';
-          var exp = (S.showExplanation && q.explanation) ? '<div class="qexp"><b>Explanation:</b> ' + esc(q.explanation) + '</div>' : '';
-          return '<div class="q"><div class="qp"><span class="qno">' + qNo(q, n) + '</span><span class="qtext">' + esc(q.prompt) + '</span>' + right + '</div>' + opts + exp + '</div>';
+          return '<div class="q" data-qn="' + n + '"><div class="qp"><span class="qno">' + qNo(q, n) + '</span><span class="qtext">' + esc(q.prompt) + '</span>' + right + '</div>' + opts + '</div>';
         }
         function formatDate(s){
           if (!s) return s;
@@ -929,7 +928,13 @@ export function buildPrintHtml(data: PrintData): string {
               k++;
               var subj = DATA.groups.length > 1 ? ' <span class="ansubj">[' + esc(q.subject || '') + ']</span>' : '';
               var cl = correctLetter(q);
-              ansItems.push('<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + ')</b> ' : '') + esc(answerText(q)) + ' ' + (q.explanation ? '<div class="exp">' + esc(q.explanation) + '</div>' : '') + '</div>');
+              var expStr = (S.showExplanation && q.explanation) ? '<div class="exp"><b>Explanation:</b> ' + esc(q.explanation) + '</div>' : '';
+              /* Bracketed page ref right after the answer text — measured as
+                 [p99] and stamped with the real question page after packing,
+                 and OUTSIDE the explanation so switching the toggle off never
+                 removes it. */
+              var pno = S.qPageNo ? '<span class="anspno" data-qn="' + k + '">[p99]</span>' : '';
+              ansItems.push('<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + ')</b> ' : '') + esc(answerText(q)) + (pno ? ' ' + pno : '') + (expStr ? ' ' + expStr : '') + '</div>');
             }); });
           }
 
@@ -962,15 +967,23 @@ export function buildPrintHtml(data: PrintData): string {
           paper.innerHTML = parts.join('');
           autoOptions(paper);
 
-          /* 5 — stamp the real sheet number into each question's page chip */
+          /* 5 — stamp the real sheet number into the answer key's bracketed
+             refs: every question knows which packed page it landed on, so each
+             answer shows the page its question is printed on. */
           if (S.qPageNo) {
             var anyBn = false;
             DATA.groups.forEach(function(gr){ gr.questions.forEach(function(q){ if (isBangla(q.prompt)) anyBn = true; }); });
             var useBn = S.numStyle === 'bangla' || (S.numStyle !== 'english' && anyBn);
+            var qPage = {};
             var pgEls = paper.querySelectorAll('.pg');
             for (i = 0; i < pgEls.length; i++) {
-              var chips = pgEls[i].querySelectorAll('.qpno');
-              for (var j = 0; j < chips.length; j++) chips[j].textContent = 'p' + (useBn ? bnDigits(i + 1) : String(i + 1));
+              var qs = pgEls[i].querySelectorAll('.q[data-qn]');
+              for (var j = 0; j < qs.length; j++) qPage[qs[j].getAttribute('data-qn')] = i + 1;
+            }
+            var anspnos = paper.querySelectorAll('.anspno');
+            for (i = 0; i < anspnos.length; i++) {
+              var pn = qPage[anspnos[i].getAttribute('data-qn')];
+              if (pn) anspnos[i].textContent = '[p' + (useBn ? bnDigits(pn) : String(pn)) + ']';
             }
           }
 
