@@ -139,6 +139,7 @@ export default function Print() {
       answer: q.answer || "",
       explanation: q.explanation || "",
       subject: subjectName(q.subject_id),
+      page: q.page ?? null,
     });
 
     const subjectLine = isMultiSubject

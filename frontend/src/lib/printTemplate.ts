@@ -55,6 +55,11 @@ export interface PrintQuestion {
   answer: string;
   explanation: string;
   subject: string;
+  /** Book/source page ref from the question bank (optional) — shown in the
+   *  answer key's bracket after each answer. Kept as string so ranges like
+   *  "42-43" survive; questions without one fall back to the printed sheet
+   *  page of the question. */
+  page?: string | number | null;
 }
 
 export interface PrintGroup {
@@ -406,8 +411,9 @@ export function buildPrintHtml(data: PrintData): string {
         /* Right-hand group of the question row: marks plus the printed page
            chip ("p3") that says which A4 sheet this question lands on. */
         .qright { display: flex; align-items: baseline; justify-content: flex-end; gap: 0.6mm; white-space: nowrap; }
-        /* Bracketed page ref inside the answer key — points at the page where
-           that question is printed; independent of the explanation block. */
+        /* Bracketed page ref inside the answer key — the book/source page the
+           question was imported with, or the printed sheet page when the
+           question carries none; independent of the explanation block. */
         .anspno { font-size: 0.86em; font-weight: 700; color: #444; white-space: nowrap; }
         .options { margin-top: 0.8mm; }
         .options.two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.4mm 4mm; }
@@ -617,6 +623,14 @@ export function buildPrintHtml(data: PrintData): string {
           if (idx < 0) return '';
           var L = labels(q.prompt, S.labelStyle);
           return L[idx] || String(idx + 1);
+        }
+        /* Book/source page ref stored with the question (bulk-import JSON's
+           page_number/book_page). Kept verbatim — ranges like "42-43" print
+           as-is. Empty when the question carries no page. */
+        function bookPageRef(q){
+          if (!q || q.page === undefined || q.page === null) return '';
+          var s = String(q.page).trim();
+          return s === '' ? '' : s;
         }
         /* Every option already prints its label inside the marker circle, so an
            option text that repeats the label ("ক) অন্তরীণ", "a) Apple" — typed or
@@ -910,6 +924,11 @@ export function buildPrintHtml(data: PrintData): string {
           /* 1 — build the blocks: full-width (header, instructions) and
              column-width (section headings, questions, answer-key lines). */
           var fulls = [], items = [], ansFull = [], ansItems = [];
+          /* Digit style for page refs — resolved once, shared by the book-page
+             refs built below and the printed-page stamping in step 5. */
+          var anyBn = false;
+          DATA.groups.forEach(function(gr){ gr.questions.forEach(function(q){ if (isBangla(q.prompt)) anyBn = true; }); });
+          var useBn = S.numStyle === 'bangla' || (S.numStyle !== 'english' && anyBn);
           if (S.showHeader) fulls.push(headerHtml());
           if (S.showInstructions && S.instructions && S.instructions.trim()) fulls.push('<div class="instructions"><b>Instructions:</b> ' + esc(S.instructions) + '</div>');
           var n = 0;
@@ -929,12 +948,20 @@ export function buildPrintHtml(data: PrintData): string {
               var subj = DATA.groups.length > 1 ? ' <span class="ansubj">[' + esc(q.subject || '') + ']</span>' : '';
               var cl = correctLetter(q);
               var expStr = (S.showExplanation && q.explanation) ? '<div class="exp"><b>Explanation:</b> ' + esc(q.explanation) + '</div>' : '';
-              /* Bracketed page ref right after the answer text — measured as
-                 (99) and stamped with the real question page after packing,
-                 and OUTSIDE the explanation so switching the toggle off never
-                 removes it. */
-              var pno = S.qPageNo ? '<span class="anspno" data-qn="' + k + '">(99)</span>' : '';
-              ansItems.push('<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + ')</b> ' : '') + esc(answerText(q)) + (pno ? ' ' + pno : '') + (expStr ? ' ' + expStr : '') + '</div>');
+              /* Bracketed page ref right after the answer text, OUTSIDE the
+                 explanation so switching the explanation toggle off never
+                 removes it. Prefers the book/source page imported with the
+                 question (bulk JSON's page_number/book_page) — verbatim, so
+                 ranges like "42-43" survive. A question without one falls back
+                 to its printed sheet page: measured as (99) here, stamped with
+                 the real number after packing (step 5). */
+              var pno = '';
+              if (S.qPageNo) {
+                var bp = bookPageRef(q);
+                if (bp) pno = ' <span class="anspno">(' + esc(useBn ? bnDigits(bp) : bp) + ')</span>';
+                else pno = ' <span class="anspno" data-qn="' + k + '">(99)</span>';
+              }
+              ansItems.push('<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + ')</b> ' : '') + esc(answerText(q)) + pno + (expStr ? ' ' + expStr : '') + '</div>');
             }); });
           }
 
@@ -967,13 +994,10 @@ export function buildPrintHtml(data: PrintData): string {
           paper.innerHTML = parts.join('');
           autoOptions(paper);
 
-          /* 5 — stamp the real sheet number into the answer key's bracketed
-             refs: every question knows which packed page it landed on, so each
-             answer shows the page its question is printed on. */
+          /* 5 — stamp the real sheet number into the fallback bracketed refs:
+             answers whose question carries a book page already show it (built
+             in step 1); the rest get the page their question packed onto. */
           if (S.qPageNo) {
-            var anyBn = false;
-            DATA.groups.forEach(function(gr){ gr.questions.forEach(function(q){ if (isBangla(q.prompt)) anyBn = true; }); });
-            var useBn = S.numStyle === 'bangla' || (S.numStyle !== 'english' && anyBn);
             var qPage = {};
             var pgEls = paper.querySelectorAll('.pg');
             for (i = 0; i < pgEls.length; i++) {
