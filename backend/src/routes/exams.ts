@@ -212,6 +212,11 @@ router.post("/attempts/:attemptId/answer", requireAuth, async (req: Request, res
   if (attempt.student_id !== req.user!.id) return res.status(403).json({ error: "Forbidden" });
   if (attempt.status !== "in_progress") return res.status(400).json({ error: "Already submitted" });
   const answers = JSON.parse(attempt.answers || "{}");
+  // Once an MCQ answer is given it cannot be changed (no option re-selection).
+  const q = (await get(db, "SELECT type FROM questions WHERE id=?", [question_id])) as any;
+  if (q?.type === "mcq" && answers[question_id] !== undefined && answers[question_id] !== null && String(answers[question_id]).trim() !== "") {
+    return res.status(400).json({ error: "Answer locked" });
+  }
   answers[question_id] = answer;
   await run(db, "UPDATE exam_attempts SET answers=? WHERE id=?", [JSON.stringify(answers), req.params.attemptId]);
   res.json({ ok: true });
