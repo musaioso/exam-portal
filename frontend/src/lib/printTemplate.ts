@@ -156,8 +156,11 @@ export function buildPrintHtml(data: PrintData): string {
       <style>${themeCss}</style>
       <style>
         /* The A4 content-box margins are emitted dynamically by pageCss() from
-           the sidebar controls; only the paper size is fixed here. */
-        @page { size: A4; }
+           the sidebar controls; only the paper size is fixed here. The size is
+           spelled out in millimetres — identical to "A4" — because the Android
+           print dialog preselects ISO A4 from this rule, and some builds honour
+           only the explicit dimensions, not the bare keyword. */
+        @page { size: 210mm 297mm; }
         * { box-sizing: border-box; }
         html, body { margin: 0; }
         body {
@@ -185,6 +188,7 @@ export function buildPrintHtml(data: PrintData): string {
         }
 
         .app { display: grid; grid-template-columns: 300px 1fr; height: 100vh; position: relative; z-index: 1; }
+        .mtop { display: none; }
         .settings {
           background: var(--glass-bg);
           backdrop-filter: blur(14px);
@@ -385,7 +389,7 @@ export function buildPrintHtml(data: PrintData): string {
         .header .hcenter { text-align: center; min-width: 0; }
         .header .hright { text-align: right; }
         .header .h-school { font-size: 1.3em; font-weight: 700; line-height: 1.08; overflow-wrap: break-word; }
-        .header .h-title { font-size: 1.05em; font-weight: 600; line-height: 1.14; overflow-wrap: break-word; }
+        .header .h-title { font-size: 1.05em; line-height: 1.14; overflow-wrap: break-word; }
         .header .h-subject { font-size: 0.98em; line-height: 1.14; overflow-wrap: break-word; }
         .header .h-subject .h-per { color: #333; }
         .header .hline { font-size: 0.98em; line-height: 1.3; white-space: nowrap; }
@@ -398,7 +402,7 @@ export function buildPrintHtml(data: PrintData): string {
         .instructions { border: 1px solid #999; border-radius: 3px; padding: 3px 6px; font-size: 0.9em; line-height: 1.4; margin: 0 0 2mm; background: #fafafa; }
         /* Columns are explicit .prow/.pcol boxes packed page by page (see the
            renderer), so the screen shows exactly what the printer will do. */
-        .section { font-size: 1.12em; font-weight: 700; border-bottom: 1px solid #000; padding-bottom: 1px; margin: 2mm 0 1.5mm; break-after: avoid; page-break-after: avoid; }
+        .section { font-size: 1.12em; font-weight: 400; border-bottom: 1px solid #000; padding-bottom: 1px; margin: 2mm 0 1.5mm; break-after: avoid; page-break-after: avoid; }
         .hdate-btn {
           margin-left: 6px; padding: 1px 6px; border-radius: 0.5rem; border: 1px solid #999; background: #f6f6f6; color: #000; font-size: 8px; cursor: pointer; vertical-align: middle; line-height: 1.2;
           box-shadow: 0 1px 0 rgba(0,0,0,0.04);
@@ -414,7 +418,7 @@ export function buildPrintHtml(data: PrintData): string {
         /* Bracketed page ref inside the answer key — the book/source page the
            question was imported with, or the printed sheet page when the
            question carries none; independent of the explanation block. */
-        .anspno { font-size: 0.86em; font-weight: 700; color: #444; white-space: nowrap; }
+        .anspno { font-size: 0.86em; color: #444; white-space: nowrap; }
         .options { margin-top: 0.8mm; }
         .options.two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.4mm 4mm; }
         /* Only an option that wraps in the half-width cell spans both columns
@@ -425,11 +429,17 @@ export function buildPrintHtml(data: PrintData): string {
         .opttext { overflow-wrap: break-word; }
         /* The bubble scales with the body font, so it stays a comfortable
            ~4mm tick target at 11pt and shrinks with the font-size control. */
-        .optmark { display: inline-flex; align-items: center; justify-content: center; width: 1.3em; height: 1.3em; margin-top: 0.12em; border: 1.2px solid #000; border-radius: 50%; font-size: 0.78em; line-height: 1; font-weight: 600; }
+        .optmark { display: inline-flex; align-items: center; justify-content: center; width: 1.3em; height: 1.3em; margin-top: 0.12em; border: 1.2px solid #000; border-radius: 50%; font-size: 0.78em; line-height: 1; }
         /* The answer key is packed into its own pages (see the renderer), so the
            old break-before/column rules are gone; only the heading remains. */
-        .anshead { font-size: 1.18em; border-bottom: 1.2px solid #000; padding-bottom: 2px; margin: 0 0 1.5mm; break-after: avoid; page-break-after: avoid; overflow-wrap: break-word; }
+        .anshead { font-size: 1.18em; font-weight: 400; border-bottom: 1.2px solid #000; padding-bottom: 2px; margin: 0 0 1.5mm; break-after: avoid; page-break-after: avoid; overflow-wrap: break-word; }
         .a { font-size: 0.98em; break-inside: avoid; page-break-inside: avoid; margin-bottom: 1.8mm; }
+        /* Ink rule: nothing on the sheet prints bold except the school line
+           and the question numbers. The blanket reset also covers any
+           <b>/<strong> inside user-supplied text (subject, time, marks,
+           instructions, explanations) — every bold glyph costs toner. */
+        .paper, .paper b, .paper strong { font-weight: 400; }
+        .paper .h-school, .paper .qno, .paper .aqno { font-weight: 700; }
         .ansubj { color: #444; font-size: 0.85em; }
         .exp { font-size: 0.88em; color: #333; margin-left: 4mm; }
 
@@ -444,7 +454,10 @@ export function buildPrintHtml(data: PrintData): string {
           body { background: #fff !important; min-height: 0; }
           body::before, body::after { display: none !important; }
           .app { display: block; height: auto; }
+          .mtop { display: none !important; }
           .settings { display: none !important; }
+          /* The mobile viewport-fit zoom must never reach the paper. */
+          .paper { zoom: 1 !important; }
           .tselect-menu { display: none !important; }
           .calpop { display: none !important; }
           .stage { overflow: visible; padding: 0; }
@@ -477,11 +490,27 @@ export function buildPrintHtml(data: PrintData): string {
 
         @media screen and (max-width: 768px) {
           .app { grid-template-columns: 1fr; height: auto; }
-          .settings { border-right: 0; border-bottom: 1px solid var(--glass-border); max-height: 55vh; }
+          /* Sticky top bar: Print stays one tap away while the settings panel
+             stays folded, so the sheet gets the whole screen. */
+          .mtop {
+            display: flex; gap: 8px; padding: 8px 10px; position: sticky; top: 0; z-index: 60;
+            background: var(--glass-bg); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--glass-border);
+          }
+          .mtop button {
+            flex: 1; min-height: 44px; font-size: 14px; font-weight: 600; cursor: pointer;
+            border-radius: 0.75rem; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+          }
+          .settings { border-right: 0; border-bottom: 1px solid var(--glass-border); display: none; max-height: 70vh; }
+          body.mobset .settings { display: block; }
           .stage { padding: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         }
       </style><style id="pagestyle"></style></head>
       <body>
+      <div class="mtop">
+        <button type="button" id="mtSet" class="mtbtn">&#9881; Settings</button>
+        <button type="button" id="mtPrint" class="mtbtn">&#128424; Print / Save PDF</button>
+      </div>
       <div class="app">
         <aside class="settings">
           <h2>Print settings</h2>
@@ -709,7 +738,7 @@ export function buildPrintHtml(data: PrintData): string {
           /* One @page rule carrying the user's margins (which also frame the
              running title and page numbers below, printed in the margin area). */
           var g = geo();
-          var css = '@page { size: A4; margin: ' + g.mT + 'mm ' + g.mR + 'mm ' + g.mB + 'mm ' + g.mL + 'mm; }';
+          var css = '@page { size: 210mm 297mm; margin: ' + g.mT + 'mm ' + g.mR + 'mm ' + g.mB + 'mm ' + g.mL + 'mm; }';
           if (S.runningTitle) css += '@page { @top-center { content: "' + safeCss(S.title) + '"; font-size: 8pt; color: #666; } }';
           if (S.showPageNo) {
             var fmt = S.pageNumFmt === 'of' ? '"Page " counter(page) " / " counter(pages)' : 'counter(page)';
@@ -846,6 +875,7 @@ export function buildPrintHtml(data: PrintData): string {
            changes the other cells' width, so each measurement stays valid. */
         function autoOptions(root){
           var lists = (root || paper).querySelectorAll('.options.two-col');
+          var wide = [];
           for (var i = 0; i < lists.length; i++) {
             var kids = lists[i].children;
             for (var j = 0; j < kids.length; j++) {
@@ -854,9 +884,13 @@ export function buildPrintHtml(data: PrintData): string {
               var cs = window.getComputedStyle(t);
               var lh = parseFloat(cs.lineHeight);
               if (!(lh > 0)) lh = parseFloat(cs.fontSize) * 1.35;
-              if (t.getBoundingClientRect().height > lh * 1.45) { kids[j].classList.add('wide'); }
+              if (t.getBoundingClientRect().height > lh * 1.45) wide.push(kids[j]);
             }
           }
+          /* Every read first, every write after: a classList.add in between
+             would invalidate the layout the next getBoundingClientRect needs
+             (a full reflow per option — hundreds on a phone). One flush now. */
+          for (i = 0; i < wide.length; i++) wide[i].classList.add('wide');
         }
         /* ---- Page geometry ---------------------------------------------------
            Everything is derived from the sidebar controls: printable content
@@ -981,6 +1015,17 @@ export function buildPrintHtml(data: PrintData): string {
             p.items = nItems; p.idx = nIdx; p.cols = nCols;
           }
         }
+        /* Mobile: scale the fixed-width A4 sheet to the viewport so the whole
+           page reads at a glance instead of behind horizontal scroll. zoom (a
+           layout-affecting scale, unlike transform) keeps the mm geometry
+           coherent; the @media print reset keeps it off the paper. */
+        function fitSheet(){
+          var st = document.querySelector('.stage');
+          if (!st || !paper) return;
+          if (window.innerWidth > 768 || !('zoom' in paper.style)) { paper.style.zoom = ''; return; }
+          var z = Math.min(1, (st.clientWidth - 16) / 794.5);
+          paper.style.zoom = z >= 0.35 ? String(z) : '';
+        }
         function render(){
           var g = geo(), i;
           paper.style.setProperty('--fs', S.fontSize + 'pt');
@@ -1040,7 +1085,7 @@ export function buildPrintHtml(data: PrintData): string {
                 if (bp) pno = ' <span class="anspno">(' + esc(useBn ? bnDigits(bp) : bp) + ')</span>';
                 else pno = ' <span class="anspno" data-qn="' + k + '">(99)</span>';
               }
-              ansItems.push('<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + '.</b> ' : '') + esc(answerText(q)) + pno + (expStr ? ' ' + expStr : '') + '</div>');
+              ansItems.push('<div class="a"><span class="aqno">' + qNo(q, k) + '</span>' + subj + ' ' + (cl ? cl + '. ' : '') + esc(answerText(q)) + pno + (expStr ? ' ' + expStr : '') + '</div>');
             }); });
           }
 
@@ -1096,6 +1141,7 @@ export function buildPrintHtml(data: PrintData): string {
           }
 
           updatePages();
+          fitSheet();
           var pgs = document.getElementById('pagestyle');
           if (pgs) pgs.textContent = pageCss();
         }
@@ -1111,6 +1157,32 @@ export function buildPrintHtml(data: PrintData): string {
           if (an) out.textContent = 'This paper: ' + qn + ' question page' + (qn === 1 ? '' : 's') + ' + ' + an + ' answer page' + (an === 1 ? '' : 's') + ' = ' + total + ' A4 sheet' + (total === 1 ? '' : 's') + '.';
           else out.textContent = 'This paper: ' + total + ' A4 sheet' + (total === 1 ? '' : 's') + (qn ? ' \u00b7 ' + per + ' questions per page' : '') + '.';
         }
+        /* Re-render on a short debounce: number/text inputs fire 'input' on
+           every keystroke and 'change' on commit (one action used to run the
+           whole repack twice), and that repack is the slowest thing on a
+           phone. The batch collapses each burst into a single render. */
+        var renderT = 0;
+        function scheduleRender(){
+          clearTimeout(renderT);
+          renderT = setTimeout(function(){ renderT = 0; render(); }, 140);
+        }
+        /* Font size, line height, gaps and margins are pure CSS custom
+           properties — push them straight to the sheet so a drag responds
+           instantly, while the debounced repack catches up on pagination. */
+        var VARKEYS = { fontSize: '--fs', lineHeight: '--lh', qgap: '--qgap', cg: '--cg', marginTop: '--mT', marginRight: '--mR', marginBottom: '--mB', marginLeft: '--mL' };
+        function pushVar(key){
+          if (!VARKEYS[key]) return;
+          var g = geo();
+          var v = key === 'fontSize' ? S.fontSize + 'pt'
+            : key === 'lineHeight' ? String(Number(S.lineHeight) > 0 ? Number(S.lineHeight) : 1.35)
+            : key === 'qgap' ? (Number(S.qgap) >= 0 ? Number(S.qgap) : 2.2) + 'mm'
+            : key === 'cg' ? g.cg + 'mm'
+            : key === 'marginTop' ? g.mT + 'mm'
+            : key === 'marginRight' ? g.mR + 'mm'
+            : key === 'marginBottom' ? g.mB + 'mm'
+            : g.mL + 'mm';
+          paper.style.setProperty(VARKEYS[key], v);
+        }
         function bind(id, key, kind){
           var el = document.getElementById(id);
           if (!el) return;
@@ -1118,7 +1190,8 @@ export function buildPrintHtml(data: PrintData): string {
             if (kind === 'bool') S[key] = el.checked;
             else if (kind === 'num') S[key] = Number(el.value);
             else S[key] = el.value;
-            render();
+            pushVar(key);
+            scheduleRender();
             savePrefs();
           };
           el.addEventListener('input', h);
@@ -1449,6 +1522,15 @@ export function buildPrintHtml(data: PrintData): string {
           if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function(){ window.print(); }); }
           else { window.print(); }
         });
+        /* Mobile chrome: the top bar toggles the settings panel and repeats
+           Print; narrow viewports re-fit the sheet zoom on resize. */
+        (function(){
+          var ms = document.getElementById('mtSet'), mp = document.getElementById('mtPrint');
+          if (ms) ms.addEventListener('click', function(){ document.body.classList.toggle('mobset'); });
+          if (mp) mp.addEventListener('click', function(){ var b = document.getElementById('printBtn'); if (b) b.click(); });
+          var rzT = 0;
+          window.addEventListener('resize', function(){ clearTimeout(rzT); rzT = setTimeout(fitSheet, 150); });
+        })();
         document.getElementById('forgetBtn').addEventListener('click', function(){
           try { localStorage.removeItem('mcq_print_prefs'); } catch (e) {}
           window.location.reload();
