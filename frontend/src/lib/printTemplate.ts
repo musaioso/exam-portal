@@ -890,12 +890,14 @@ export function buildPrintHtml(data: PrintData): string {
         /* Greedy pack: fill column 1 to the bottom, then column 2, ... then the
            next page. SLACK absorbs sub-pixel/font rounding so a packed column
            can never exceed the real page; an item taller than a whole column is
-           force-placed (better a visible spill than a lost question). */
+           force-placed (better a visible spill than a lost question). Each
+           page also records WHICH item sits where (idx) so balancePages can
+           re-slice a column set without re-running the pack. */
         function pack(items, hs, cols, pageH, firstH){
           var SLACK = 3, pages = [], cur = null, c = 0;
           function np(){
-            var p = { cols: [], items: [] };
-            for (var i = 0; i < cols; i++) { p.cols.push(0); p.items.push([]); }
+            var p = { cols: [], items: [], idx: [] };
+            for (var i = 0; i < cols; i++) { p.cols.push(0); p.items.push([]); p.idx.push([]); }
             pages.push(p); cur = p; c = 0;
           }
           np();
@@ -905,13 +907,61 @@ export function buildPrintHtml(data: PrintData): string {
             for (;;) {
               if (guard++ > 10000) break;
               var a = avail();
-              if (cur.cols[c] + h <= a) { cur.items[c].push(items[i]); cur.cols[c] += h; break; }
+              if (cur.cols[c] + h <= a) { cur.items[c].push(items[i]); cur.idx[c].push(i); cur.cols[c] += h; break; }
               if (cur.cols[c] > 0 && c < cols - 1) { c++; continue; }
-              if (cur.cols[c] === 0 && h > a) { cur.items[c].push(items[i]); cur.cols[c] += h; break; }
+              if (cur.cols[c] === 0 && h > a) { cur.items[c].push(items[i]); cur.idx[c].push(i); cur.cols[c] += h; break; }
               np();
             }
           }
           return pages;
+        }
+        /* Rebalance one packed page so every column carries a comparable,
+           CONTIGUOUS stretch of the serial: sequential fill piles a short
+           answer key into column 1 (1..6), while balancing splits it
+           1-2 / 3-4 / 5-6 across the sheet — full width, much shorter block.
+           Cuts land at height targets, never inside an item; every rebuilt
+           column must fit the same capacity the pack allowed (first sheet's
+           columns are shorter under the heading), and any page failing that
+           check keeps its sequential fill — balancing can never cost a page. */
+        function balancePages(pages, items, hs, cols, firstH, pageH){
+          if (cols < 2) return;
+          var SLACK = 3;
+          for (var pi = 0; pi < pages.length; pi++) {
+            var p = pages[pi], flat = [], k;
+            for (k = 0; k < cols; k++) {
+              for (var m = 0; m < p.idx[k].length; m++) flat.push(p.idx[k][m]);
+            }
+            if (flat.length < 2) continue;
+            var cap = (pi === 0 ? firstH : pageH) - SLACK;
+            var total = 0;
+            for (k = 0; k < flat.length; k++) total += hs[flat[k]] || 1;
+            var target = total / cols;
+            var G = Math.min(cols, flat.length);
+            var groups = [], from = 0, h = 0;
+            for (k = 0; k < flat.length; k++) {
+              var gi = groups.length, ih = hs[flat[k]] || 1;
+              if (gi < G - 1 && h > 0 && (h >= target || h + ih > cap) && (flat.length - k) >= (G - gi - 1)) {
+                groups.push({ from: from, to: k, h: h });
+                from = k; h = 0;
+              }
+              h += ih;
+            }
+            groups.push({ from: from, to: flat.length, h: h });
+            if (groups.length !== G) continue;
+            var ok = true;
+            for (k = 0; k < groups.length; k++) if (groups[k].h > cap) { ok = false; break; }
+            if (!ok) continue;
+            var nItems = [], nIdx = [], nCols = [];
+            for (k = 0; k < cols; k++) { nItems.push([]); nIdx.push([]); nCols.push(0); }
+            for (k = 0; k < groups.length; k++) {
+              for (var j = groups[k].from; j < groups[k].to; j++) {
+                nItems[k].push(items[flat[j]]);
+                nIdx[k].push(flat[j]);
+                nCols[k] += hs[flat[j]] || 1;
+              }
+            }
+            p.items = nItems; p.idx = nIdx; p.cols = nCols;
+          }
         }
         function render(){
           var g = geo(), i;
@@ -972,7 +1022,7 @@ export function buildPrintHtml(data: PrintData): string {
                 if (bp) pno = ' <span class="anspno">(' + esc(useBn ? bnDigits(bp) : bp) + ')</span>';
                 else pno = ' <span class="anspno" data-qn="' + k + '">(99)</span>';
               }
-              ansItems.push('<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + ')</b> ' : '') + esc(answerText(q)) + pno + (expStr ? ' ' + expStr : '') + '</div>');
+              ansItems.push('<div class="a"><b>' + qNo(q, k) + '</b>' + subj + ' ' + (cl ? '<b>' + cl + '.</b> ' : '') + esc(answerText(q)) + pno + (expStr ? ' ' + expStr : '') + '</div>');
             }); });
           }
 
@@ -987,6 +1037,11 @@ export function buildPrintHtml(data: PrintData): string {
           var pageH = g.ch * MMv;
           var qPages = items.length ? pack(items, itemH, g.cols, pageH, pageH - fullH) : [];
           var aPages = ansItems.length ? pack(ansItems, ansH, g.ac, pageH, pageH - ansFullH) : [];
+          /* The answer key shares its serial across ALL columns (1-2 / 3-4 /
+             5-6) instead of draining down column 1 — even, contiguous columns
+             use the full sheet width. Page count never changes (see
+             balancePages). */
+          if (aPages.length) balancePages(aPages, ansItems, ansH, g.ac, pageH - ansFullH, pageH);
 
           /* 4 — emit one .pg box per A4 sheet, with a labelled break guide
              between neighbours (screen-only; print uses forced page breaks). */
