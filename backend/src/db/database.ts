@@ -125,7 +125,9 @@ export async function run(db: AnyDb, sql: string, params: any[] = []): Promise<v
     await db.execute({ sql, args: normalizeParams(params) });
     return;
   }
-  db.run(sql, params);
+  // sql.js also rejects `undefined` binds (it throws mid-statement), so
+  // partial UPDATE bodies like { difficulty } must be normalised here too.
+  db.run(sql, normalizeParams(params));
   schedulePersist();
 }
 
