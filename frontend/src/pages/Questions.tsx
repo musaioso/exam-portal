@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "../lib/api";
+import { optionLabel } from "../lib/labels";
 import { useToast } from "../components/Toast";
 import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { confirmDialog, alertDialog } from "../components/Dialog";
@@ -584,7 +585,7 @@ export default function Questions() {
                       <div className="text-sm">{q.prompt}</div>
                       {q.options && (
                         <ul className="text-xs text-slate-400 mt-2 space-y-0.5 ml-4">
-                          {(Array.isArray(q.options)?q.options:JSON.parse(q.options)).map((o: string, i: number) => <li key={i}>• {o} {q.answer === o && <span className="text-emerald-400">(correct)</span>}</li>)}
+                          {(Array.isArray(q.options)?q.options:JSON.parse(q.options)).map((o: string, i: number) => <li key={i}>{optionLabel(q.prompt, i)}. {o} {q.answer === o && <span className="text-emerald-400">(correct)</span>}</li>)}
                         </ul>
                       )}
                     </div>

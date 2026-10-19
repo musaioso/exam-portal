@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
+import { optionLabel } from "../lib/labels";
 import { useAuth } from "../lib/auth-context";
 import { Card, Button, Input, NumberInput, Field, Badge, Select } from "../components/ui";
 import { CheckCircle2, Eye, Filter, Lightbulb, Save, Target, X, XCircle } from "lucide-react";
@@ -311,7 +312,7 @@ export default function Results() {
                               <XCircle size={13} className="shrink-0" />
                             ) : (
                               <span className="w-[13px] shrink-0 text-center text-slate-600">
-                                {String.fromCharCode(65 + oi)}
+                                {optionLabel(q.prompt, oi)}
                               </span>
                             )}
                             <span>{String(o)}</span>

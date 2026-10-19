@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
+import { optionLabel } from "../lib/labels";
 import { Card, Button, Skeleton } from "../components/ui";
 import { ArrowLeft, ArrowRight, CheckCircle2, PartyPopper, RotateCcw, Target, XCircle } from "lucide-react";
 
-const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
 const LIMIT = 10;
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -253,7 +254,7 @@ export default function StandalonePractice() {
                       ? "border-indigo-500 bg-indigo-500 text-indigo-100"
                       : "border-slate-600 text-slate-400"
                 }`}>
-                  {LETTERS[i] || i + 1}
+                  {optionLabel(q.prompt, i)}
                 </span>
                 <span>{o}</span>
               </button>

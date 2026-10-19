@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, errorMessage } from "../lib/api";
+import { optionLabel } from "../lib/labels";
 import { useToast } from "../components/Toast";
 import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { alertDialog, confirmDialog } from "../components/Dialog";
@@ -1020,7 +1021,7 @@ export default function Generate() {
                             <ul className="mt-2 space-y-1 text-sm">
                               {it.options.map((o, oi) => (
                                 <li key={oi} className={cn("rounded-lg px-2 py-1", o === it.answer ? "bg-emerald-500/15 text-emerald-200" : "text-slate-300")}>
-                                  {String.fromCharCode(65 + oi)}. {o} {o === it.answer && "✓"}
+                                  {optionLabel(it.prompt, oi)}. {o} {o === it.answer && "✓"}
                                 </li>
                               ))}
                             </ul>

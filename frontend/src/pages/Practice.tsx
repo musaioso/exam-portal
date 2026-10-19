@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
+import { optionLabel } from "../lib/labels";
 import { Button, Card, Skeleton } from "../components/ui";
 import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, PartyPopper, RotateCcw, Target, XCircle } from "lucide-react";
 
-const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+
 
 /**
  * A low-stakes re-run of just the questions that went wrong: pick an option,
@@ -192,7 +193,7 @@ export default function Practice() {
                         : "border-slate-600 text-slate-400"
                   }`}
                 >
-                  {LETTERS[i] || i + 1}
+                  {optionLabel(q.prompt, i)}
                 </span>
                 <span>{o}</span>
                 {answered && isKey && <CheckCircle2 size={16} className="ml-auto shrink-0 text-emerald-300" />}
@@ -222,8 +223,7 @@ export default function Practice() {
                 <>
                   <XCircle size={15} className="mr-1.5 inline -mt-0.5" /> সঠিক উত্তর{" "}
                   <span className="font-semibold">
-                    {LETTERS[q.options.findIndex((o: string) => String(o).trim().toLowerCase() === String(q.answer ?? "").trim().toLowerCase())] ||
-                      q.answer}
+                    {optionLabel(q.prompt, q.options.findIndex((o: string) => String(o).trim().toLowerCase() === String(q.answer ?? "").trim().toLowerCase()))}
                   </span>
                   {" — "}
                   <span className="font-medium">{String(q.answer)}</span>

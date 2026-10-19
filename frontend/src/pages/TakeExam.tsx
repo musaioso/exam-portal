@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
+import { optionLabel } from "../lib/labels";
 import { Card, Button, Input, Textarea } from "../components/ui";
 import { confirmDialog } from "../components/Dialog";
 import { CheckCircle2 } from "lucide-react";
@@ -14,7 +15,7 @@ function shuffleArray<T>(arr: T[]): T[] {
   return copy;
 }
 
-const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 
 export default function TakeExam() {
   const { attemptId } = useParams();
@@ -155,7 +156,7 @@ export default function TakeExam() {
                     <label key={i} className={`flex items-center gap-3 text-sm p-2 rounded-lg cursor-pointer border transition ${active ? "border-indigo-500 bg-indigo-500/10" : "border-transparent hover:bg-ink/5"}`}>
                       <input type="radio" name={q.id} checked={active} onChange={() => saveAnswer(q.id, o)} className="sr-only" />
                       <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-xs ${active ? "border-indigo-400 bg-indigo-500/30 text-indigo-100" : "border-slate-600 text-slate-400"}`}>
-                        {LETTERS[i] || i + 1}
+                        {optionLabel(q.prompt, i)}
                       </span>
                       <span>{o}</span>
                     </label>
