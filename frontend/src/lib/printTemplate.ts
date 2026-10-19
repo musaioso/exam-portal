@@ -428,7 +428,7 @@ export function buildPrintHtml(data: PrintData): string {
         .optmark { display: inline-flex; align-items: center; justify-content: center; width: 1.3em; height: 1.3em; margin-top: 0.12em; border: 1.2px solid #000; border-radius: 50%; font-size: 0.78em; line-height: 1; font-weight: 600; }
         /* The answer key is packed into its own pages (see the renderer), so the
            old break-before/column rules are gone; only the heading remains. */
-        .anshead { font-size: 1.18em; border-bottom: 1.2px solid #000; padding-bottom: 2px; margin: 0 0 1.5mm; break-after: avoid; page-break-after: avoid; }
+        .anshead { font-size: 1.18em; border-bottom: 1.2px solid #000; padding-bottom: 2px; margin: 0 0 1.5mm; break-after: avoid; page-break-after: avoid; overflow-wrap: break-word; }
         .a { font-size: 0.98em; break-inside: avoid; page-break-inside: avoid; margin-bottom: 1.8mm; }
         .ansubj { color: #444; font-size: 0.85em; }
         .exp { font-size: 0.88em; color: #333; margin-left: 4mm; }
@@ -946,7 +946,13 @@ export function buildPrintHtml(data: PrintData): string {
             DATA.groups.forEach(function(gr){ gr.questions.forEach(function(q){ n++; items.push(qHtml(q, n)); }); });
           }
           if (S.showAnswers) {
-            ansFull.push('<h2 class="anshead">Answer Key &amp; Mark Scheme</h2>');
+            /* The key's title mirrors the paper's: same language as the digit
+               style (Bangla papers get উত্তরসূচি) and, when the paper title is
+               shown, the same text after a dash — e.g. "উত্তরসূচি — বাংলা ১ম
+               পত্র". Title switched off on the paper → label only. */
+            var keyLabel = useBn ? 'উত্তরসূচি' : 'Answer Key';
+            var keyTitle = (S.showTitle !== false && S.title) ? ' — ' + String(S.title).trim() : '';
+            ansFull.push('<h2 class="anshead">' + esc(keyLabel + keyTitle) + '</h2>');
             var k = 0;
             DATA.groups.forEach(function(gr){ gr.questions.forEach(function(q){
               k++;
