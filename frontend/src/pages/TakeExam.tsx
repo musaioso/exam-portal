@@ -121,8 +121,14 @@ export default function TakeExam() {
                 key={q.id}
                 type="button"
                 onClick={() => setCurrent(i)}
-                className={`w-5 h-5 rounded text-[10px] flex items-center justify-center transition ${i === current ? "ring-2 ring-indigo-400" : ""} ${isAnswered(q) ? "bg-emerald-500/25 text-emerald-300" : "bg-slate-700/50 text-slate-400"}`}
-                title={isAnswered(q) ? "Answered" : "Not answered"}
+                className={`w-6 h-6 rounded text-[10px] flex items-center justify-center transition font-medium ${
+                  i === current ? "ring-2 ring-indigo-400 ring-offset-1 ring-offset-slate-900" : ""
+                } ${
+                  isAnswered(q)
+                    ? "bg-emerald-500 text-white"
+                    : "bg-amber-500/25 text-amber-300 border border-amber-500/40"
+                }`}
+                title={isAnswered(q) ? "Answered" : "Not answered yet"}
               >
                 {i + 1}
               </button>
