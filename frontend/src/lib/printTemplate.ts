@@ -451,8 +451,26 @@ export function buildPrintHtml(data: PrintData): string {
           .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
           /* Each .pg becomes exactly one physical page: the @page margins frame
              it (screen .pg padding drops out) and a forced break follows, so the
-             packed pages — and their numbers — survive the PDF unchanged. */
-          .pg { width: auto; min-height: 0; height: auto; margin: 0; padding: 0; box-shadow: none; break-after: page; page-break-after: always; }
+             packed pages — and their numbers — survive the PDF unchanged.
+             height: auto let Chrome round each sheet's bottom against the real
+             content height, and a hair of the NEXT sheet previewed at the foot
+             of the previous one — sliced first lines, ikars torn off the lower
+             page. So the box gets the mm-exact printable height (297 minus the
+             chosen margins) minus a sliver: it can never fail to fit its
+             fragmentainer, overflow:hidden paints nothing outside it, and the
+             packer's 3px SLACK keeps real content clear of the clip. */
+          .pg {
+            width: auto; min-height: 0; margin: 0; box-shadow: none;
+            height: calc(297mm - var(--mT, 12mm) - var(--mB, 11mm) - 0.3mm);
+            /* The hairline top pad keeps the first line's ikars (which poke
+               above the line box) clear of the clip edge; box-sizing keeps the
+               sheet height exact, and 0.3mm + 0.4mm stays inside the packer's
+               3px SLACK, so real content is never what gets cut. */
+            padding: 0.4mm 0 0;
+            overflow: hidden;
+            break-inside: avoid; page-break-inside: avoid;
+            break-after: page; page-break-after: always;
+          }
           .pg:last-child { break-after: auto; page-break-after: auto; }
           .pgbr { display: none !important; }
         }
