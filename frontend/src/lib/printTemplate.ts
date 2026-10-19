@@ -417,7 +417,10 @@ export function buildPrintHtml(data: PrintData): string {
         .anspno { font-size: 0.86em; font-weight: 700; color: #444; white-space: nowrap; }
         .options { margin-top: 0.8mm; }
         .options.two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.4mm 4mm; }
-        .options.one-col .opt + .opt { margin-top: 0.4mm; }
+        /* Only an option that wraps in the half-width cell spans both columns
+           (marked by autoOptions); its short neighbours keep pairing two-up,
+           so one long option never pushes the other three onto own rows. */
+        .options.two-col .opt.wide { grid-column: 1 / -1; }
         .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 0.6mm; align-items: start; break-inside: avoid; page-break-inside: avoid; }
         .opttext { overflow-wrap: break-word; }
         /* The bubble scales with the body font, so it stays a comfortable
@@ -816,23 +819,25 @@ export function buildPrintHtml(data: PrintData): string {
           });
           render();
         }
-        /* Option layout, automatic: if any option wraps onto a second line in
-           the two-column grid it drops back to one column, so long Bangla
-           options keep a comfortable measure instead of a cramped one. Runs on
-           the live sheet or on an offscreen measuring box of the same width. */
+        /* Option layout, automatic: options sit two-up; an option whose text
+           wraps in the half-width cell is marked .wide and spans both columns,
+           so a long Bangla option gets a full-width measure while its short
+           neighbours keep pairing — one long option never stacks the whole
+           list into single rows. Runs on the live sheet or on an offscreen
+           measuring box of the same width; marking one option .wide never
+           changes the other cells' width, so each measurement stays valid. */
         function autoOptions(root){
           var lists = (root || paper).querySelectorAll('.options.two-col');
           for (var i = 0; i < lists.length; i++) {
-            var kids = lists[i].children, wraps = false;
+            var kids = lists[i].children;
             for (var j = 0; j < kids.length; j++) {
               var t = kids[j].querySelector ? kids[j].querySelector('.opttext') : null;
               if (!t) continue;
               var cs = window.getComputedStyle(t);
               var lh = parseFloat(cs.lineHeight);
               if (!(lh > 0)) lh = parseFloat(cs.fontSize) * 1.35;
-              if (t.getBoundingClientRect().height > lh * 1.45) { wraps = true; break; }
+              if (t.getBoundingClientRect().height > lh * 1.45) { kids[j].classList.add('wide'); }
             }
-            if (wraps) { lists[i].classList.remove('two-col'); lists[i].classList.add('one-col'); }
           }
         }
         /* ---- Page geometry ---------------------------------------------------
@@ -1370,7 +1375,7 @@ export function buildPrintHtml(data: PrintData): string {
           window.location.reload();
         });
         /* Re-draw once webfonts are ready (Bengali widens option text and can
-           flip two-col options to one-col; packing must use real heights). */
+           mark options .wide; packing must use real heights). */
         if (document.fonts && document.fonts.ready) { document.fonts.ready.then(function(){ render(); }); }
         /* On resize, no need to re-pack (pages are MM-fixed), but the info text
            does not depend on viewport — keep a no-op-free approach; the real
