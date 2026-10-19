@@ -22,6 +22,7 @@ export default function TakeExam() {
 
   const [exam, setExam] = useState<any>(null);
   const [questions, setQuestions] = useState<any[]>([]);
+  const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remaining, setRemaining] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -37,6 +38,7 @@ export default function TakeExam() {
       }
       if (e.exam.shuffle_questions) qs = shuffleArray(qs);
       setQuestions(qs);
+      setCurrent(0);
       setAnswers(a.attempt.answers || {});
       const durationSec = (e.exam.duration_minutes || 0) * 60;
       const startedAt = a.attempt.started_at || Date.now();
@@ -115,26 +117,27 @@ export default function TakeExam() {
           <span>{answeredCount} / {questions.length} answered</span>
           <div className="flex flex-wrap gap-1 max-w-[60%] justify-end">
             {questions.map((q, i) => (
-              <a
+              <button
                 key={q.id}
-                href={`#q-${q.id}`}
-                className={`w-5 h-5 rounded text-[10px] flex items-center justify-center ${isAnswered(q) ? "bg-emerald-500/25 text-emerald-300" : "bg-slate-700/50 text-slate-400"}`}
+                type="button"
+                onClick={() => setCurrent(i)}
+                className={`w-5 h-5 rounded text-[10px] flex items-center justify-center transition ${i === current ? "ring-2 ring-indigo-400" : ""} ${isAnswered(q) ? "bg-emerald-500/25 text-emerald-300" : "bg-slate-700/50 text-slate-400"}`}
                 title={isAnswered(q) ? "Answered" : "Not answered"}
               >
                 {i + 1}
-              </a>
+              </button>
             ))}
           </div>
         </div>
       </Card>
 
-      {questions.map((q, idx) => {
+      {questions.length > 0 && (() => {
+        const q = questions[current];
         const answered = isAnswered(q);
         return (
-          <Card key={q.id} className={`scroll-mt-32 ${answered ? "ring-1 ring-emerald-500/30" : ""}`}>
-            <div id={`q-${q.id}`} className="scroll-mt-32" />
+          <Card className={`${answered ? "ring-1 ring-emerald-500/30" : ""}`}>
             <div className="text-sm font-medium mb-3 flex items-start gap-2">
-              <span className="shrink-0">{idx + 1}.</span>
+              <span className="shrink-0">{current + 1}.</span>
               <span className="flex-1">{q.prompt}</span>
               <span className="text-slate-500 text-xs shrink-0">({q.marks || 1} mark{(q.marks || 1) > 1 ? "s" : ""})</span>
             </div>
@@ -163,9 +166,18 @@ export default function TakeExam() {
             {answered && (
               <div className="mt-2 text-[11px] text-emerald-400 flex items-center gap-1"><CheckCircle2 size={12} /> Saved</div>
             )}
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <Button variant="ghost" disabled={current === 0} onClick={() => setCurrent((c) => Math.max(0, c - 1))}>
+                ← Previous
+              </Button>
+              <span className="text-xs text-slate-400">Question {current + 1} of {questions.length}</span>
+              <Button variant="ghost" disabled={current === questions.length - 1} onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))}>
+                Next →
+              </Button>
+            </div>
           </Card>
         );
-      })}
+      })()}
 
       <div className="flex items-center justify-between sticky bottom-0 py-3 bg-slate-950/60 backdrop-blur rounded-xl px-3">
         <span className="text-xs text-slate-400">{answeredCount}/{questions.length} answered</span>
