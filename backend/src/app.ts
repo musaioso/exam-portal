@@ -6,6 +6,8 @@ import questionsRouter from "./routes/questions";
 import examsRouter from "./routes/exams";
 import usersRouter from "./routes/users";
 import backupRouter from "./routes/backup";
+import aiRouter from "./routes/ai";
+import documentsRouter from "./routes/documents";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
 import { storage, isPersistent, dbLabel, getDb, get } from "./db/database";
@@ -104,6 +106,11 @@ function createApp() {
   app.use("/api/exams", examsRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/backup", backupRouter);
+  // AI question generation (teacher/admin only — each route re-checks the role).
+  app.use("/api/ai", aiRouter);
+  // PDF/text sources for the generator; the router serves at "/" so the mount
+  // point is the whole /api/documents surface.
+  app.use("/api/documents", documentsRouter);
 
   // Me endpoint — this is the profile card a student sees. It deliberately
   // includes their own PIN: they sign in with name + PIN and must be able to

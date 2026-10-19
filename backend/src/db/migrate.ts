@@ -3,7 +3,7 @@ import { getDb, run, all, execScript } from "./database";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "2";
+export const SCHEMA_VERSION = "5";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -110,6 +110,37 @@ CREATE TABLE IF NOT EXISTS app_meta (
   value TEXT
 );
 
+-- Uploaded source books for the AI generator. "content" holds a JSON array of
+-- per-page extracted text (one string per page) so page-range generation can
+-- slice exactly; "char_count" is the total length of all pages joined.
+CREATE TABLE IF NOT EXISTS ai_documents (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  pages INTEGER,
+  char_count INTEGER NOT NULL,
+  content TEXT NOT NULL,
+  uploaded_by TEXT,
+  created_at INTEGER NOT NULL,
+  kind TEXT
+);
+
+-- One row per AI generate call, so teachers can see what has been produced
+-- (and how much was rejected as duplicate/invalid) without re-running anything.
+CREATE TABLE IF NOT EXISTS ai_generations (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  source TEXT NOT NULL,
+  subject_id TEXT,
+  requested INTEGER NOT NULL,
+  produced INTEGER NOT NULL,
+  duplicates INTEGER NOT NULL DEFAULT 0,
+  invalid INTEGER NOT NULL DEFAULT 0,
+  duration_ms INTEGER,
+  created_by TEXT,
+  created_at INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);
 CREATE INDEX IF NOT EXISTS idx_questions_chapter ON questions(chapter_id);
 CREATE INDEX IF NOT EXISTS idx_chapters_subject ON chapters(subject_id);
@@ -131,6 +162,11 @@ export async function migrate() {
   await ensureColumn(db, "exams", "subject_times", "TEXT");
   await ensureColumn(db, "exams", "shuffle_questions", "INTEGER DEFAULT 0");
   await ensureColumn(db, "exams", "shuffle_options", "INTEGER DEFAULT 0");
+  // v5: source uploads now include images ("pdf" | "image"); rows created
+  // before this keep NULL and are treated as PDFs.
+  await ensureColumn(db, "ai_documents", "kind", "TEXT");
+  // Before v5 only PDFs were accepted, so NULL always means "pdf".
+  await run(db, "UPDATE ai_documents SET kind='pdf' WHERE kind IS NULL");
   await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('schema_version', ?)", [SCHEMA_VERSION]);
 }
 
