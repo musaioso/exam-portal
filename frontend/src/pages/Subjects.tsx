@@ -112,6 +112,43 @@ export default function Subjects() {
     }
   };
 
+  const deleteSubjectQuestions = async (sid: string, name: string) => {
+    // Fetch all questions of this subject (all pages) and bulk-delete.
+    const ids: string[] = [];
+    let page = 1;
+    while (true) {
+      const params = new URLSearchParams();
+      params.set("subject_id", sid);
+      params.set("pageSize", "500");
+      params.set("page", String(page));
+      const { data } = await api.get(`/questions?${params.toString()}`);
+      const rows = data.questions || [];
+      ids.push(...rows.map((q: any) => q.id));
+      if (rows.length < 500 || ids.length >= (data.total ?? 0)) break;
+      page++;
+    }
+    if (ids.length === 0) {
+      setError(`No questions found for ${name}.`);
+      return;
+    }
+    const ok = await confirmDialog({
+      title: `Delete all ${ids.length} questions of "${name}"?`,
+      message: "This can't be undone. Exams using these questions will be updated automatically.",
+      confirmLabel: "Delete all",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setError(null);
+    try {
+      await api.post("/questions/bulk-delete", { ids });
+      await loadSubjects();
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const message = e?.response?.data?.error || e?.message || "Failed to delete questions";
+      setError(status ? `${message} (HTTP ${status})` : message);
+    }
+  };
+
   const addChapter = async (sid: string) => {
     setError(null);
     const current = newCh[sid] || { number: 1, title: "", title_bn: "" };
@@ -295,6 +332,13 @@ export default function Subjects() {
                   </div>
                 ))}
                 {!(chapters[s.id]?.length) && <div className="text-xs text-slate-500">No chapters yet.</div>}
+                {canManage && (
+                  <div className="pt-2">
+                    <Button variant="danger" onClick={() => deleteSubjectQuestions(s.id, s.name)}>
+                      <Trash2 size={14} /> Delete all questions of this subject
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </Card>
