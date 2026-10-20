@@ -409,6 +409,9 @@ export default function Questions() {
           </Field>
           <Button variant="ghost" onClick={() => { setSelectedSubject(""); setSelectedChapter(""); setFilterType(""); setFilterDifficulty(""); setSearchQuery(""); }}>Clear</Button>
         </div>
+        <div className="mt-2 text-xs text-slate-400">
+          {total} question{total === 1 ? "" : "s"} match{total === 1 ? "es" : ""} these filters.
+        </div>
       </Card>
 
       {dupeGroups !== null && (
