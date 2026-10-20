@@ -94,7 +94,7 @@ router.get("/export", async (req: Request, res: Response) => {
 
 router.get("/", async (req: Request, res: Response) => {
   const db = await getDb();
-  const { subject_id, subject_ids, chapter_id, type, difficulty, q, search, limit, offset, page, pageSize } = req.query as any;
+  const { subject_id, subject_ids, chapter_id, type, difficulty, q, search, limit, offset, page, pageSize, answer_quality } = req.query as any;
   let sql = "SELECT * FROM questions WHERE 1=1";
   const params: any[] = [];
   if (subject_ids) {
@@ -114,6 +114,17 @@ router.get("/", async (req: Request, res: Response) => {
   }
   if (type) { sql += " AND type=?"; params.push(type); }
   if (difficulty) { sql += " AND difficulty=?"; params.push(difficulty); }
+  // Flag questions whose answer is a placeholder/OCR artifact (e.g. "পাঠ্যবইয়ের সুনির্দিষ্ট উত্তর")
+  // instead of a real answer. Patterns are matched case-insensitively.
+  const PLACEHOLDER_PATTERNS = ["পাঠ্যবই"];
+  if (answer_quality === "placeholder") {
+    sql += " AND (" + PLACEHOLDER_PATTERNS.map(() => "LOWER(answer) LIKE ?").join(" OR ") + ")";
+    for (const p of PLACEHOLDER_PATTERNS) params.push(`%${p.toLowerCase()}%`);
+  } else if (answer_quality === "real") {
+    sql += " AND answer IS NOT NULL AND answer <> ''";
+    for (const p of PLACEHOLDER_PATTERNS) sql += " AND LOWER(answer) NOT LIKE ?";
+    for (const p of PLACEHOLDER_PATTERNS) params.push(`%${p.toLowerCase()}%`);
+  }
   const term = (q || search || "").toString().trim();
   if (term) { sql += " AND (prompt LIKE ? OR answer LIKE ?)"; params.push(`%${term}%`, `%${term}%`); }
 

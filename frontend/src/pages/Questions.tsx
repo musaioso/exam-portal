@@ -159,7 +159,7 @@ export default function Questions() {
 
   const isPlaceholder = (a: any) => {
     const s = String(a || "").toLowerCase();
-    return ["পাঠ্যবই", "সুনির্দিষ্ট", "সুনির্ধারিত", "নির্ধারিত", "textbook"].some((p) => s.includes(p.toLowerCase()));
+    return ["পাঠ্যবই"].some((p) => s.includes(p.toLowerCase()));
   };
 
   const undoImport = async () => {
