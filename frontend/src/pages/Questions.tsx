@@ -57,17 +57,39 @@ export default function Questions() {
   const importJson = async (file: File) => {
     try {
       const text = await file.text();
-      const payload = JSON.parse(text);
-      const { data } = await api.post("/questions/bulk-import", payload);
-      const failed = data.failed ?? 0;
-      const skipped = data.skipped ?? 0;
-      let msg = `Import complete: imported ${data.imported ?? 0}, skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}, failed ${failed}`;
-      if (failed > 0 && Array.isArray(data.errors) && data.errors.length) {
-        const details = data.errors.slice(0, 8).map((e: any) => `• row ${e.index + 1}: ${e.error}`).join("\n");
-        msg += `\n\n${details}` + (data.errors.length > 8 ? `\n…and ${data.errors.length - 8} more` : "");
+      const parsed = JSON.parse(text);
+      // Accept both a single batch object ({ questions: [...] }) and an array of
+      // batches ([{ subject_slug, chapter_title, questions: [...] }, ...]).
+      const batches: any[] = Array.isArray(parsed) ? parsed : [parsed];
+      if (batches.length === 0 || batches.some((b) => !Array.isArray(b?.questions) || b.questions.length === 0)) {
+        await alertDialog({ title: "Import failed", message: "The file must contain at least one question (a \"questions\" array)." });
+        return;
+      }
+      let imported = 0, skipped = 0, failed = 0;
+      const allErrors: any[] = [];
+      for (let bi = 0; bi < batches.length; bi++) {
+        const batch = batches[bi];
+        try {
+          const { data } = await api.post("/questions/bulk-import", batch);
+          imported += data.imported ?? 0;
+          skipped += data.skipped ?? 0;
+          failed += data.failed ?? 0;
+          if (Array.isArray(data.errors)) allErrors.push(...data.errors);
+        } catch (e: any) {
+          // A whole batch failed (e.g. bad subject slug) — record and continue.
+          failed += (batch.questions || []).length;
+          allErrors.push({ index: bi, error: e?.response?.data?.error || e?.message || "batch failed" });
+        }
+      }
+      const failed2 = failed;
+      let msg = `Import complete: imported ${imported}, skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}, failed ${failed2}`;
+      if (failed2 > 0 && allErrors.length) {
+        const details = allErrors.slice(0, 8).map((e: any) => `• batch/row ${ (e.index ?? "?") + 1 }: ${e.error}`).join("\n");
+        msg += `\n\n${details}` + (allErrors.length > 8 ? `\n…and ${allErrors.length - 8} more` : "");
       }
       await alertDialog({ title: "Import result", message: msg });
       loadQuestions();
+      if (dupeGroups !== null) scanDuplicates();
     } catch (e: any) {
       await alertDialog({
         title: "Import failed",
