@@ -3,7 +3,7 @@ import { getDb, run, all, execScript } from "./database";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "6";
+export const SCHEMA_VERSION = "8";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS exams (
   subject_times TEXT,
   shuffle_questions INTEGER DEFAULT 0,
   shuffle_options INTEGER DEFAULT 0,
+  shuffle_seed INTEGER,
   created_by TEXT NOT NULL,
   is_published INTEGER DEFAULT 0,
   created_at INTEGER NOT NULL,
@@ -162,6 +163,12 @@ export async function migrate() {
   await ensureColumn(db, "exams", "subject_times", "TEXT");
   await ensureColumn(db, "exams", "shuffle_questions", "INTEGER DEFAULT 0");
   await ensureColumn(db, "exams", "shuffle_options", "INTEGER DEFAULT 0");
+  // v7: deterministic shuffle seed so a printed paper, the exam record and the
+  // answer key all agree on question/option order (no re-shuffle on print).
+  await ensureColumn(db, "exams", "shuffle_seed", "INTEGER");
+  // v8: backfill a deterministic seed for exams that already have shuffling on
+  // but no seed yet, so take-exam/print/review all agree on one order.
+  await run(db, "UPDATE exams SET shuffle_seed = (abs(random()) % 2147483647) WHERE (shuffle_questions=1 OR shuffle_options=1) AND shuffle_seed IS NULL");
   // v5: source uploads now include images ("pdf" | "image"); rows created
   // before this keep NULL and are treated as PDFs.
   await ensureColumn(db, "ai_documents", "kind", "TEXT");

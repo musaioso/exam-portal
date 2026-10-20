@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { optionLabel } from "../lib/labels";
+import { seededShuffle, questionSeed } from "../lib/shuffle";
 import { Card, Button, Input, Textarea } from "../components/ui";
 import { confirmDialog } from "../components/Dialog";
 import { CheckCircle2 } from "lucide-react";
@@ -34,10 +35,14 @@ export default function TakeExam() {
       const { data: e } = await api.get(`/exams/${a.attempt.exam_id}`);
       setExam(e.exam);
       let qs: any[] = e.questions || [];
-      if (e.exam.shuffle_options) {
+      const seed = e.exam.shuffle_seed;
+      if (seed != null && e.exam.shuffle_options) {
+        qs = qs.map((q: any) => ({ ...q, options: Array.isArray(q.options) ? seededShuffle(q.options, questionSeed(seed, q.id)) : q.options }));
+      } else if (e.exam.shuffle_options) {
         qs = qs.map((q: any) => ({ ...q, options: Array.isArray(q.options) ? shuffleArray(q.options) : q.options }));
       }
-      if (e.exam.shuffle_questions) qs = shuffleArray(qs);
+      if (seed != null && e.exam.shuffle_questions) qs = seededShuffle(qs, seed);
+      else if (e.exam.shuffle_questions) qs = shuffleArray(qs);
       setQuestions(qs);
       setCurrent(0);
       setAnswers(a.attempt.answers || {});

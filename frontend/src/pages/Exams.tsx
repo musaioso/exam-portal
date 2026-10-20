@@ -25,6 +25,7 @@ const emptyForm = {
   question_ids: [] as string[],
   shuffle_questions: true,
   shuffle_options: true,
+  shuffle_seed: null as number | null,
 };
 
 /** One numbered block of the exam builder. Keeps the long form scannable. */
@@ -305,6 +306,7 @@ export default function Exams() {
       question_ids: Array.isArray(e.question_ids) ? [...e.question_ids] : [],
       shuffle_questions: !!e.shuffle_questions,
       shuffle_options: !!e.shuffle_options,
+      shuffle_seed: e.shuffle_seed ?? null,
     });
     setSubjectTimes(t);
     setBlueprint({ mcq: 0, short: 0, long: 0, difficulty: "" });
@@ -313,8 +315,8 @@ export default function Exams() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const save = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (issues.length) {
       await alertDialog({ title: "Almost there", message: `This paper still needs ${issues.join(", ")}.` });
       return;
@@ -330,6 +332,7 @@ export default function Exams() {
       duration_minutes: anyTimes ? times.reduce((s, t) => s + t.minutes, 0) : form.duration_minutes,
       shuffle_questions: form.shuffle_questions,
       shuffle_options: form.shuffle_options,
+      shuffle_seed: form.shuffle_seed ?? undefined,
     };
     const wasEditing = editingId;
     let savedId: string | null = editingId;
@@ -487,6 +490,15 @@ export default function Exams() {
               <div className="flex flex-wrap gap-2 pt-1">
                 <TogglePill checked={form.shuffle_questions} onChange={v => setForm({ ...form, shuffle_questions: v })}>Shuffle question order</TogglePill>
                 <TogglePill checked={form.shuffle_options} onChange={v => setForm({ ...form, shuffle_options: v })}>Shuffle options</TogglePill>
+                {form.shuffle_questions || form.shuffle_options ? (
+                  editingId ? (
+                    <Button type="button" variant="ghost" onClick={() => { setForm({ ...form, shuffle_seed: null }); void save(); }}>
+                      <RotateCcw size={14} /> Re-shuffle now
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-slate-500">Shuffle will be applied when you save.</span>
+                  )
+                ) : null}
               </div>
             </FormSection>
 

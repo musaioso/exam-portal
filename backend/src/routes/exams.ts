@@ -117,7 +117,7 @@ router.get("/:id", requireAuth, async (req, res) => {
 });
 
 router.post("/", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
-  const { title, subject_id, subject_ids, subject_times, chapter_ids, question_ids, duration_minutes, shuffle_questions, shuffle_options } = req.body || {};
+  const { title, subject_id, subject_ids, subject_times, chapter_ids, question_ids, duration_minutes, shuffle_questions, shuffle_options, shuffle_seed } = req.body || {};
   const subjList: string[] = Array.isArray(subject_ids) && subject_ids.length > 0
     ? subject_ids
     : [subject_id].filter(Boolean);
@@ -135,18 +135,22 @@ router.post("/", requireAuth, requireRole("admin", "teacher"), async (req: Reque
     ? times.reduce((s, t) => s + t.minutes, 0) || Number(duration_minutes) || 30
     : Number(duration_minutes) || 30;
   const id = uuid();
-  await run(db, `INSERT INTO exams (id,title,subject_id,subject_ids,subject_times,chapter_ids,question_ids,duration_minutes,total_marks,shuffle_questions,shuffle_options,created_by,is_published,created_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  const wantShuffle = !!(shuffle_questions || shuffle_options);
+  const seed = wantShuffle
+    ? (typeof shuffle_seed === "number" ? shuffle_seed : Math.floor(Math.random() * 2147483647))
+    : null;
+  await run(db, `INSERT INTO exams (id,title,subject_id,subject_ids,subject_times,chapter_ids,question_ids,duration_minutes,total_marks,shuffle_questions,shuffle_options,shuffle_seed,created_by,is_published,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [id, title, subjList[0], JSON.stringify(subjList), JSON.stringify(times), JSON.stringify(chapter_ids || []), JSON.stringify(question_ids),
-      duration, total, shuffle_questions ? 1 : 0, shuffle_options ? 1 : 0, req.user!.id, 0, Date.now()]);
-  res.json({ exam: { id, total_marks: total } });
+      duration, total, shuffle_questions ? 1 : 0, shuffle_options ? 1 : 0, seed, req.user!.id, 0, Date.now()]);
+  res.json({ exam: { id, total_marks: total, shuffle_seed: seed } });
 });
 
 router.put("/:id", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const db = await getDb();
   const existing = await get(db, "SELECT * FROM exams WHERE id=?", [req.params.id]) as any;
   if (!existing) return res.status(404).json({ error: "Not found" });
-  const { title, subject_id, subject_ids, subject_times, chapter_ids, question_ids, duration_minutes, shuffle_questions, shuffle_options } = req.body || {};
+  const { title, subject_id, subject_ids, subject_times, chapter_ids, question_ids, duration_minutes, shuffle_questions, shuffle_options, shuffle_seed } = req.body || {};
   const subjList: string[] = Array.isArray(subject_ids) && subject_ids.length > 0
     ? subject_ids
     : [subject_id || existing.subject_id].filter(Boolean);
@@ -161,11 +165,19 @@ router.put("/:id", requireAuth, requireRole("admin", "teacher"), async (req: Req
   const duration = times.length > 0
     ? times.reduce((s, t) => s + t.minutes, 0) || Number(duration_minutes) || existing.duration_minutes || 30
     : Number(duration_minutes) || existing.duration_minutes || 30;
+  const wantShuffle = !!(shuffle_questions || shuffle_options);
+  let seed: number | null = null;
+  if (wantShuffle) {
+    if (shuffle_seed === null) seed = Math.floor(Math.random() * 2147483647); // regenerate
+    else if (typeof shuffle_seed === "number") seed = shuffle_seed;
+    else if (existing.shuffle_seed != null) seed = existing.shuffle_seed; // keep
+    else seed = Math.floor(Math.random() * 2147483647);
+  }
   await run(db, `UPDATE exams SET title=?, subject_id=?, subject_ids=?, subject_times=?, chapter_ids=?, question_ids=?,
-      duration_minutes=?, total_marks=?, shuffle_questions=?, shuffle_options=? WHERE id=?`,
+      duration_minutes=?, total_marks=?, shuffle_questions=?, shuffle_options=?, shuffle_seed=? WHERE id=?`,
     [title, subjList[0], JSON.stringify(subjList), JSON.stringify(times), JSON.stringify(chapter_ids || existing.chapter_ids || []),
-      JSON.stringify(question_ids), duration, total, shuffle_questions ? 1 : 0, shuffle_options ? 1 : 0, req.params.id]);
-  res.json({ exam: { id: req.params.id, total_marks: total } });
+      JSON.stringify(question_ids), duration, total, shuffle_questions ? 1 : 0, shuffle_options ? 1 : 0, seed, req.params.id]);
+  res.json({ exam: { id: req.params.id, total_marks: total, shuffle_seed: seed } });
 });
 
 router.put("/:id/publish", requireAuth, requireRole("admin", "teacher"), async (req, res) => {
