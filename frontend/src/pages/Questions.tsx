@@ -36,6 +36,7 @@ export default function Questions() {
   const [selectedChapter, setSelectedChapter] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterDifficulty, setFilterDifficulty] = useState("");
+  const [filterAnswerQuality, setFilterAnswerQuality] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [questions, setQuestions] = useState<any[]>([]);
   const [form, setForm] = useState<any>(empty);
@@ -122,6 +123,7 @@ export default function Questions() {
     if (selectedChapter) params.set("chapter_id", selectedChapter);
     if (filterType) params.set("type", filterType);
     if (filterDifficulty) params.set("difficulty", filterDifficulty);
+    if (filterAnswerQuality) params.set("answer_quality", filterAnswerQuality);
     if (searchQuery.trim()) params.set("q", searchQuery.trim());
     params.set("pageSize", String(PAGE_SIZE));
     params.set("page", String(page));
@@ -132,8 +134,8 @@ export default function Questions() {
     // If the current page is now empty (e.g. after a delete), step back.
     if ((data.questions?.length ?? 0) === 0 && page > 1) setPage((p) => p - 1);
   };
-  useEffect(() => { setPage(1); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, searchQuery]);
-  useEffect(() => { loadQuestions(); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, searchQuery, page]);
+  useEffect(() => { setPage(1); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, filterAnswerQuality, searchQuery]);
+  useEffect(() => { loadQuestions(); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, filterAnswerQuality, searchQuery, page]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -155,7 +157,10 @@ export default function Questions() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showForm, dupeGroups, selected.length]);
 
-  const reset = () => { setForm(empty); setEditing(null); setShowForm(false); };
+  const isPlaceholder = (a: any) => {
+    const s = String(a || "").toLowerCase();
+    return ["পাঠ্যবই", "সুনির্দিষ্ট", "সুনির্ধারিত", "নির্ধারিত", "textbook"].some((p) => s.includes(p.toLowerCase()));
+  };
 
   const undoImport = async () => {
     if (!lastBatchId) return;
@@ -238,6 +243,8 @@ export default function Questions() {
     setEditing(q.id); setShowForm(true);
   };
 
+  const reset = () => { setForm(empty); setEditing(null); setShowForm(false); };
+
   const del = async (q: any) => {
     const ok = await confirmDialog({
       title: "Delete this question?",
@@ -281,6 +288,44 @@ export default function Questions() {
   const selectAll = () => setSelected(questions.map((q) => q.id));
   const clearSelection = () => setSelected([]);
 
+  const deleteAllPlaceholders = async () => {
+    // Fetch every placeholder-answer question (all pages) so we can delete them in one go.
+    const ids: string[] = [];
+    let page = 1;
+    while (true) {
+      const params = new URLSearchParams();
+      params.set("answer_quality", "placeholder");
+      params.set("pageSize", "500");
+      params.set("page", String(page));
+      if (selectedSubject) params.set("subject_id", selectedSubject);
+      if (selectedChapter) params.set("chapter_id", selectedChapter);
+      const { data } = await api.get(`/questions?${params.toString()}`);
+      const rows = data.questions || [];
+      ids.push(...rows.map((q: any) => q.id));
+      if (rows.length < 500 || ids.length >= (data.total ?? 0)) break;
+      page++;
+    }
+    if (ids.length === 0) {
+      await alertDialog({ title: "Nothing to delete", message: "No placeholder-answer questions found." });
+      return;
+    }
+    const ok = await confirmDialog({
+      title: `Delete ${ids.length} placeholder-answer question${ids.length > 1 ? "s" : ""}?`,
+      message: "These have answers like \"পাঠ্যবইয়ের সুনির্দিষ্ট উত্তর\". This can't be undone.",
+      confirmLabel: "Delete all",
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      const { data } = await api.post("/questions/bulk-delete", { ids });
+      toast.success(`Deleted ${data.deleted ?? ids.length} placeholder-answer questions.`);
+      setFilterAnswerQuality("");
+      loadQuestions();
+      if (dupeGroups !== null) scanDuplicates();
+    } catch (e: any) {
+      await alertDialog({ title: "Could not delete", message: errorMessage(e, "Nothing was deleted.") });
+    }
+  };
   const deleteSelected = async () => {
     if (selected.length === 0) return;
     const ok = await confirmDialog({
@@ -370,6 +415,11 @@ export default function Questions() {
               <Trash2 size={16} /> Delete selected ({selected.length})
             </Button>
           )}
+          {filterAnswerQuality === "placeholder" && questions.length > 0 && (
+            <Button variant="danger" onClick={deleteAllPlaceholders}>
+              <Trash2 size={16} /> Delete all placeholders ({total})
+            </Button>
+          )}
           <Button onClick={() => { reset(); setShowForm(true); }}><Plus size={16}/> New Question</Button>
         </div>
       </div>
@@ -402,6 +452,13 @@ export default function Questions() {
               <option value="easy">Easy</option>
               <option value="medium">Medium</option>
               <option value="hard">Hard</option>
+            </Select>
+          </Field>
+          <Field label="Answer">
+            <Select value={filterAnswerQuality} onChange={e => setFilterAnswerQuality(e.target.value)}>
+              <option value="">All answers</option>
+              <option value="real">Has real answer</option>
+              <option value="placeholder">Placeholder (পাঠ্যবই...)</option>
             </Select>
           </Field>
           <Field label="Search">
@@ -605,6 +662,9 @@ export default function Questions() {
                       <div className="flex items-center gap-2 mb-1">
                         <Badge>{q.type.toUpperCase()}</Badge>
                         <Badge className="bg-slate-700/40 text-slate-300 border-slate-600">{q.difficulty}</Badge>
+                        {isPlaceholder(q.answer) && (
+                          <Badge className="border-amber-500/40 bg-amber-500/15 text-amber-300">placeholder answer</Badge>
+                        )}
                         <span className="text-xs text-slate-500">{sub?.name} · {q.marks} mark(s)</span>
                       </div>
                       <div className="text-sm">{q.prompt}</div>
