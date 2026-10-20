@@ -13,6 +13,7 @@ const PUNCTUATION = /[?!.,;:"'`।॥\-_/\\()[\]{}*#+=~|@$%^&<>]/g;
 
 export function normalizeText(input: unknown): string {
   return String(input ?? "")
+    .normalize("NFC")  // merge composed/decomposed Bangla forms (য় vs য+়)
     .replace(/[০-৯]/g, (d) => String(BN_DIGITS.indexOf(d)))
     .replace(/[\u2018\u2019\u201B]/g, "'")
     .replace(/[\u201C\u201D]/g, '"')
