@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { parseOptions, PREVIEW_STORAGE_KEY, readPrintPrefs, writePrintPrefs, type PrintData } from "../lib/printTemplate";
+import { seededShuffle, questionSeed } from "../lib/shuffle";
 import { Card, Button, Select, Field, Input, NumberInput, Textarea } from "../components/ui";
 import { Printer, FileText } from "lucide-react";
 
@@ -135,11 +136,12 @@ export default function Print() {
   const clearSelection = () => setSelected([]);
 
   const buildPrint = () => {
-    const ordered = shuffleQuestions ? shuffleArray(orderedSelected) : orderedSelected;
+    const seed = exam?.shuffle_seed ?? Math.floor(Math.random() * 2147483647);
+    const ordered = shuffleQuestions ? seededShuffle(orderedSelected, seed) : orderedSelected;
     const mkQ = (q: any) => ({
       prompt: q.prompt,
       type: q.type,
-      options: shuffleOptions ? shuffleArray(parseOptions(q)) : parseOptions(q),
+      options: shuffleOptions ? seededShuffle(parseOptions(q), questionSeed(seed, q.id)) : parseOptions(q),
       marks: q.marks || 1,
       answer: q.answer || "",
       explanation: q.explanation || "",
