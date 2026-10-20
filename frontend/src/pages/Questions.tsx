@@ -326,6 +326,47 @@ export default function Questions() {
       await alertDialog({ title: "Could not delete", message: errorMessage(e, "Nothing was deleted.") });
     }
   };
+  const deleteAllFiltered = async () => {
+    const ids: string[] = [];
+    let page = 1;
+    while (true) {
+      const params = new URLSearchParams();
+      if (selectedSubject) params.set("subject_id", selectedSubject);
+      if (selectedChapter) params.set("chapter_id", selectedChapter);
+      if (filterType) params.set("type", filterType);
+      if (filterDifficulty) params.set("difficulty", filterDifficulty);
+      if (filterAnswerQuality) params.set("answer_quality", filterAnswerQuality);
+      if (searchQuery.trim()) params.set("q", searchQuery.trim());
+      params.set("pageSize", "500");
+      params.set("page", String(page));
+      const { data } = await api.get(`/questions?${params.toString()}`);
+      const rows = data.questions || [];
+      ids.push(...rows.map((q: any) => q.id));
+      if (rows.length < 500 || ids.length >= (data.total ?? 0)) break;
+      page++;
+    }
+    if (ids.length === 0) {
+      await alertDialog({ title: "Nothing to delete", message: "No questions match the current filters." });
+      return;
+    }
+    const ok = await confirmDialog({
+      title: `Delete all ${ids.length} matching question${ids.length > 1 ? "s" : ""}?`,
+      message: "This deletes every question matching the current filters (all pages). This can't be undone.",
+      confirmLabel: "Delete all",
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      const { data } = await api.post("/questions/bulk-delete", { ids });
+      toast.success(`Deleted ${data.deleted ?? ids.length} questions.`);
+      setSelected([]);
+      loadQuestions();
+      if (dupeGroups !== null) scanDuplicates();
+    } catch (e: any) {
+      await alertDialog({ title: "Could not delete", message: errorMessage(e, "Nothing was deleted.") });
+    }
+  };
+
   const deleteSelected = async () => {
     if (selected.length === 0) return;
     const ok = await confirmDialog({
@@ -418,6 +459,11 @@ export default function Questions() {
           {filterAnswerQuality === "placeholder" && questions.length > 0 && (
             <Button variant="danger" onClick={deleteAllPlaceholders}>
               <Trash2 size={16} /> Delete all placeholders ({total})
+            </Button>
+          )}
+          {total > 0 && (
+            <Button variant="danger" onClick={deleteAllFiltered}>
+              <Trash2 size={16} /> Delete all ({total})
             </Button>
           )}
           <Button onClick={() => { reset(); setShowForm(true); }}><Plus size={16}/> New Question</Button>
