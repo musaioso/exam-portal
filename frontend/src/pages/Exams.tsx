@@ -23,8 +23,8 @@ const emptyForm = {
   subjectIds: [] as string[],
   duration_minutes: 30,
   question_ids: [] as string[],
-  shuffle_questions: false,
-  shuffle_options: false,
+  shuffle_questions: true,
+  shuffle_options: true,
 };
 
 /** One numbered block of the exam builder. Keeps the long form scannable. */

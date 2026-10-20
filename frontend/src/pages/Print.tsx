@@ -35,6 +35,8 @@ export default function Print() {
   const [includeMarks, setIncludeMarks] = useState(() => prefs.showMarks !== false);
   const [showInstructions, setShowInstructions] = useState(() => prefs.showInstructions !== false);
   const [instructions, setInstructions] = useState(() => prefs.instructions || "Answer all questions. Marks are shown on the right side.");
+  const [shuffleQuestions, setShuffleQuestions] = useState(true);
+  const [shuffleOptions, setShuffleOptions] = useState(true);
 
   // Remember these as this device's defaults (merged with whatever the preview
   // saved) so the next paper starts from the same setup.
@@ -71,6 +73,8 @@ export default function Print() {
       setTitle(e.title || "Question Paper");
       setTime(e.duration_minutes || 30);
       setSelected(Array.isArray(e.question_ids) ? e.question_ids : []);
+      setShuffleQuestions(e.shuffle_questions !== false);
+      setShuffleOptions(e.shuffle_options !== false);
     }).catch(() => setExam(null));
     const next = new URLSearchParams(params);
     next.set("exam", examId);
@@ -131,10 +135,11 @@ export default function Print() {
   const clearSelection = () => setSelected([]);
 
   const buildPrint = () => {
+    const ordered = shuffleQuestions ? shuffleArray(orderedSelected) : orderedSelected;
     const mkQ = (q: any) => ({
       prompt: q.prompt,
       type: q.type,
-      options: parseOptions(q),
+      options: shuffleOptions ? shuffleArray(parseOptions(q)) : parseOptions(q),
       marks: q.marks || 1,
       answer: q.answer || "",
       explanation: q.explanation || "",
@@ -151,9 +156,9 @@ export default function Print() {
 
     const groups = (groupBySubject && isMultiSubject)
       ? printedSubjects
-          .map(sid => ({ name: subjectName(sid), time: subjectTimeMap[sid] || 0, questions: orderedSelected.filter(q => q.subject_id === sid).map(mkQ) }))
+          .map(sid => ({ name: subjectName(sid), time: subjectTimeMap[sid] || 0, questions: ordered.filter((q: any) => q.subject_id === sid).map(mkQ) }))
           .filter(g => g.questions.length)
-      : [{ name: subjectLine, time: 0, questions: orderedSelected.map(mkQ) }];
+      : [{ name: subjectLine, time: 0, questions: ordered.map(mkQ) }];
 
     const data: PrintData = {
       subjectLine, time, perSubjectTime, totalMarks,
@@ -205,7 +210,7 @@ export default function Print() {
           </button>
           <button
             type="button"
-            onClick={() => { setMode("manual"); setExam(null); setSelected([]); setTitle("Question Paper"); }}
+            onClick={() => { setMode("manual"); setExam(null); setSelected([]); setTitle("Question Paper"); setShuffleQuestions(true); setShuffleOptions(true); }}
             className={`px-3 py-1.5 rounded-xl border ${mode === "manual" ? "border-indigo-500 bg-indigo-500/15 text-indigo-200" : "border-slate-700 text-slate-300 hover:bg-ink/5"}`}
           >
             Pick questions manually
@@ -276,6 +281,12 @@ export default function Print() {
               </Select>
             </Field>
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={shuffleQuestions} onChange={e => setShuffleQuestions(e.target.checked)} /> Shuffle question order (auto)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={shuffleOptions} onChange={e => setShuffleOptions(e.target.checked)} /> Shuffle option order (auto)
+          </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={groupBySubject} onChange={e => setGroupBySubject(e.target.checked)} /> Group by subject (multi-subject)
           </label>
