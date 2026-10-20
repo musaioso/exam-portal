@@ -1481,6 +1481,15 @@ export function buildPrintHtml(data: PrintData): string {
         granularStepper('om-minus', 'om-plus', 'f-om', 0.1);
         granularStepper('omfs-minus', 'omfs-plus', 'f-omfs', 0.05);
         granularStepper('otfs-minus', 'otfs-plus', 'f-otfs', 0.05);
+        // Per-control visibility: controls that only affect the paper (or only
+        // the answer key) are hidden when the other target is selected.
+        var PAPER_ONLY = ['f-school','f-title','f-date','dateTodayBtn','dateCalBtn','f-cols','f-header','t-name','t-school','t-title','t-subject','t-time','t-marks','t-rollclass','t-runningtitle','f-marks','f-instr','f-instrtext','f-group','f-breaks','f-labels','f-num','f-qpgno','f-qgap','f-cgap','f-om','f-omfs','f-omalign','f-otfs','f-optgap','f-qnogap','f-optvgap','f-opthgap','f-hschoolw','f-hschoolc','f-htitlew','f-htitlec','f-hsubjectw','f-hsubjectc','f-sectionw','f-sectionc','shuffleBtn','shuffleQBtn','f-fs','f-font','f-lh','m-top','m-right','m-bottom','m-left'];
+        var ANS_ONLY = ['f-anscols','f-answers','f-exp','f-ansheadw','f-ansheadc'];
+        function hideEl(id, visible){ var el = document.getElementById(id); if (!el) return; var box = el.parentElement; if (box && box !== document.querySelector('.settings') && box.querySelectorAll('input,select,button,textarea').length <= 4) { box.style.display = visible ? '' : 'none'; } else { el.style.display = visible ? '' : 'none'; var prev = el.previousElementSibling; if (prev && prev.tagName === 'LABEL') prev.style.display = visible ? '' : 'none'; } }
+        function applyTargetUI(){ var t = S.target || 'paper'; var sectTargets = { 'Header items': ['paper','both'], 'Page numbers': ['paper','both'], 'Granular (circle, option, gap)': ['paper','both'] }; var secs = document.querySelectorAll('.sect'); secs.forEach(function(sec){ var title = (sec.textContent || '').trim(); var applicable = sectTargets[title]; var visible = !applicable || applicable.indexOf(t) !== -1; sec.style.display = visible ? '' : 'none'; var sib = sec.nextElementSibling; while (sib && !sib.classList.contains('sect') && sib.id !== 'printBtn'){ sib.style.display = visible ? '' : 'none'; sib = sib.nextElementSibling; } }); PAPER_ONLY.forEach(function(id){ hideEl(id, t !== 'ans'); }); ANS_ONLY.forEach(function(id){ hideEl(id, t !== 'paper'); }); var pb = document.getElementById('printBtn'); if (pb) pb.style.display = ''; }
+        var tgtEl = document.getElementById('f-target');
+        if (tgtEl) { var tgtH = function(){ S.target = tgtEl.value; applyTargetUI(); pushVar('target'); scheduleRender(); savePrefs(); }; tgtEl.addEventListener('input', tgtH); tgtEl.addEventListener('change', tgtH); }
+        applyTargetUI();
         bind('f-labels', 'labelStyle', 'sel');
         bind('f-num', 'numStyle', 'sel');
         bind('f-header', 'showHeader', 'bool');
