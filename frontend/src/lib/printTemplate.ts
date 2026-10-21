@@ -620,43 +620,6 @@ export function buildPrintHtml(data: PrintData): string {
             <div><label>Answer key text weight</label><select id="f-answ"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
             <div><label>Answer key text color</label><input type="text" id="f-ansc" placeholder="#000"></div>
           </div>
-          <div class="sect">More typography &amp; sizing</div>
-          <div class="grid2">
-            <div><label>Question number size (em)</label><div class="stepper"><button type="button" class="step" id="qnofs-minus">&minus;</button><input type="number" id="f-qnofs" min="0.7" max="1.6" step="0.05"><button type="button" class="step" id="qnofs-plus">+</button></div></div>
-            <div><label>Question text size (em)</label><div class="stepper"><button type="button" class="step" id="qfs-minus">&minus;</button><input type="number" id="f-qfs" min="0.7" max="1.6" step="0.05"><button type="button" class="step" id="qfs-plus">+</button></div></div>
-          </div>
-          <div class="grid2">
-            <div><label>Marks size (em)</label><div class="stepper"><button type="button" class="step" id="qmarkfs-minus">&minus;</button><input type="number" id="f-qmarkfs" min="0.6" max="1.2" step="0.05"><button type="button" class="step" id="qmarkfs-plus">+</button></div></div>
-            <div><label>Section heading size (em)</label><div class="stepper"><button type="button" class="step" id="sectionfs-minus">&minus;</button><input type="number" id="f-sectionfs" min="0.9" max="1.6" step="0.05"><button type="button" class="step" id="sectionfs-plus">+</button></div></div>
-          </div>
-          <div class="grid2">
-            <div><label>Answer key text size (em)</label><div class="stepper"><button type="button" class="step" id="ansfs-minus">&minus;</button><input type="number" id="f-ansfs" min="0.7" max="1.4" step="0.05"><button type="button" class="step" id="ansfs-plus">+</button></div></div>
-            <div><label>Explanation size (em)</label><div class="stepper"><button type="button" class="step" id="expfs-minus">&minus;</button><input type="number" id="f-expfs" min="0.7" max="1.2" step="0.05"><button type="button" class="step" id="expfs-plus">+</button></div></div>
-          </div>
-          <div class="grid2">
-            <div><label>Header school size (em)</label><div class="stepper"><button type="button" class="step" id="hschoolfs-minus">&minus;</button><input type="number" id="f-hschoolfs" min="0.9" max="1.8" step="0.05"><button type="button" class="step" id="hschoolfs-plus">+</button></div></div>
-            <div><label>Header title size (em)</label><div class="stepper"><button type="button" class="step" id="htitlefs-minus">&minus;</button><input type="number" id="f-htitlefs" min="0.8" max="1.6" step="0.05"><button type="button" class="step" id="htitlefs-plus">+</button></div></div>
-          </div>
-          <div class="grid2">
-            <div><label>Header subject size (em)</label><div class="stepper"><button type="button" class="step" id="hsubjectfs-minus">&minus;</button><input type="number" id="f-hsubjectfs" min="0.8" max="1.4" step="0.05"><button type="button" class="step" id="hsubjectfs-plus">+</button></div></div>
-            <div><label>Answer-key heading size (em)</label><div class="stepper"><button type="button" class="step" id="ansheadfs-minus">&minus;</button><input type="number" id="f-ansheadfs" min="0.9" max="1.6" step="0.05"><button type="button" class="step" id="ansheadfs-plus">+</button></div></div>
-          </div>
-          <div class="grid2">
-            <div><label>Option mark border (px)</label><div class="stepper"><button type="button" class="step" id="omborder-minus">&minus;</button><input type="number" id="f-omborder" min="0.5" max="3" step="0.1"><button type="button" class="step" id="omborder-plus">+</button></div></div>
-            <div><label>Answer item gap (mm)</label><div class="stepper"><button type="button" class="step" id="ansgap-minus">&minus;</button><input type="number" id="f-ansgap" min="0" max="6" step="0.5"><button type="button" class="step" id="ansgap-plus">+</button></div></div>
-          </div>
-          <div class="grid2">
-            <div><label>Question number weight</label><select id="f-qnow"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
-            <div><label>Question number color</label><input type="text" id="f-qnoc" placeholder="#000"></div>
-          </div>
-          <div class="grid2">
-            <div><label>Marks weight</label><select id="f-qmarksw"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
-            <div><label>Marks color</label><input type="text" id="f-qmarksc" placeholder="#222"></div>
-          </div>
-          <div class="grid2">
-            <div><label>Answer key text weight</label><select id="f-answ"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
-            <div><label>Answer key text color</label><input type="text" id="f-ansc" placeholder="#000"></div>
-          </div>
           <label>Fit more per page</label>
           <label>Fit more per page</label>
           <div class="btnrow">

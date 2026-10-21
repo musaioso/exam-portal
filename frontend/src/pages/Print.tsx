@@ -74,8 +74,8 @@ export default function Print() {
       setTitle(e.title || "Question Paper");
       setTime(e.duration_minutes || 30);
       setSelected(Array.isArray(e.question_ids) ? e.question_ids : []);
-      setShuffleQuestions(e.shuffle_questions !== false);
-      setShuffleOptions(e.shuffle_options !== false);
+      setShuffleQuestions(!!e.shuffle_questions);
+      setShuffleOptions(!!e.shuffle_options);
     }).catch(() => setExam(null));
     const next = new URLSearchParams(params);
     next.set("exam", examId);
