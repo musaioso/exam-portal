@@ -1,3 +1,6 @@
+import { mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { AIError } from "./types";
 
 /**
@@ -21,6 +24,28 @@ function maxOcrPages(): number {
   return Number.isFinite(n) && n > 0 ? Math.min(n, 2000) : 150;
 }
 
+/** Read a positive millisecond budget from the environment, capped at `max`. */
+function envMs(name: string, fallback: number, max: number): number {
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, max) : fallback;
+}
+
+/**
+ * Tesseract caches downloaded language data next to the process cwd by
+ * default. On serverless hosts (Vercel) the bundle is read-only, so writes
+ * fail and every cold start re-downloads. /tmp is writable and survives for
+ * the lifetime of a warm instance.
+ */
+function cacheDir(): string {
+  const dir = process.env.OCR_CACHE_DIR || join(tmpdir(), "mcq-ocr");
+  try {
+    mkdirSync(dir, { recursive: true });
+  } catch {
+    return ".";
+  }
+  return dir;
+}
+
 /** Parse the request's ocr_lang ("eng", "ben", "eng+ben") into a safe list. */
 export function parseOcrLangs(raw: unknown): string[] {
   const parts = String(raw || "eng").split(/[+,\s]+/).filter(Boolean);
@@ -30,12 +55,58 @@ export function parseOcrLangs(raw: unknown): string[] {
 
 async function withWorker<T>(langs: string[], fn: (worker: any) => Promise<T>): Promise<T> {
   const { createWorker } = await import("tesseract.js");
+  // Engine startup includes downloading language data on a cold instance.
+  const startTimeout = envMs("OCR_START_TIMEOUT_MS", 60_000, 240_000);
+  // One upload's worth of recognition; stays under the platform's 300s cap.
+  const jobTimeout = envMs("OCR_JOB_TIMEOUT_MS", 240_000, 290_000);
+
   let worker: any;
+  let stage = "starting the OCR engine";
+  const logger = (m: any) => {
+    if (m?.status && m.status !== stage) {
+      stage = m.status;
+      console.log(`[ocr] ${m.status}${typeof m.progress === "number" ? ` ${Math.round(m.progress * 100)}%` : ""}`);
+    }
+  };
+  // tesseract.js swallows worker-side errors (its promise chain ends in a
+  // bare .catch), so a failed init would hang the request until the host
+  // kills it. Log the real error and let the timeout below surface it.
+  const errorHandler = (e: any) => {
+    console.error("[ocr] worker error:", String(e).slice(0, 500));
+  };
+
+  const timed = <V,>(p: Promise<V>, ms: number, what: string) =>
+    new Promise<V>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(
+          new AIError(
+            `OCR timed out while ${what} after ${Math.round(ms / 1000)}s (last stage: ${stage}).`,
+            504,
+            "Serverless hosts cap how long a request may run. Try a smaller image or a PDF that already has a text layer."
+          )
+        );
+      }, ms);
+      p.then(
+        (v) => { clearTimeout(timer); resolve(v); },
+        (e) => { clearTimeout(timer); reject(e); }
+      );
+    });
+
   try {
     // v5+ takes the languages up front and downloads/validates the data here —
     // a CDN failure surfaces as a readable 502 instead of a hung request.
-    worker = await createWorker(langs);
+    worker = await timed(
+      createWorker(langs, 1, {
+        logger,
+        errorHandler,
+        cachePath: cacheDir(),
+        cacheMethod: "write",
+      }),
+      startTimeout,
+      "starting the OCR engine"
+    );
   } catch (err: any) {
+    if (err instanceof AIError) throw err;
     throw new AIError(
       "OCR could not start — the language data could not be downloaded (the server needs internet on first use).",
       502,
@@ -43,7 +114,7 @@ async function withWorker<T>(langs: string[], fn: (worker: any) => Promise<T>): 
     );
   }
   try {
-    return await fn(worker);
+    return await timed(fn(worker), jobTimeout, "reading the text");
   } finally {
     await worker.terminate().catch(() => {});
   }
