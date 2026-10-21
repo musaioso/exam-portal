@@ -1124,13 +1124,9 @@ export function buildPrintHtml(data: PrintData): string {
           paper.style.setProperty('--mB', g.mB + 'mm');
           paper.style.setProperty('--mL', g.mL + 'mm');
           paper.style.setProperty('--pfont', fontStack(S.fontFamily));
-           // granular: apply to the selected target (paper / answer key / both)
+           // granular: apply to the paper (which contains both paper pages and
+           // answer-key pages) so every control takes effect regardless of target.
            (function(){
-             var targets = [];
-             if (S.target === 'paper' || S.target === 'both') targets.push(paper);
-             var ansEl = document.querySelector('.answers');
-             if ((S.target === 'ans' || S.target === 'both') && ansEl) targets.push(ansEl);
-             if (targets.length === 0) targets.push(paper);
              var vars = {
                '--optmark-size': (Number(S.optmarkSize) > 0 ? Number(S.optmarkSize) : 1.3) + 'em',
                '--optmark-fs': (Number(S.optmarkFs) > 0 ? Number(S.optmarkFs) : 0.78) + 'em',
@@ -1171,13 +1167,11 @@ export function buildPrintHtml(data: PrintData): string {
                '--qno-color': S.qnoColor,
                '--qmarks-color': S.qmarksColor,
              };
-             targets.forEach(function(el){
-               Object.keys(vars).forEach(function(k){ el.style.setProperty(k, vars[k]); });
-               Object.keys(colorMap).forEach(function(k){
-                 var v = colorMap[k];
-                 if (v) el.style.setProperty(k, v);
-                 else el.style.removeProperty(k);
-               });
+             Object.keys(vars).forEach(function(k){ paper.style.setProperty(k, vars[k]); });
+             Object.keys(colorMap).forEach(function(k){
+               var v = colorMap[k];
+               if (v) paper.style.setProperty(k, v);
+               else paper.style.removeProperty(k);
              });
            })();
           paper.classList.toggle('guides', !!S.showBreaks);
@@ -1634,11 +1628,7 @@ export function buildPrintHtml(data: PrintData): string {
         // the answer key) are hidden when the other target is selected.
         function applyTargetUI(){
           var t = S.target || 'paper';
-          var sectTargets = {
-            'Header items': ['paper','both'],
-            'Page numbers': ['paper','both'],
-            'Granular (circle, option, gap)': ['paper','both'],
-          };
+          var sectTargets = { 'Header items': ['paper','both'], 'Page numbers': ['paper','both'], 'Granular (circle, option, gap)': ['paper','both'] };
           var secs = document.querySelectorAll('.sect');
           secs.forEach(function(sec){
             var title = (sec.textContent || '').trim();
@@ -1651,15 +1641,16 @@ export function buildPrintHtml(data: PrintData): string {
               sib = sib.nextElementSibling;
             }
           });
-          var pb = document.getElementById('printBtn');
-          if (pb) pb.style.display = '';
+          // Per-control visibility
+          var PAPER_ONLY = ['f-school','f-title','f-date','dateTodayBtn','dateCalBtn','f-cols','f-header','t-name','t-school','t-title','t-subject','t-time','t-marks','t-rollclass','t-runningtitle','f-marks','f-instr','f-instrtext','f-group','f-breaks','f-labels','f-num','f-qpgno','f-qgap','f-cgap','f-om','f-omfs','f-omalign','f-otfs','f-optgap','f-qnogap','f-optvgap','f-opthgap','f-hschoolw','f-hschoolc','f-htitlew','f-htitlec','f-hsubjectw','f-hsubjectc','f-sectionw','f-sectionc','f-qnofs','f-qfs','f-qmarkfs','f-sectionfs','f-hschoolfs','f-htitlefs','f-hsubjectfs','f-qnow','f-qnoc','f-qmarksw','f-qmarksc','f-omborder','shuffleBtn','shuffleQBtn','f-fs','f-font','f-lh','m-top','m-right','m-bottom','m-left'];
+          var ANS_ONLY = ['f-anscols','f-answers','f-exp','f-ansheadw','f-ansheadc','f-ansfs','f-expfs','f-ansheadfs','f-answ','f-ansc','f-ansgap'];
+          function hideEl(id, visible){ var el = document.getElementById(id); if (!el) return; var box = el.parentElement; if (box && box.parentElement && box.parentElement.classList && box.parentElement.classList.contains('grid2')) { box.parentElement.style.display = visible ? '' : 'none'; return; } if (box && box.classList && box.classList.contains('row')) { box.style.display = visible ? '' : 'none'; return; } if (box && box !== document.querySelector('.settings')) { box.style.display = visible ? '' : 'none'; return; } el.style.display = visible ? '' : 'none'; var prev = el.previousElementSibling; if (prev && prev.tagName === 'LABEL') prev.style.display = visible ? '' : 'none'; }
+          PAPER_ONLY.forEach(function(id){ hideEl(id, t !== 'ans'); });
+          ANS_ONLY.forEach(function(id){ hideEl(id, t !== 'paper'); });
+          var pb = document.getElementById('printBtn'); if (pb) pb.style.display = '';
         }
         var tgtEl = document.getElementById('f-target');
-        if (tgtEl) {
-          var tgtH = function(){ S.target = tgtEl.value; applyTargetUI(); scheduleRender(); savePrefs(); };
-          tgtEl.addEventListener('input', tgtH);
-          tgtEl.addEventListener('change', tgtH);
-        }
+        if (tgtEl) { var tgtH = function(){ S.target = tgtEl.value; applyTargetUI(); pushVar('target'); scheduleRender(); savePrefs(); }; tgtEl.addEventListener('input', tgtH); tgtEl.addEventListener('change', tgtH); }
         applyTargetUI();
         bind('f-labels', 'labelStyle', 'sel');
         bind('f-num', 'numStyle', 'sel');
