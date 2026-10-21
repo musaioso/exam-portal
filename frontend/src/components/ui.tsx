@@ -182,7 +182,22 @@ export function Select({ className, style, children, value, onChange, disabled, 
                 )}
               >
                 <span className="truncate">{o.label}</span>
-                {active && <span className="text-violet-300 text-xs">✓</span>}
+                {active && (
+              <svg
+                viewBox="0 0 16 16"
+                className="shrink-0 text-violet-300"
+                width={12}
+                height={12}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3.4 8.6l3 3 6.2-7" />
+              </svg>
+            )}
               </button>
             );
           })}

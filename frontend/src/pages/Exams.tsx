@@ -68,7 +68,7 @@ function TogglePill({ checked, onChange, children }: {
       "inline-flex cursor-pointer select-none items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
       checked ? "border-indigo-500/60 bg-indigo-500/10 text-slate-100" : "border-slate-600/50 text-slate-300 hover:border-slate-500 hover:bg-ink/5"
     )}>
-      <input type="checkbox" className="h-4 w-4 accent-indigo-500" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" className="h-4 w-4" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       {children}
     </label>
   );
@@ -674,7 +674,7 @@ export default function Exams() {
                       const marks = q.marks || 1;
                       return (
                         <label key={q.id} className={cn("flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition", picked ? "bg-indigo-500/10" : "hover:bg-ink/5")}>
-                          <input type="checkbox" className="h-4 w-4 shrink-0 accent-indigo-500" checked={picked} onChange={() => toggleQ(q.id)} />
+                          <input type="checkbox" className="h-4 w-4 shrink-0" checked={picked} onChange={() => toggleQ(q.id)} />
                           <span className="flex-1 truncate">{q.prompt}</span>
                           {ch && (
                             <span className="max-w-28 shrink-0 truncate text-[11px] text-slate-500">

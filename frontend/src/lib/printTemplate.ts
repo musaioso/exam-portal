@@ -279,7 +279,7 @@ export function buildPrintHtml(data: PrintData): string {
         .settings input[type=number]::-webkit-outer-spin-button,
         .settings input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .stepper { display: flex; align-items: stretch; gap: 6px; }
-        .stepper input { flex: 1; min-width: 0; text-align: center; }
+        .stepper input { flex: 1; min-width: 3.5ch; text-align: center; }
         .step {
           width: 34px; flex: none; border: 1px solid var(--border); border-radius: 1rem;
           background: var(--surface-2); color: var(--text); font-weight: 700; font-size: 14px; cursor: pointer;
@@ -290,7 +290,7 @@ export function buildPrintHtml(data: PrintData): string {
           outline: none; border-color: var(--color-violet-500); box-shadow: 0 0 0 2px var(--color-violet-500);
         }
         .settings .row { display: flex; align-items: center; gap: 8px; margin: 7px 0; font-size: 13px; color: var(--color-slate-300); }
-        .settings .row input { width: auto; }
+        .settings .row input { width: auto; min-width: 0; }
         .settings .row label, .settings .tog label { cursor: pointer; }
         /* Tick boxes: same skin as the app (index.css), curved a little more.
            appearance:none removes the OS focus rectangle that used to stay
@@ -302,7 +302,7 @@ export function buildPrintHtml(data: PrintData): string {
           height: 16px;
           flex: none;
           border: 1.5px solid var(--color-slate-600);
-          border-radius: 0.5rem;
+          border-radius: 0.375rem;
           background-color: var(--field-bg);
           background-repeat: no-repeat;
           background-position: center;
@@ -345,7 +345,7 @@ export function buildPrintHtml(data: PrintData): string {
         .btnsm:hover { border-color: var(--color-violet-400); filter: brightness(1.12); }
         .btnsm:active { transform: scale(0.97); }
         .settings .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-        .grid4 input { padding: 6px 4px; text-align: center; font-size: 12px; }
+        .grid4 input { padding: 4px 2px; text-align: center; font-size: 12px; min-width: 0; }
         .sect { font-size: 11px; font-weight: 700; color: var(--color-slate-300); margin: 12px 0 4px; border-top: 1px solid var(--glass-border); padding-top: 8px; }
         .tog { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; font-size: 12px; }
         .tog label { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--color-slate-300); font-size: 12px; }
@@ -399,7 +399,7 @@ export function buildPrintHtml(data: PrintData): string {
         .header .hright .f-date { min-width: 18mm; }
         .header .rule { border-bottom: 1.2px solid #000; margin-top: 1.5mm; }
         .fill { border-bottom: 1px dotted #555; display: inline-block; min-width: 60px; }
-        .instructions { border: 1px solid #999; border-radius: 3px; padding: 3px 6px; font-size: 0.9em; line-height: 1.4; margin: 0 0 2mm; background: #fafafa; }
+        .instructions { border: 1px solid #999; border-radius: 0.5rem; padding: 3px 6px; font-size: 0.9em; line-height: 1.4; margin: 0 0 2mm; background: #fafafa; }
         /* Columns are explicit .prow/.pcol boxes packed page by page (see the
            renderer), so the screen shows exactly what the printer will do. */
         .section { font-size: var(--section-fs, 1.12em); font-weight: var(--section-weight, 400); border-bottom: 1px solid #000; padding-bottom: 1px; margin: 2mm 0 1.5mm; break-after: avoid; page-break-after: avoid; color: var(--section-color, #000); }
@@ -539,7 +539,7 @@ export function buildPrintHtml(data: PrintData): string {
           <select id="f-font"><option value="serif">Book (Noto Serif Bengali)</option><option value="sans">Modern (Jakarta Sans)</option><option value="times">Classic (Times)</option><option value="arial">Plain (Arial)</option></select>
           <div class="grid2">
             <div><label for="f-lh">Line height</label><input type="number" id="f-lh" min="1" max="2" step="0.05"></div>
-            <label>Question gap (mm)</label><input type="number" id="f-qgap" min="0" max="8" step="0.5" value="1.8">
+            <div><label>Question gap (mm)</label><input type="number" id="f-qgap" min="0" max="8" step="0.5" value="1.8"></div>
           </div>
           <div class="grid2">
             <div><label for="f-cgap">Column gap (mm)</label><input type="number" id="f-cgap" min="0" max="14" step="1"></div>
