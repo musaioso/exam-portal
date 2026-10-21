@@ -21,6 +21,33 @@ function sameAnswer(a: { answer?: unknown; options?: unknown }, b: { answer?: un
 
 const first = (v: any) => (Array.isArray(v) ? v[0] : v);
 
+/** The options of a question, whether they arrive as JSON text or as a real array. */
+function optionList(raw: unknown): string[] {
+  let list: any = raw;
+  if (typeof list === "string") {
+    try {
+      list = JSON.parse(list);
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(list) ? list.map((o) => String(o ?? "")) : [];
+}
+
+/**
+ * Where does the key sit inside the option list? Resolving it on the server and
+ * shipping the *index* means the browser never has to match the student's pick
+ * against the answer text, so a difference in case, Bangla digits ("১.৫" vs
+ * "1.5") or Unicode composition ("য়" vs "য" + nukta) can never mis-grade an
+ * answer. The comparison uses the same normalisation as the duplicate scan.
+ * Returns -1 when the key matches no option at all (broken data).
+ */
+function answerIndex(options: string[], answer: unknown): number {
+  const key = normalizeText(answer);
+  if (!key) return -1;
+  return options.findIndex((o) => normalizeText(o) === key);
+}
+
 /**
  * Group the bank by (subject, normalised prompt) and keep only the groups with
  * two or more copies. Feeds both the "Duplicates" panel and the warning shown
@@ -147,31 +174,106 @@ router.get("/", async (req: Request, res: Response) => {
   res.json({ questions: rows, total });
 });
 
-// Standalone self-study: random MCQs from the bank for a subject (or any
-// subject). Answers and explanations are deliberately withheld — they only
-// surface in the post-submit review. Kept before "/:id" so "practice" is not
-// mistaken for a question id.
+// Standalone self-study: random MCQs from the bank, optionally narrowed to a
+// subject, a chapter and a difficulty level. The answer key and the
+// explanation ride along on purpose: the page scores the pick and explains it
+// instantly, which is impossible without them. This is a practice round
+// (nothing is saved, no mark book), so exposing them client-side is fine.
+// Kept before "/:id" so "practice" is not mistaken for a question id.
 router.get("/practice", requireAuth, async (req: Request, res: Response) => {
   const db = await getDb();
   const subject_id = req.query.subject_id as string | undefined;
+  const chapter_id = req.query.chapter_id as string | undefined;
+  const difficulty = req.query.difficulty as string | undefined;
   const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
-  // `answer` must ride along: the page scores and highlights the correct option
-  // instantly, which is impossible without the key. This is a practice round
-  // (nothing is saved, no mark book), so exposing it client-side is fine.
-  let sql = `SELECT q.id, q.subject_id, q.type, q.difficulty, q.prompt, q.options, q.answer, q.marks,
-    s.name AS subject_name
-    FROM questions q
-    JOIN subjects s ON s.id = q.subject_id
-    WHERE q.type = 'mcq' AND q.options IS NOT NULL AND q.options <> '[]'`;
+
+  let where = `q.type = 'mcq' AND q.options IS NOT NULL AND q.options <> '[]'`;
   const params: any[] = [];
-  if (subject_id) { sql += " AND q.subject_id = ?"; params.push(subject_id); }
-  sql += ` ORDER BY RANDOM() LIMIT ?`;
-  params.push(limit);
-  const rows = (await all(db, sql, params)).map((q: any) => ({
-    ...q,
-    options: q.options ? JSON.parse(q.options) : [],
-  }));
-  res.json({ questions: rows, subject_id, limit });
+  if (subject_id) { where += " AND q.subject_id = ?"; params.push(subject_id); }
+  if (chapter_id) { where += " AND q.chapter_id = ?"; params.push(chapter_id); }
+  if (difficulty && ["easy", "medium", "hard"].includes(difficulty)) {
+    where += " AND q.difficulty = ?";
+    params.push(difficulty);
+  }
+
+  // How many MCQs the filter matches in total. The client shows this so a
+  // "round of 10" can never quietly turn into a round of 6.
+  const counted = (await get(db, `SELECT COUNT(*) AS n FROM questions q WHERE ${where}`, params)) as any;
+  const available = Number(counted?.n || 0);
+
+  const rows = (await all(
+    db,
+    `SELECT q.id, q.subject_id, q.type, q.difficulty, q.prompt, q.options, q.answer,
+       q.explanation, q.marks, q.chapter_id,
+       s.name AS subject_name, c.number AS chapter_number, c.title AS chapter_title
+     FROM questions q
+     LEFT JOIN subjects s ON s.id = q.subject_id
+     LEFT JOIN chapters c ON c.id = q.chapter_id
+     WHERE ${where}
+     ORDER BY RANDOM() LIMIT ?`,
+    [...params, limit]
+  )) as any[];
+
+  res.json({
+    questions: rows.map((q) => {
+      const options = optionList(q.options);
+      return { ...q, options, answer_index: answerIndex(options, q.answer) };
+    }),
+    available,
+    returned: rows.length,
+    subject_id: subject_id || null,
+    chapter_id: chapter_id || null,
+    difficulty: difficulty || null,
+    limit,
+  });
+});
+
+/**
+ * What the standalone practice setup screen offers: the subjects and chapters
+ * that actually hold MCQs (with counts, so a subject with no MCQs is never
+ * offered as if it had some), plus how many questions each difficulty level
+ * holds under the currently selected subject and chapter.
+ */
+router.get("/practice/filters", requireAuth, async (req: Request, res: Response) => {
+  const db = await getDb();
+  const subject_id = req.query.subject_id as string | undefined;
+  const chapter_id = req.query.chapter_id as string | undefined;
+  const MCQ = "q.type='mcq' AND q.options IS NOT NULL AND q.options <> '[]'";
+
+  const subjects = (await all(
+    db,
+    `SELECT s.id, s.name, COUNT(q.id) AS mcq_count
+     FROM subjects s LEFT JOIN questions q ON q.subject_id = s.id AND ${MCQ}
+     GROUP BY s.id ORDER BY mcq_count DESC, s.name ASC`
+  )) as any[];
+
+  // The chapters of the chosen subject (all of them when nothing is chosen yet).
+  let chapterSql = `SELECT c.id, c.subject_id, c.number, c.title, COUNT(q.id) AS mcq_count
+     FROM chapters c LEFT JOIN questions q ON q.chapter_id = c.id AND ${MCQ}`;
+  const chapterParams: any[] = [];
+  if (subject_id) { chapterSql += " WHERE c.subject_id = ?"; chapterParams.push(subject_id); }
+  chapterSql += " GROUP BY c.id ORDER BY c.number ASC";
+  const chapters = (await all(db, chapterSql, chapterParams)) as any[];
+
+  let scoped = `q.type='mcq' AND q.options IS NOT NULL AND q.options <> '[]'`;
+  const scopedParams: any[] = [];
+  if (subject_id) { scoped += " AND q.subject_id = ?"; scopedParams.push(subject_id); }
+  if (chapter_id) { scoped += " AND q.chapter_id = ?"; scopedParams.push(chapter_id); }
+
+  const difficulties = (await all(
+    db,
+    `SELECT q.difficulty, COUNT(*) AS n FROM questions q WHERE ${scoped} GROUP BY q.difficulty`,
+    scopedParams
+  )) as any[];
+
+  const totalRow = (await get(db, `SELECT COUNT(*) AS n FROM questions q WHERE ${scoped}`, scopedParams)) as any;
+
+  res.json({
+    subjects,
+    chapters,
+    difficulties,
+    total: Number(totalRow?.n || 0),
+  });
 });
 
 router.get("/:id", async (req, res) => {
