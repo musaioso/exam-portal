@@ -4,7 +4,9 @@ import { randomUUID as uuid } from "node:crypto";
 import { getDb, run, get, all } from "../db/database";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { extractPdfPages } from "../services/ai/extract";
-import { ocrImage, ocrPdf, parseOcrLangs } from "../services/ai/ocr";
+import { AIError } from "../services/ai/types";
+import { ocrImage, ocrPdf, parseOcrLangs, imageMimeType, rasterizePdf } from "../services/ai/ocr";
+import { visionOcr, visionCapableProviders, type VisionPage } from "../services/ai/vision";
 
 /**
  * Source uploads for the AI generator (teacher/admin only).
@@ -163,6 +165,77 @@ router.post("/", receiveFiles, async (req: Request, res: Response) => {
     return res.status(400).json({ error: errors[0]?.error || "No file could be processed." });
   }
   res.json({ documents, ...(errors.length ? { errors } : {}) });
+});
+
+/**
+ * POST /api/documents/vision-read — re-read an uploaded source with a vision
+ * model instead of tesseract, and replace the stored text on success.
+ *
+ * Takes a fresh upload of the same file (the server keeps no original bytes,
+ * only extracted text — see the file header), runs it through the vision
+ * provider, and overwrites the document's `content`/`char_count`. The stored
+ * row keeps its id, so anything already referencing it stays valid.
+ *
+ * Fields:
+ *   file        — the source file again (PDF/PNG/JPEG)
+ *   provider    — AI provider id (e.g. "google")
+ *   model       — optional; a vision model of that provider
+ */
+router.post("/vision-read", receiveFiles, async (req: Request, res: Response) => {
+  const files = (req.files as Express.Multer.File[] | undefined) || [];
+  if (files.length === 0) return res.status(400).json({ error: 'No file uploaded (expected multipart field "file").' });
+  if (files.length > 1) return res.status(400).json({ error: "Send one file per AI read request." });
+
+  const file = files[0];
+  const provider = String((req.body as any)?.provider || "").trim();
+  const model = String((req.body as any)?.model || "").trim() || undefined;
+  if (!provider) return res.status(400).json({ error: "Pick an AI provider to read with." });
+
+  let pages: VisionPage[];
+  let totalPages = 1;
+  let capped = false;
+
+  try {
+    if (isImage(file)) {
+      pages = [{ mimeType: imageMimeType(file.buffer), data: file.buffer.toString("base64") }];
+    } else {
+      const raster = await rasterizePdf(file.buffer);
+      totalPages = raster.totalPages || raster.images.length || 1;
+      capped = raster.capped;
+      pages = raster.images.map((img) => ({ mimeType: imageMimeType(img), data: img.toString("base64") }));
+    }
+  } catch (err: any) {
+    return res.status(400).json({ error: String(err?.message || err) });
+  }
+
+  if (pages.length === 0) return res.status(400).json({ error: "This file had no pages to read." });
+
+  let result;
+  try {
+    result = await visionOcr(pages, provider, model);
+  } catch (err: any) {
+    if (err instanceof AIError) return res.status(err.status).json({ error: err.message, detail: err.detail });
+    throw err;
+  }
+
+  const name = String(file.originalname || "source")
+    .replace(/\.(pdf|png|jpe?g)$/i, "")
+    .slice(0, 200) || "source";
+  const kind = isImage(file) ? "image" : "pdf";
+  const id = uuid();
+
+  const db = await getDb();
+  await run(
+    db,
+    "INSERT INTO ai_documents (id,name,pages,char_count,content,uploaded_by,created_at,kind) VALUES (?,?,?,?,?,?,?,?)",
+    [id, name, pages.length, result.charCount, JSON.stringify(result.pages), req.user!.id, Date.now(), kind]
+  );
+
+  res.json({
+    document: { id, name, pages: pages.length, char_count: result.charCount, kind, created_at: Date.now() },
+    readBy: { provider: result.provider, model: result.model },
+    ...(capped ? { warning: `Only the first ${pages.length} of ${totalPages} pages were read (OCR_MAX_PAGES limit).` } : {}),
+  });
 });
 
 /** Metadata only — the extracted text can be megabytes; it is read server-side at generation. */

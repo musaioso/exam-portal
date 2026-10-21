@@ -65,3 +65,62 @@ export function invalidateModels(id?: string) {
   if (id) cache.delete(id);
   else cache.clear();
 }
+
+/** One enabled provider's cached model ids, reusing the TTL cache above. */
+export async function listModelIds(providerId: string): Promise<string[]> {
+  await listModels();
+  return (cache.get(providerId)?.models || []).map((m) => m.id);
+}
+
+/**
+ * Model ids that clearly cannot read an image. Vendors do not publish a
+ * "vision" flag, so this is a deny-list of the families that are text-only
+ * (embeddings, TTS, image *generation*, audio, moderation, rerankers,
+ * transcription). Anything not matched is assumed capable — the classification
+ * only decides what the UI offers, and a wrong guess fails loudly at request
+ * time with a readable provider error.
+ */
+const NON_VISION = [
+  "embedding",
+  "embed-",
+  "text-embedding",
+  "tts",
+  "text-to-speech",
+  "speech",
+  "transcribe",
+  "whisper",
+  "audio",
+  "moderation",
+  "rerank",
+  "dall-e",
+  "dalle",
+  "gpt-image",
+  "image-generation",
+  "stable-diffusion",
+  "flux",
+  "sdxl",
+  "lerobot",
+  "robotics",
+  "computer-use",
+  "guard",
+  "safeguard",
+  "classifier",
+  "deprecated",
+  // Gemini's image-GENERATION and TTS models live in the same namespace.
+  "-tts",
+  "-image-preview",
+  "-image",
+  "-imagen",
+  "-veo",
+  "nanobanana",
+  "nano-banana",
+  "lyria",
+  "imagen",
+];
+
+/** Heuristic: could this model read a page image? */
+export function supportsVision(modelId: string): boolean {
+  const id = String(modelId || "").toLowerCase();
+  if (!id) return false;
+  return !NON_VISION.some((needle) => id.includes(needle));
+}

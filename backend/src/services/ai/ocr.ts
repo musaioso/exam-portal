@@ -197,6 +197,56 @@ export async function ocrImages(images: Buffer[], langs: string[]): Promise<stri
   });
 }
 
+/** Sniff PNG vs JPEG from the magic bytes; used for vision MIME types. */
+export function imageMimeType(buffer: Buffer): string {
+  if (buffer.length > 3 && buffer[0] === 0x89 && buffer[1] === 0x50) return "image/png";
+  if (buffer.length > 2 && buffer[0] === 0xff && buffer[1] === 0xd8) return "image/jpeg";
+  return "image/png";
+}
+
+/**
+ * Render a scanned PDF to JPEG page images for the vision path. Shares the
+ * bundler-mandated static resolves with `ocrPdf` (see the comments there) but
+ * skips tesseract entirely.
+ */
+export async function rasterizePdf(buffer: Buffer): Promise<{ images: Buffer[]; totalPages: number; capped: boolean }> {
+  require.resolve("pdfjs-dist/package.json");
+  try {
+    require.resolve("@napi-rs/canvas");
+    const { platform, arch } = process;
+    const suffix = platform === "win32" ? "win32" : platform === "darwin" ? "darwin" : "linux";
+    const libc = platform === "linux" ? "-gnu" : "";
+    require.resolve(`@napi-rs/canvas-${suffix}-${arch}${libc}`);
+  } catch {
+    /* optional: pdf-to-img falls back to a canvas-free path on some hosts */
+  }
+  const { pdf } = await import("pdf-to-img");
+  const cap = maxOcrPages();
+
+  let document: any;
+  try {
+    document = await pdf(buffer, { scale: 2, format: "jpg" });
+  } catch (err: any) {
+    throw new AIError("This PDF could not be rendered for AI reading.", 400, String(err?.message || err).slice(0, 200));
+  }
+
+  const totalPages = Number(document.length) || 0;
+  const images: Buffer[] = [];
+  let capped = false;
+  try {
+    for await (const image of document) {
+      if (images.length >= cap) {
+        capped = true;
+        break;
+      }
+      images.push(image as Buffer);
+    }
+  } finally {
+    await document.destroy?.().catch(() => {});
+  }
+  return { images, totalPages, capped };
+}
+
 /** OCR a single image (PNG/JPEG upload). */
 export async function ocrImage(image: Buffer, langs: string[]): Promise<string> {
   const [text] = await ocrImages([image], langs);
@@ -214,59 +264,18 @@ export interface OcrPdfResult {
 
 /** Render a scanned PDF to page images and OCR each one. */
 export async function ocrPdf(buffer: Buffer, langs: string[]): Promise<OcrPdfResult> {
-  // `pdf-to-img` locates pdf.js with
-  //   createRequire(import.meta.url).resolve("pdfjs-dist/package.json")
-  // so that file has to exist at run time. Vercel's bundler prunes it (it is
-  // data, not code), and because the call inside the dependency is dynamic the
-  // tracer never sees it. Resolving it here — statically, from our own code —
-  // is what makes the bundler ship it.
-  require.resolve("pdfjs-dist/package.json");
-  // pdf.js rasterizes through the optional native `@napi-rs/canvas` binding,
-  // which it loads dynamically for the current platform. Same story as above:
-  // without a static reference the bundler drops it. Resolving the binding
-  // itself (not just the wrapper) pulls in the platform binary too.
-  try {
-    require.resolve("@napi-rs/canvas");
-    const { platform, arch } = process;
-    const suffix = platform === "win32" ? "win32" : platform === "darwin" ? "darwin" : "linux";
-    const libc = platform === "linux" ? "-gnu" : "";
-    require.resolve(`@napi-rs/canvas-${suffix}-${arch}${libc}`);
-  } catch {
-    /* optional: pdf-to-img falls back to a canvas-free path on some hosts */
-  }
-  const { pdf } = await import("pdf-to-img");
-  const cap = maxOcrPages();
+  const { images, totalPages, capped } = await rasterizePdf(buffer);
 
-  let document: any;
-  try {
-    // JPEG pages are smaller and faster to OCR than PNG.
-    document = await pdf(buffer, { scale: 2, format: "jpg" });
-  } catch (err: any) {
-    throw new AIError("This PDF could not be rendered for OCR.", 400, String(err?.message || err).slice(0, 200));
-  }
-
-  const totalPages = Number(document.length) || 0;
-
-  // One worker for the whole document; recognize as pages come off the
-  // renderer so only a single page image is held in memory at a time.
+  // One worker for the whole document.
   const pages = await withWorker(langs, async (worker) => {
     const out: string[] = [];
-    let done = false;
-    try {
-      for await (const image of document) {
-        if (out.length >= cap) {
-          done = true;
-          break;
-        }
-        const { data } = await worker.recognize(image as Buffer);
-        out.push(String(data?.text || ""));
-      }
-    } finally {
-      await document.destroy?.().catch(() => {});
+    for (const image of images) {
+      const { data } = await worker.recognize(image);
+      out.push(String(data?.text || ""));
     }
-    return { pages: out, capped: done };
+    return out;
   });
 
-  const charCount = pages.pages.reduce((n, p) => n + p.length, 0);
-  return { pages: pages.pages, charCount, capped: pages.capped, totalPages };
+  const charCount = pages.reduce((n, p) => n + p.length, 0);
+  return { pages, charCount, capped, totalPages };
 }

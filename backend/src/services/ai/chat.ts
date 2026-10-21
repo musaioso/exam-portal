@@ -71,6 +71,13 @@ function mapProviderError(status: number, data: any, raw: string): AIError {
   if (status === 404) return new AIError("The model was not found on this provider. Refresh the model list and pick an available model.", status, detail);
   if (status === 429) return new AIError("The provider is rate-limiting or out of quota. Wait a moment or try another model.", status, detail);
   if (status === 402) return new AIError("The provider reports insufficient credit.", status, detail);
+  if (status === 503 || status === 502 || status === 500) {
+    return new AIError(
+      "The provider is temporarily unavailable or over capacity. Try again shortly or pick another model.",
+      status,
+      detail
+    );
+  }
   // Same wording, surfaced for statuses other than 401/403.
   if (lower.includes("model access is disabled") || lower.includes("model is unavailable") || lower.includes("not enabled")) {
     return new AIError(
@@ -93,11 +100,56 @@ function contentToString(content: any): string {
   return content == null ? "" : String(content);
 }
 
+/** True when a message carries images — some shapes need a different body. */
+const hasImages = (m: ChatMessage) => Array.isArray(m.images) && m.images.length > 0;
+
+/**
+ * OpenAI-style content: a plain string for text-only messages, or a parts
+ * array once images are attached (`image_url` with a data URL is accepted by
+ * OpenAI, OpenRouter, Groq, xAI, Together and Ollama alike).
+ */
+function openAIContent(m: ChatMessage): any {
+  if (!hasImages(m)) return m.content;
+  return [
+    ...(m.content ? [{ type: "text", text: m.content }] : []),
+    ...(m.images || []).map((img) => ({
+      type: "image_url",
+      image_url: { url: `data:${img.mimeType};base64,${img.data}` },
+    })),
+  ];
+}
+
+/** Anthropic Messages content: text and base64 image blocks. */
+function anthropicContent(m: ChatMessage): any {
+  if (!hasImages(m)) return m.content;
+  return [
+    ...(m.content ? [{ type: "text", text: m.content }] : []),
+    ...(m.images || []).map((img) => ({
+      type: "image",
+      source: { type: "base64", media_type: img.mimeType, data: img.data },
+    })),
+  ];
+}
+
+/** Gemini parts: `inline_data` carries raw base64. */
+function googleParts(m: ChatMessage): any[] {
+  return [
+    ...(m.content ? [{ text: m.content }] : []),
+    ...(m.images || []).map((img) => ({
+      inline_data: { mime_type: img.mimeType, data: img.data },
+    })),
+  ];
+}
+
 async function callOpenAI(baseURL: string, apiKey: string | undefined, model: string, messages: ChatMessage[], maxTokens: number | undefined, timeoutMs: number): Promise<ChatResult> {
   const data = await postJSON(
     `${baseURL.replace(/\/$/, "")}/chat/completions`,
     apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
-    { model, messages, ...(maxTokens ? { max_tokens: maxTokens } : {}) },
+    {
+      model,
+      messages: messages.map((m) => (hasImages(m) ? { role: m.role, content: openAIContent(m) } : m)),
+      ...(maxTokens ? { max_tokens: maxTokens } : {}),
+    },
     timeoutMs
   );
   const choice = data?.choices?.[0];
@@ -118,7 +170,15 @@ async function callResponses(baseURL: string, apiKey: string | undefined, model:
     {
       model,
       ...(system ? { instructions: system } : {}),
-      input: conversation.map((m) => ({ role: m.role, content: m.content })),
+      input: conversation.map((m) => ({
+        role: m.role,
+        content: hasImages(m)
+          ? [
+              ...(m.content ? [{ type: "input_text", text: m.content }] : []),
+              ...(m.images || []).map((img) => ({ type: "input_image", image_url: `data:${img.mimeType};base64,${img.data}` })),
+            ]
+          : m.content,
+      })),
       ...(maxTokens ? { max_output_tokens: maxTokens } : {}),
     },
     timeoutMs
@@ -151,7 +211,7 @@ async function callAnthropic(baseURL: string, apiKey: string | undefined, model:
     {
       model,
       ...(system ? { system } : {}),
-      messages: conversation.map((m) => ({ role: m.role, content: m.content })),
+      messages: conversation.map((m) => ({ role: m.role, content: anthropicContent(m) })),
       // Anthropic refuses to answer without max_tokens; 8192 is within every
       // current model's limit and plenty for a batch of MCQs.
       max_tokens: maxTokens || 8192,
@@ -172,14 +232,20 @@ async function callGoogle(baseURL: string, apiKey: string | undefined, model: st
   const bareModel = model.startsWith("models/") ? model.slice("models/".length) : model;
   const data = await postJSON(
     `${baseURL.replace(/\/$/, "")}/models/${encodeURIComponent(bareModel)}:generateContent`,
-    // Google's own API reads x-goog-api-key; the OpenCode gateway reads the
-    // Bearer header — sending both satisfies either backend.
-    apiKey ? { "x-goog-api-key": apiKey, Authorization: `Bearer ${apiKey}` } : {},
+    // Google's own API reads `x-goog-api-key`; the OpenCode gateway reads the
+    // Bearer header. Sending BOTH breaks OAuth-style ("AQ.…") credentials —
+    // Google rejects the request on the invalid Bearer header before ever
+    // looking at the valid key — so pick by host.
+    apiKey
+      ? (baseURL.includes("generativelanguage.googleapis.com")
+          ? { "x-goog-api-key": apiKey }
+          : { Authorization: `Bearer ${apiKey}`, "x-goog-api-key": apiKey })
+      : {},
     {
       ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
       contents: conversation.map((m) => ({
         role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
+        parts: googleParts(m),
       })),
     },
     timeoutMs

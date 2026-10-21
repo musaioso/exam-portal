@@ -41,9 +41,25 @@ export interface ProviderModels {
   models: ModelInfo[];
 }
 
+/**
+ * An image attached to a message, for vision models. `data` is raw base64
+ * (no "data:" prefix) — every vendor's inline-image field wants it that way.
+ */
+export interface ChatImage {
+  mimeType: string;
+  data: string;
+}
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
+  /**
+   * Images to send alongside `content`. Vision-capable providers accept these
+   * as inline parts; text-only providers would reject the request, so callers
+   * must only attach images when the chosen model supports them (see
+   * `supportsVision` in models.ts).
+   */
+  images?: ChatImage[];
 }
 
 export interface ChatResult {

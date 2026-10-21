@@ -121,8 +121,14 @@ export default function Generate() {
   // alone turns Bangla script into Latin garbage. Default to both so an
   // upload is never silently misread.
   const [ocrLang, setOcrLang] = useState("eng+ben");
+  // Vision ("read with AI") state — see uploadWithVision.
+  const [visionProviders, setVisionProviders] = useState<Array<{ id: string; label: string; models: string[] }>>([]);
+  const [visionBusy, setVisionBusy] = useState(false);
+  // Ids of sources produced by a vision read, so the list can label them.
+  const [aiReadIds, setAiReadIds] = useState<string[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const visionRef = useRef<HTMLInputElement>(null);
 
   // Question settings
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -200,6 +206,12 @@ export default function Generate() {
     } catch { /* non-fatal — the key panel simply stays hidden */ }
   };
   useEffect(() => { loadDocs(); loadModels(); loadKeys(); loadHistory(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Which providers can read page images — drives the "read with AI" button.
+  useEffect(() => {
+    api.get("/ai/vision")
+      .then((r) => setVisionProviders(r.data.providers || []))
+      .catch(() => setVisionProviders([])); // no AI reading is a valid state
+  }, []);
   useEffect(() => { api.get("/subjects").then((r) => setSubjects(r.data.subjects || [])); }, []);
   useEffect(() => {
     setChapterId("");
@@ -277,6 +289,49 @@ export default function Generate() {
     } finally {
       setUploadPct(null);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  /**
+   * Re-read the chosen file with a vision model instead of tesseract. The
+   * server keeps only extracted text, so the original has to be sent again —
+   * hence a dedicated file picker rather than a "re-read" button on the list.
+   * Creates a NEW source document; the tesseract one is left untouched so the
+   * teacher can compare and delete whichever is worse.
+   */
+  const readWithVision = async (files: FileList | null, providerId: string) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    setVisionBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("provider", providerId);
+      // Only pass the generation model along when it can actually read images;
+      // the server falls back to a vision model of the same provider otherwise.
+      if (modelId) fd.append("model", modelId);
+      const { data } = await api.post("/documents/vision-read", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+        // Vision reads of a multi-page book take a while.
+        timeout: 15 * 60 * 1000,
+      });
+      await loadDocs();
+      if (data.document?.id) {
+        setSelectedIds((prev) => [...new Set([...prev, data.document.id])]);
+        setAiReadIds((prev) => [...new Set([...prev, data.document.id])]);
+        setMode("document");
+      }
+      const who = data.readBy ? `${data.readBy.model}` : "the AI model";
+      toast.success(`“${data.document?.name}” read by ${who} — ${(data.document?.char_count || 0).toLocaleString()} characters.`);
+      if (data.warning) toast.info(data.warning);
+    } catch (e) {
+      await alertDialog({
+        title: "AI reading failed",
+        message: errorMessage(e, "The file could not be read with the AI model. The built-in OCR result is unchanged."),
+      });
+    } finally {
+      setVisionBusy(false);
+      if (visionRef.current) visionRef.current.value = "";
     }
   };
 
@@ -596,8 +651,15 @@ export default function Generate() {
                   className="hidden"
                   onChange={(e) => uploadFiles(e.target.files)}
                 />
+                <input
+                  ref={visionRef}
+                  type="file"
+                  accept={ACCEPT}
+                  className="hidden"
+                  onChange={(e) => readWithVision(e.target.files, visionProviders[0].id)}
+                />
                 <div className="flex flex-wrap items-center gap-3">
-                  <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploadPct !== null}>
+                  <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploadPct !== null || visionBusy}>
                     {uploadPct !== null ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                     {uploadPct !== null ? "Uploading…" : "Upload PDF / images"}
                   </Button>
@@ -618,6 +680,33 @@ export default function Generate() {
                     ))}
                   </div>
                 </div>
+
+                {/* AI vision reading — the accurate path for small/dense Bangla
+                    print, which the built-in OCR turns into Latin garbage. */}
+                {visionProviders.length > 0 && (
+                  <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => visionRef.current?.click()}
+                        disabled={visionBusy || uploadPct !== null}
+                      >
+                        {visionBusy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                        {visionBusy ? "Reading with AI…" : "Read with AI"}
+                      </Button>
+                      <p className="min-w-0 flex-1 text-xs text-slate-400">
+                        Much more accurate than the built-in OCR on small or dense Bangla print.
+                        Upload the same page again — it is read by{" "}
+                        <span className="font-semibold text-violet-300">{visionProviders[0].label}</span> and added as a new source.
+                      </p>
+                    </div>
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      Uses your configured AI key. Slower than OCR (a few seconds per page) and subject to the provider’s daily limits.
+                    </p>
+                  </div>
+                )}
+
                 <p className="text-xs text-slate-500">
                   PDF, PNG or JPG — pick several at once. Images and scanned pages are OCR’d on the server; only the text is stored.
                   {uploadPct !== null && " Extracting text can take a minute for scanned files…"}
@@ -644,6 +733,11 @@ export default function Generate() {
                             ? <ImageIcon size={16} className="shrink-0 text-slate-400" />
                             : <FileText size={16} className="shrink-0 text-slate-400" />}
                           <span className="min-w-0 flex-1 truncate">{d.name}</span>
+                          {aiReadIds.includes(d.id) && (
+                            <span className="shrink-0 rounded-md border border-violet-400/50 bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
+                              AI
+                            </span>
+                          )}
                           <span className="shrink-0 text-xs text-slate-500">
                             {d.kind === "image" ? "image · OCR" : `${d.pages ?? "?"} pages`} · {d.char_count.toLocaleString()} chars
                           </span>

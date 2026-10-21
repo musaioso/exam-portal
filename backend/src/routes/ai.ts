@@ -13,6 +13,7 @@ import {
 import { setStoredKey, deleteStoredKey } from "../services/ai/keystore";
 import { listModels, invalidateModels } from "../services/ai/models";
 import { generateQuestions, flagAgainstBank } from "../services/ai/prompt";
+import { visionCapableProviders } from "../services/ai/vision";
 import { AIError } from "../services/ai/types";
 import { normalizeText } from "../lib/text";
 
@@ -42,6 +43,16 @@ router.get("/models", async (req: Request, res: Response) => {
   // default — every provider's full list is still offered, and the pick is
   // ignored when the model is absent or cannot be called from a server.
   res.json({ providers, defaultModel: process.env.AI_DEFAULT_MODEL || null });
+});
+
+/**
+ * GET /api/ai/vision — which enabled providers can read page images, and with
+ * which models. Drives the "read with AI" control on the source uploader; a
+ * provider appears here only when a key is configured AND it lists at least
+ * one vision-capable model.
+ */
+router.get("/vision", async (_req: Request, res: Response) => {
+  res.json({ providers: await visionCapableProviders() });
 });
 
 /* ------------------------------------------------------------- key manager */
