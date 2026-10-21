@@ -49,6 +49,16 @@ function answerIndex(options: string[], answer: unknown): number {
 }
 
 /**
+ * A multi-value filter may arrive as a repeated query parameter, as an array
+ * or as one comma-separated string. Normalise all three into a list of ids.
+ */
+function idList(v: any): string[] {
+  if (v == null) return [];
+  const arr = Array.isArray(v) ? v : String(v).split(",");
+  return [...new Set(arr.map((x) => String(x ?? "").trim()).filter(Boolean))];
+}
+
+/**
  * Group the bank by (subject, normalised prompt) and keep only the groups with
  * two or more copies. Feeds both the "Duplicates" panel and the warning shown
  * when a new question would repeat one that is already stored.
@@ -183,14 +193,18 @@ router.get("/", async (req: Request, res: Response) => {
 router.get("/practice", requireAuth, async (req: Request, res: Response) => {
   const db = await getDb();
   const subject_id = req.query.subject_id as string | undefined;
-  const chapter_id = req.query.chapter_id as string | undefined;
+  const chapterIds = [...new Set([...idList(req.query.chapter_ids), ...idList(req.query.chapter_id)])];
   const difficulty = req.query.difficulty as string | undefined;
   const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
 
   let where = `q.type = 'mcq' AND q.options IS NOT NULL AND q.options <> '[]'`;
   const params: any[] = [];
   if (subject_id) { where += " AND q.subject_id = ?"; params.push(subject_id); }
-  if (chapter_id) { where += " AND q.chapter_id = ?"; params.push(chapter_id); }
+  // Several chapters at once: pick any set of them, or none for "all chapters".
+  if (chapterIds.length) {
+    where += ` AND q.chapter_id IN (${chapterIds.map(() => "?").join(",")})`;
+    params.push(...chapterIds);
+  }
   if (difficulty && ["easy", "medium", "hard"].includes(difficulty)) {
     where += " AND q.difficulty = ?";
     params.push(difficulty);
@@ -222,7 +236,7 @@ router.get("/practice", requireAuth, async (req: Request, res: Response) => {
     available,
     returned: rows.length,
     subject_id: subject_id || null,
-    chapter_id: chapter_id || null,
+    chapter_ids: chapterIds,
     difficulty: difficulty || null,
     limit,
   });
@@ -237,7 +251,7 @@ router.get("/practice", requireAuth, async (req: Request, res: Response) => {
 router.get("/practice/filters", requireAuth, async (req: Request, res: Response) => {
   const db = await getDb();
   const subject_id = req.query.subject_id as string | undefined;
-  const chapter_id = req.query.chapter_id as string | undefined;
+  const chapterIds = [...new Set([...idList(req.query.chapter_ids), ...idList(req.query.chapter_id)])];
   const MCQ = "q.type='mcq' AND q.options IS NOT NULL AND q.options <> '[]'";
 
   const subjects = (await all(
@@ -248,8 +262,11 @@ router.get("/practice/filters", requireAuth, async (req: Request, res: Response)
   )) as any[];
 
   // The chapters of the chosen subject (all of them when nothing is chosen yet).
-  let chapterSql = `SELECT c.id, c.subject_id, c.number, c.title, COUNT(q.id) AS mcq_count
-     FROM chapters c LEFT JOIN questions q ON q.chapter_id = c.id AND ${MCQ}`;
+  // The subject name comes along so the chips can say which book a chapter
+  // belongs to when no single subject has been picked.
+  let chapterSql = `SELECT c.id, c.subject_id, c.number, c.title, s.name AS subject_name, COUNT(q.id) AS mcq_count
+     FROM chapters c LEFT JOIN subjects s ON s.id = c.subject_id
+     LEFT JOIN questions q ON q.chapter_id = c.id AND ${MCQ}`;
   const chapterParams: any[] = [];
   if (subject_id) { chapterSql += " WHERE c.subject_id = ?"; chapterParams.push(subject_id); }
   chapterSql += " GROUP BY c.id ORDER BY c.number ASC";
@@ -258,7 +275,12 @@ router.get("/practice/filters", requireAuth, async (req: Request, res: Response)
   let scoped = `q.type='mcq' AND q.options IS NOT NULL AND q.options <> '[]'`;
   const scopedParams: any[] = [];
   if (subject_id) { scoped += " AND q.subject_id = ?"; scopedParams.push(subject_id); }
-  if (chapter_id) { scoped += " AND q.chapter_id = ?"; scopedParams.push(chapter_id); }
+  // Same multi-chapter rule as the round itself, so the counts the student
+  // sees match the questions the round will actually contain.
+  if (chapterIds.length) {
+    scoped += ` AND q.chapter_id IN (${chapterIds.map(() => "?").join(",")})`;
+    scopedParams.push(...chapterIds);
+  }
 
   const difficulties = (await all(
     db,

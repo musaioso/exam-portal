@@ -51,6 +51,7 @@ interface FilterRow {
   id: string;
   name?: string;
   subject_id?: string;
+  subject_name?: string;
   number?: number;
   title?: string;
   mcq_count?: number;
@@ -111,7 +112,8 @@ export default function StandalonePractice() {
   const [error, setError] = useState("");
 
   const [subjectId, setSubjectId] = useState(searchParams.get("subject") || "");
-  const [chapterId, setChapterId] = useState("");
+  /** Several chapters may be picked at once. Empty means "every chapter". */
+  const [chapterIds, setChapterIds] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState("");
   const [size, setSize] = useState(10);
 
@@ -127,10 +129,15 @@ export default function StandalonePractice() {
 
   // The filter options come from the bank itself, so a subject that holds no
   // MCQ is never offered and every chip can show how many questions it hides.
+  // The chapter list is sent along so the counts and the difficulty breakdown
+  // describe the questions the round will really hold.
   useEffect(() => {
     api
       .get("/questions/practice/filters", {
-        params: { subject_id: subjectId || undefined, chapter_id: chapterId || undefined },
+        params: {
+          subject_id: subjectId || undefined,
+          chapter_ids: chapterIds.length ? chapterIds.join(",") : undefined,
+        },
       })
       .then(({ data }) => {
         setSubjects(data.subjects || []);
@@ -140,12 +147,16 @@ export default function StandalonePractice() {
       })
       .catch(() => {})
       .finally(() => setBooting(false));
-  }, [subjectId, chapterId]);
+  }, [subjectId, chapterIds]);
 
   const subjectOptions = useMemo(() => subjects.filter((s) => Number(s.mcq_count || 0) > 0), [subjects]);
   const chapterOptions = useMemo(
     () => chapters.filter((c) => Number(c.mcq_count || 0) > 0 && (!subjectId || c.subject_id === subjectId)),
     [chapters, subjectId]
+  );
+  const selectedChapters = useMemo(
+    () => chapterOptions.filter((c) => chapterIds.includes(c.id)),
+    [chapterOptions, chapterIds]
   );
 
   const allCount = useMemo(() => subjects.reduce((n, s) => n + Number(s.mcq_count || 0), 0), [subjects]);
@@ -153,12 +164,26 @@ export default function StandalonePractice() {
     ? Number(subjects.find((s) => s.id === subjectId)?.mcq_count || 0)
     : allCount;
   // How many questions the current selection really holds: the difficulty
-  // breakdown is already scoped to the chosen subject and chapter.
+  // breakdown is already scoped to the chosen subject and chapters.
   const diffCount = (value: string) =>
     value ? Number(difficulties.find((d) => d.difficulty === value)?.n || 0) : total;
   const available = diffCount(difficulty);
   const roundCount = Math.min(size, available);
   const selectedSubjectEmpty = !!subjectId && !subjectOptions.some((s) => s.id === subjectId);
+  // True once anything has been narrowed down, so the reset button knows to
+  // offer itself.
+  const filtersDirty = !!subjectId || chapterIds.length > 0 || !!difficulty;
+
+  /** Add a chapter to the selection, or take it out again. */
+  const toggleChapter = (id: string) =>
+    setChapterIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  /** Put every filter back the way it started. */
+  const resetFilters = () => {
+    setSubjectId("");
+    setChapterIds([]);
+    setDifficulty("");
+  };
 
   /** Lay out a set of questions as a fresh round. */
   const run = (list: PracticeQuestion[]) => {
@@ -181,7 +206,7 @@ export default function StandalonePractice() {
       .get("/questions/practice", {
         params: {
           subject_id: subjectId || undefined,
-          chapter_id: chapterId || undefined,
+          chapter_ids: chapterIds.length ? chapterIds.join(",") : undefined,
           difficulty: difficulty || undefined,
           limit: size,
         },
@@ -259,6 +284,18 @@ export default function StandalonePractice() {
         )}
 
         <Card hover={false} className="space-y-5">
+          {/* রিসেট — যখন কোনো ফিল্টার সক্রিয় থাকে */}
+          {filtersDirty && (
+            <div className="flex items-center justify-end -mt-1">
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200"
+              >
+                <RotateCcw size={12} /> সব রিসেট
+              </button>
+            </div>
+          )}
           {/* বিষয় */}
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-slate-400">
@@ -269,7 +306,7 @@ export default function StandalonePractice() {
                 variant={subjectId ? "outline" : "primary"}
                 onClick={() => {
                   setSubjectId("");
-                  setChapterId("");
+                  setChapterIds([]);
                 }}
                 className="text-sm"
               >
@@ -281,7 +318,7 @@ export default function StandalonePractice() {
                   variant={subjectId === s.id ? "primary" : "outline"}
                   onClick={() => {
                     setSubjectId(s.id);
-                    setChapterId("");
+                    setChapterIds([]);
                   }}
                   className="text-sm"
                 >
@@ -296,7 +333,7 @@ export default function StandalonePractice() {
                   className="underline underline-offset-2 hover:text-amber-100"
                   onClick={() => {
                     setSubjectId("");
-                    setChapterId("");
+                    setChapterIds([]);
                   }}
                 >
                   সব বিষয় দেখুন
@@ -305,27 +342,60 @@ export default function StandalonePractice() {
             )}
           </div>
 
-          {/* অধ্যায় */}
+          {/* অধ্যায় — একসাথে একাধিক বাছাই করা যাবে */}
           {chapterOptions.length > 0 && (
             <div>
-              <div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-slate-400">
-                <Layers size={13} /> অধ্যায়
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-slate-400">
+                  <Layers size={13} /> অধ্যায়
+                  <span className="text-[10px] font-normal normal-case text-slate-500">
+                    (একাধিক বাছাই করা যাবে)
+                  </span>
+                </div>
+                {chapterIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setChapterIds([])}
+                    className="text-xs text-slate-400 hover:text-slate-200 underline underline-offset-2"
+                  >
+                    বাতিল করুন
+                  </button>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant={chapterId ? "outline" : "primary"} onClick={() => setChapterId("")} className="text-sm">
+                <Button
+                  variant={chapterIds.length === 0 ? "primary" : "outline"}
+                  onClick={() => setChapterIds([])}
+                  className="text-sm"
+                >
                   সব অধ্যায় <Count n={subjectCount} />
                 </Button>
-                {chapterOptions.map((c) => (
-                  <Button
-                    key={c.id}
-                    variant={chapterId === c.id ? "primary" : "outline"}
-                    onClick={() => setChapterId(c.id)}
-                    className="text-sm"
-                  >
-                    {c.number}. {c.title} <Count n={Number(c.mcq_count || 0)} />
-                  </Button>
-                ))}
+                {chapterOptions.map((c) => {
+                  const on = chapterIds.includes(c.id);
+                  const label = subjectId
+                    ? `${c.number}. ${c.title}`
+                    : `${c.subject_name ? c.subject_name + " · " : ""}${c.number}. ${c.title}`;
+                  return (
+                    <Button
+                      key={c.id}
+                      variant={on ? "primary" : "outline"}
+                      onClick={() => toggleChapter(c.id)}
+                      className="text-sm"
+                    >
+                      {label} <Count n={Number(c.mcq_count || 0)} />
+                    </Button>
+                  );
+                })}
               </div>
+              {chapterIds.length > 0 && (
+                <div className="mt-2 text-xs text-slate-400">
+                  <span className="font-semibold text-slate-200">{chapterIds.length}</span>টি অধ্যায় নির্বাচিত —{" "}
+                  <span className="font-semibold text-slate-200">
+                    {selectedChapters.reduce((n, c) => n + Number(c.mcq_count || 0), 0)}
+                  </span>
+                  টি প্রশ্ন
+                </div>
+              )}
             </div>
           )}
 
