@@ -402,7 +402,7 @@ export function buildPrintHtml(data: PrintData): string {
         .instructions { border: 1px solid #999; border-radius: 3px; padding: 3px 6px; font-size: 0.9em; line-height: 1.4; margin: 0 0 2mm; background: #fafafa; }
         /* Columns are explicit .prow/.pcol boxes packed page by page (see the
            renderer), so the screen shows exactly what the printer will do. */
-        .section { font-size: 1.12em; font-weight: var(--section-weight, 400); border-bottom: 1px solid #000; padding-bottom: 1px; margin: 2mm 0 1.5mm; break-after: avoid; page-break-after: avoid; color: var(--section-color, #000); }
+        .section { font-size: var(--section-fs, 1.12em); font-weight: var(--section-weight, 400); border-bottom: 1px solid #000; padding-bottom: 1px; margin: 2mm 0 1.5mm; break-after: avoid; page-break-after: avoid; color: var(--section-color, #000); }
         .hdate-btn {
           margin-left: 6px; padding: 1px 6px; border-radius: 0.5rem; border: 1px solid #999; background: #f6f6f6; color: #000; font-size: 8px; cursor: pointer; vertical-align: middle; line-height: 1.2;
           box-shadow: 0 1px 0 rgba(0,0,0,0.04);
@@ -410,8 +410,8 @@ export function buildPrintHtml(data: PrintData): string {
         @media print { .hdate-btn { display: none !important; } }
         .q { break-inside: avoid; page-break-inside: avoid; margin-bottom: var(--qgap, 2.2mm); }
         .qp { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 var(--qno-gap, 0.6mm); align-items: start; }
-        .qno { font-weight: 700; min-width: 4.2mm; }
-        .qmarks { white-space: nowrap; font-size: 0.88em; color: #222; }
+        .qno { font-weight: var(--qno-weight, 700); min-width: 4.2mm; font-size: var(--qno-fs, 1em); color: var(--qno-color, #000); }
+        .qmarks { white-space: nowrap; font-size: var(--qmarks-fs, 0.88em); color: var(--qmarks-color, #222); font-weight: var(--qmarks-weight, 400); }
         /* Right-hand group of the question row: marks plus the printed page
            chip ("p3") that says which A4 sheet this question lands on. */
         .qright { display: flex; align-items: baseline; justify-content: flex-end; gap: 0.6mm; white-space: nowrap; }
@@ -426,14 +426,15 @@ export function buildPrintHtml(data: PrintData): string {
            so one long option never pushes the other three onto own rows. */
         .options.two-col .opt.wide { grid-column: 1 / -1; }
         .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 var(--opt-gap, 0.6mm); align-items: start; break-inside: avoid; page-break-inside: avoid; }
+        .qtext { overflow-wrap: break-word; font-size: var(--q-fs, 1em); }
         .opttext { overflow-wrap: break-word; font-size: var(--opttext-fs, 1em); }
         /* The bubble scales with the body font, so it stays a comfortable
            ~4mm tick target at 11pt and shrinks with the font-size control. */
-        .optmark { display: inline-flex; align-items: center; justify-content: var(--optmark-align, center); width: var(--optmark-size, 1.3em); height: var(--optmark-size, 1.3em); margin-top: 0.12em; border: 1.2px solid #000; border-radius: 50%; font-size: var(--optmark-fs, 0.78em); line-height: 1; }
+        .optmark { display: inline-flex; align-items: center; justify-content: var(--optmark-align, center); width: var(--optmark-size, 1.3em); height: var(--optmark-size, 1.3em); margin-top: 0.12em; border: var(--optmark-border, 1.2px) solid #000; border-radius: 50%; font-size: var(--optmark-fs, 0.78em); line-height: 1; }
         /* The answer key is packed into its own pages (see the renderer), so the
            old break-before/column rules are gone; only the heading remains. */
-        .anshead { font-size: 1.18em; font-weight: var(--anshead-weight, 400); border-bottom: 1.2px solid #000; padding-bottom: 2px; margin: 0 0 1.5mm; break-after: avoid; page-break-after: avoid; overflow-wrap: break-word; color: var(--anshead-color, #000); }
-        .a { font-size: 0.98em; break-inside: avoid; page-break-inside: avoid; margin-bottom: 1.8mm; }
+        .anshead { font-size: var(--anshead-fs, 1.18em); font-weight: var(--anshead-weight, 400); border-bottom: 1.2px solid #000; padding-bottom: 2px; margin: 0 0 1.5mm; break-after: avoid; page-break-after: avoid; overflow-wrap: break-word; color: var(--anshead-color, #000); }
+        .a { font-size: var(--ans-fs, 0.98em); break-inside: avoid; page-break-inside: avoid; margin-bottom: var(--ans-gap, 1.8mm); font-weight: var(--ans-weight, 400); color: var(--ans-color, #000); }
         /* Ink rule: nothing on the sheet prints bold except the school line
            and the question numbers. The blanket reset also covers any
            <b>/<strong> inside user-supplied text (subject, time, marks,
@@ -441,7 +442,7 @@ export function buildPrintHtml(data: PrintData): string {
         .paper, .paper b, .paper strong { font-weight: 400; }
         .paper .h-school, .paper .qno, .paper .aqno { font-weight: 700; }
         .ansubj { color: #444; font-size: 0.85em; }
-        .exp { font-size: 0.88em; color: #333; margin-left: 4mm; }
+        .exp { font-size: var(--exp-fs, 0.88em); color: #333; margin-left: 4mm; }
 
         /* Bubbly scrollbar, same as the site. */
         * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) var(--scroll-track); }
@@ -582,6 +583,81 @@ export function buildPrintHtml(data: PrintData): string {
             <div><label>Answer-key heading weight</label><select id="f-ansheadw"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
             <div><label>Answer-key heading color</label><input type="text" id="f-ansheadc" placeholder="#000"></div>
           </div>
+          <div class="sect">More typography &amp; sizing</div>
+          <div class="grid2">
+            <div><label>Question number size (em)</label><div class="stepper"><button type="button" class="step" id="qnofs-minus">&minus;</button><input type="number" id="f-qnofs" min="0.7" max="1.6" step="0.05"><button type="button" class="step" id="qnofs-plus">+</button></div></div>
+            <div><label>Question text size (em)</label><div class="stepper"><button type="button" class="step" id="qfs-minus">&minus;</button><input type="number" id="f-qfs" min="0.7" max="1.6" step="0.05"><button type="button" class="step" id="qfs-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Marks size (em)</label><div class="stepper"><button type="button" class="step" id="qmarkfs-minus">&minus;</button><input type="number" id="f-qmarkfs" min="0.6" max="1.2" step="0.05"><button type="button" class="step" id="qmarkfs-plus">+</button></div></div>
+            <div><label>Section heading size (em)</label><div class="stepper"><button type="button" class="step" id="sectionfs-minus">&minus;</button><input type="number" id="f-sectionfs" min="0.9" max="1.6" step="0.05"><button type="button" class="step" id="sectionfs-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Answer key text size (em)</label><div class="stepper"><button type="button" class="step" id="ansfs-minus">&minus;</button><input type="number" id="f-ansfs" min="0.7" max="1.4" step="0.05"><button type="button" class="step" id="ansfs-plus">+</button></div></div>
+            <div><label>Explanation size (em)</label><div class="stepper"><button type="button" class="step" id="expfs-minus">&minus;</button><input type="number" id="f-expfs" min="0.7" max="1.2" step="0.05"><button type="button" class="step" id="expfs-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Header school size (em)</label><div class="stepper"><button type="button" class="step" id="hschoolfs-minus">&minus;</button><input type="number" id="f-hschoolfs" min="0.9" max="1.8" step="0.05"><button type="button" class="step" id="hschoolfs-plus">+</button></div></div>
+            <div><label>Header title size (em)</label><div class="stepper"><button type="button" class="step" id="htitlefs-minus">&minus;</button><input type="number" id="f-htitlefs" min="0.8" max="1.6" step="0.05"><button type="button" class="step" id="htitlefs-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Header subject size (em)</label><div class="stepper"><button type="button" class="step" id="hsubjectfs-minus">&minus;</button><input type="number" id="f-hsubjectfs" min="0.8" max="1.4" step="0.05"><button type="button" class="step" id="hsubjectfs-plus">+</button></div></div>
+            <div><label>Answer-key heading size (em)</label><div class="stepper"><button type="button" class="step" id="ansheadfs-minus">&minus;</button><input type="number" id="f-ansheadfs" min="0.9" max="1.6" step="0.05"><button type="button" class="step" id="ansheadfs-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Option mark border (px)</label><div class="stepper"><button type="button" class="step" id="omborder-minus">&minus;</button><input type="number" id="f-omborder" min="0.5" max="3" step="0.1"><button type="button" class="step" id="omborder-plus">+</button></div></div>
+            <div><label>Answer item gap (mm)</label><div class="stepper"><button type="button" class="step" id="ansgap-minus">&minus;</button><input type="number" id="f-ansgap" min="0" max="6" step="0.5"><button type="button" class="step" id="ansgap-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Question number weight</label><select id="f-qnow"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
+            <div><label>Question number color</label><input type="text" id="f-qnoc" placeholder="#000"></div>
+          </div>
+          <div class="grid2">
+            <div><label>Marks weight</label><select id="f-qmarksw"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
+            <div><label>Marks color</label><input type="text" id="f-qmarksc" placeholder="#222"></div>
+          </div>
+          <div class="grid2">
+            <div><label>Answer key text weight</label><select id="f-answ"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
+            <div><label>Answer key text color</label><input type="text" id="f-ansc" placeholder="#000"></div>
+          </div>
+          <div class="sect">More typography &amp; sizing</div>
+          <div class="grid2">
+            <div><label>Question number size (em)</label><div class="stepper"><button type="button" class="step" id="qnofs-minus">&minus;</button><input type="number" id="f-qnofs" min="0.7" max="1.6" step="0.05"><button type="button" class="step" id="qnofs-plus">+</button></div></div>
+            <div><label>Question text size (em)</label><div class="stepper"><button type="button" class="step" id="qfs-minus">&minus;</button><input type="number" id="f-qfs" min="0.7" max="1.6" step="0.05"><button type="button" class="step" id="qfs-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Marks size (em)</label><div class="stepper"><button type="button" class="step" id="qmarkfs-minus">&minus;</button><input type="number" id="f-qmarkfs" min="0.6" max="1.2" step="0.05"><button type="button" class="step" id="qmarkfs-plus">+</button></div></div>
+            <div><label>Section heading size (em)</label><div class="stepper"><button type="button" class="step" id="sectionfs-minus">&minus;</button><input type="number" id="f-sectionfs" min="0.9" max="1.6" step="0.05"><button type="button" class="step" id="sectionfs-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Answer key text size (em)</label><div class="stepper"><button type="button" class="step" id="ansfs-minus">&minus;</button><input type="number" id="f-ansfs" min="0.7" max="1.4" step="0.05"><button type="button" class="step" id="ansfs-plus">+</button></div></div>
+            <div><label>Explanation size (em)</label><div class="stepper"><button type="button" class="step" id="expfs-minus">&minus;</button><input type="number" id="f-expfs" min="0.7" max="1.2" step="0.05"><button type="button" class="step" id="expfs-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Header school size (em)</label><div class="stepper"><button type="button" class="step" id="hschoolfs-minus">&minus;</button><input type="number" id="f-hschoolfs" min="0.9" max="1.8" step="0.05"><button type="button" class="step" id="hschoolfs-plus">+</button></div></div>
+            <div><label>Header title size (em)</label><div class="stepper"><button type="button" class="step" id="htitlefs-minus">&minus;</button><input type="number" id="f-htitlefs" min="0.8" max="1.6" step="0.05"><button type="button" class="step" id="htitlefs-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Header subject size (em)</label><div class="stepper"><button type="button" class="step" id="hsubjectfs-minus">&minus;</button><input type="number" id="f-hsubjectfs" min="0.8" max="1.4" step="0.05"><button type="button" class="step" id="hsubjectfs-plus">+</button></div></div>
+            <div><label>Answer-key heading size (em)</label><div class="stepper"><button type="button" class="step" id="ansheadfs-minus">&minus;</button><input type="number" id="f-ansheadfs" min="0.9" max="1.6" step="0.05"><button type="button" class="step" id="ansheadfs-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Option mark border (px)</label><div class="stepper"><button type="button" class="step" id="omborder-minus">&minus;</button><input type="number" id="f-omborder" min="0.5" max="3" step="0.1"><button type="button" class="step" id="omborder-plus">+</button></div></div>
+            <div><label>Answer item gap (mm)</label><div class="stepper"><button type="button" class="step" id="ansgap-minus">&minus;</button><input type="number" id="f-ansgap" min="0" max="6" step="0.5"><button type="button" class="step" id="ansgap-plus">+</button></div></div>
+          </div>
+          <div class="grid2">
+            <div><label>Question number weight</label><select id="f-qnow"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
+            <div><label>Question number color</label><input type="text" id="f-qnoc" placeholder="#000"></div>
+          </div>
+          <div class="grid2">
+            <div><label>Marks weight</label><select id="f-qmarksw"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
+            <div><label>Marks color</label><input type="text" id="f-qmarksc" placeholder="#222"></div>
+          </div>
+          <div class="grid2">
+            <div><label>Answer key text weight</label><select id="f-answ"><option value="400">Normal</option><option value="600">Semi-bold</option><option value="700">Bold</option></select></div>
+            <div><label>Answer key text color</label><input type="text" id="f-ansc" placeholder="#000"></div>
+          </div>
+          <label>Fit more per page</label>
           <label>Fit more per page</label>
           <div class="btnrow">
             <button class="btnsm" type="button" id="dens-compact" title="Tight margins and spacing — most questions per sheet">Compact</button>
@@ -659,7 +735,10 @@ export function buildPrintHtml(data: PrintData): string {
           opttextFs: 1, optGap: 0.6, qnoGap: 0.6, optVGap: 0.4, optHGap: 4,
           hSchoolWeight: 700, hTitleWeight: 400, hSubjectWeight: 400,
           sectionWeight: 400, ansheadWeight: 400,
-          hSchoolColor: '', hTitleColor: '', sectionColor: '', ansheadColor: ''
+          hSchoolColor: '', hTitleColor: '', sectionColor: '', ansheadColor: '',
+          ansColor: '', qnoColor: '', qmarksColor: '',
+          hSchoolFs: 1.3, hTitleFs: 1.05, hSubjectFs: 0.98, sectionFs: 1.12, ansheadFs: 1.18, ansFs: 0.98, expFs: 0.88, qnoFs: 1, qFs: 1, qmarksFs: 0.88,
+          optmarkBorder: 1.2, ansGap: 1.8,
         };
         var S = Object.assign({}, DEF, DATA.defaults);
         /* Device defaults: formatting the Print page never controls (font size,
@@ -670,7 +749,7 @@ export function buildPrintHtml(data: PrintData): string {
            Print page, which reads the same object. Date and paper title are
            per-paper and are never restored. */
         var PREF_KEY = 'mcq_print_prefs';
-        var PREF_RESTORE = ['fontSize','labelStyle','numStyle','showHeader','showName','showSchool','showTitle','showSubject','showTime','showFullMarks','showDate','showRollClass','runningTitle','showPageNo','pageNumPos','pageNumFmt','marginTop','marginRight','marginBottom','marginLeft','fontFamily','lineHeight','qgap','cgap','ansCols','showExplanation','qPageNo','showBreaks','optmarkSize','optmarkFs','optmarkAlign','opttextFs','optGap','qnoGap','optVGap','optHGap','hSchoolWeight','hTitleWeight','hSubjectWeight','sectionWeight','ansheadWeight','hSchoolColor','hTitleColor','sectionColor','ansheadColor'];
+        var PREF_RESTORE = ['fontSize','labelStyle','numStyle','showHeader','showName','showSchool','showTitle','showSubject','showTime','showFullMarks','showDate','showRollClass','runningTitle','showPageNo','pageNumPos','pageNumFmt','marginTop','marginRight','marginBottom','marginLeft','fontFamily','lineHeight','qgap','cgap','ansCols','showExplanation','qPageNo','showBreaks','optmarkSize','optmarkFs','optmarkAlign','opttextFs','optGap','qnoGap','optVGap','optHGap','hSchoolWeight','hTitleWeight','hSubjectWeight','sectionWeight','ansheadWeight','ansWeight','qnoWeight','qmarksWeight','hSchoolColor','hTitleColor','hSubjectColor','sectionColor','ansheadColor','ansColor','qnoColor','qmarksColor','hSchoolFs','hTitleFs','hSubjectFs','sectionFs','ansheadFs','ansFs','expFs','qnoFs','qFs','qmarksFs','optmarkBorder','ansGap'];
         var PREF_SAVE = ['school','instructions','columns','groupBySubject','showMarks','showAnswers','showInstructions'].concat(PREF_RESTORE);
         (function(){
           try {
@@ -1098,11 +1177,26 @@ export function buildPrintHtml(data: PrintData): string {
                '--qno-gap': (Number(S.qnoGap) >= 0 ? Number(S.qnoGap) : 0.6) + 'mm',
                '--opt-v-gap': (Number(S.optVGap) >= 0 ? Number(S.optVGap) : 0.4) + 'mm',
                '--opt-h-gap': (Number(S.optHGap) >= 0 ? Number(S.optHGap) : 4) + 'mm',
+               '--optmark-border': (Number(S.optmarkBorder) > 0 ? Number(S.optmarkBorder) : 1.2) + 'px',
                '--h-school-weight': String(S.hSchoolWeight || 700),
                '--h-title-weight': String(S.hTitleWeight || 400),
                '--h-subject-weight': String(S.hSubjectWeight || 400),
                '--section-weight': String(S.sectionWeight || 400),
                '--anshead-weight': String(S.ansheadWeight || 400),
+               '--ans-weight': String(S.ansWeight || 400),
+               '--qno-weight': String(S.qnoWeight || 700),
+               '--qmarks-weight': String(S.qmarksWeight || 400),
+               '--h-school-fs': (Number(S.hSchoolFs) > 0 ? Number(S.hSchoolFs) : 1.3) + 'em',
+               '--h-title-fs': (Number(S.hTitleFs) > 0 ? Number(S.hTitleFs) : 1.05) + 'em',
+               '--h-subject-fs': (Number(S.hSubjectFs) > 0 ? Number(S.hSubjectFs) : 0.98) + 'em',
+               '--section-fs': (Number(S.sectionFs) > 0 ? Number(S.sectionFs) : 1.12) + 'em',
+               '--anshead-fs': (Number(S.ansheadFs) > 0 ? Number(S.ansheadFs) : 1.18) + 'em',
+               '--ans-fs': (Number(S.ansFs) > 0 ? Number(S.ansFs) : 0.98) + 'em',
+               '--exp-fs': (Number(S.expFs) > 0 ? Number(S.expFs) : 0.88) + 'em',
+               '--qno-fs': (Number(S.qnoFs) > 0 ? Number(S.qnoFs) : 1) + 'em',
+               '--q-fs': (Number(S.qFs) > 0 ? Number(S.qFs) : 1) + 'em',
+               '--qmarks-fs': (Number(S.qmarksFs) > 0 ? Number(S.qmarksFs) : 0.88) + 'em',
+               '--ans-gap': (Number(S.ansGap) >= 0 ? Number(S.ansGap) : 1.8) + 'mm',
              };
              var colorMap = {
                '--h-school-color': S.hSchoolColor,
@@ -1110,6 +1204,9 @@ export function buildPrintHtml(data: PrintData): string {
                '--h-subject-color': S.hSubjectColor,
                '--section-color': S.sectionColor,
                '--anshead-color': S.ansheadColor,
+               '--ans-color': S.ansColor,
+               '--qno-color': S.qnoColor,
+               '--qmarks-color': S.qmarksColor,
              };
              targets.forEach(function(el){
                Object.keys(vars).forEach(function(k){ el.style.setProperty(k, vars[k]); });
@@ -1411,7 +1508,44 @@ export function buildPrintHtml(data: PrintData): string {
         document.getElementById('f-sectionc').value = S.sectionColor || '';
         document.getElementById('f-ansheadw').value = String(S.ansheadWeight || 400);
         document.getElementById('f-ansheadc').value = S.ansheadColor || '';
+        document.getElementById('f-qnofs').value = S.qnoFs;
+        document.getElementById('f-qfs').value = S.qFs;
+        document.getElementById('f-qmarkfs').value = S.qmarksFs;
+        document.getElementById('f-sectionfs').value = S.sectionFs;
+        document.getElementById('f-ansfs').value = S.ansFs;
+        document.getElementById('f-expfs').value = S.expFs;
+        document.getElementById('f-hschoolfs').value = S.hSchoolFs;
+        document.getElementById('f-htitlefs').value = S.hTitleFs;
+        document.getElementById('f-hsubjectfs').value = S.hSubjectFs;
+        document.getElementById('f-ansheadfs').value = S.ansheadFs;
+        document.getElementById('f-omborder').value = S.optmarkBorder;
+        document.getElementById('f-ansgap').value = S.ansGap;
+        document.getElementById('f-qnow').value = String(S.qnoWeight || 700);
+        document.getElementById('f-qnoc').value = S.qnoColor || '';
+        document.getElementById('f-qmarksw').value = String(S.qmarksWeight || 400);
+        document.getElementById('f-qmarksc').value = S.qmarksColor || '';
+        document.getElementById('f-answ').value = String(S.ansWeight || 400);
+        document.getElementById('f-ansc').value = S.ansColor || '';
         document.getElementById('f-target').value = S.target || 'paper';
+        // more granular
+        document.getElementById('f-qnofs').value = S.qnoFs;
+        document.getElementById('f-qfs').value = S.qFs;
+        document.getElementById('f-qmarkfs').value = S.qmarksFs;
+        document.getElementById('f-sectionfs').value = S.sectionFs;
+        document.getElementById('f-ansfs').value = S.ansFs;
+        document.getElementById('f-expfs').value = S.expFs;
+        document.getElementById('f-hschoolfs').value = S.hSchoolFs;
+        document.getElementById('f-htitlefs').value = S.hTitleFs;
+        document.getElementById('f-hsubjectfs').value = S.hSubjectFs;
+        document.getElementById('f-ansheadfs').value = S.ansheadFs;
+        document.getElementById('f-omborder').value = S.optmarkBorder;
+        document.getElementById('f-ansgap').value = S.ansGap;
+        document.getElementById('f-qnow').value = String(S.qnoWeight || 700);
+        document.getElementById('f-qnoc').value = S.qnoColor || '';
+        document.getElementById('f-qmarksw').value = String(S.qmarksWeight || 400);
+        document.getElementById('f-qmarksc').value = S.qmarksColor || '';
+        document.getElementById('f-answ').value = String(S.ansWeight || 400);
+        document.getElementById('f-ansc').value = S.ansColor || '';
         document.getElementById('f-anscols').value = String(S.ansCols || 2);
         document.getElementById('f-qpgno').checked = S.qPageNo !== false;
         document.getElementById('f-exp').checked = !!S.showExplanation;
@@ -1472,6 +1606,43 @@ export function buildPrintHtml(data: PrintData): string {
         bind('f-sectionc', 'sectionColor', 'text');
         bind('f-ansheadw', 'ansheadWeight', 'num');
         bind('f-ansheadc', 'ansheadColor', 'text');
+        bind('f-qnofs', 'qnoFs', 'num');
+        bind('f-qfs', 'qFs', 'num');
+        bind('f-qmarkfs', 'qmarksFs', 'num');
+        bind('f-sectionfs', 'sectionFs', 'num');
+        bind('f-ansfs', 'ansFs', 'num');
+        bind('f-expfs', 'expFs', 'num');
+        bind('f-hschoolfs', 'hSchoolFs', 'num');
+        bind('f-htitlefs', 'hTitleFs', 'num');
+        bind('f-hsubjectfs', 'hSubjectFs', 'num');
+        bind('f-ansheadfs', 'ansheadFs', 'num');
+        bind('f-omborder', 'optmarkBorder', 'num');
+        bind('f-ansgap', 'ansGap', 'num');
+        bind('f-qnow', 'qnoWeight', 'num');
+        bind('f-qnoc', 'qnoColor', 'text');
+        bind('f-qmarksw', 'qmarksWeight', 'num');
+        bind('f-qmarksc', 'qmarksColor', 'text');
+        bind('f-answ', 'ansWeight', 'num');
+        bind('f-ansc', 'ansColor', 'text');
+        // more granular
+        bind('f-qnofs', 'qnoFs', 'num');
+        bind('f-qfs', 'qFs', 'num');
+        bind('f-qmarkfs', 'qmarksFs', 'num');
+        bind('f-sectionfs', 'sectionFs', 'num');
+        bind('f-ansfs', 'ansFs', 'num');
+        bind('f-expfs', 'expFs', 'num');
+        bind('f-hschoolfs', 'hSchoolFs', 'num');
+        bind('f-htitlefs', 'hTitleFs', 'num');
+        bind('f-hsubjectfs', 'hSubjectFs', 'num');
+        bind('f-ansheadfs', 'ansheadFs', 'num');
+        bind('f-omborder', 'optmarkBorder', 'num');
+        bind('f-ansgap', 'ansGap', 'num');
+        bind('f-qnow', 'qnoWeight', 'num');
+        bind('f-qnoc', 'qnoColor', 'text');
+        bind('f-qmarksw', 'qmarksWeight', 'num');
+        bind('f-qmarksc', 'qmarksColor', 'text');
+        bind('f-answ', 'ansWeight', 'num');
+        bind('f-ansc', 'ansColor', 'text');
         bind('f-target', 'target', 'sel');
         function granularStepper(minusId, plusId, inputId, step) {
           var mn = document.getElementById(minusId), pl = document.getElementById(plusId), inp = document.getElementById(inputId);
@@ -1481,11 +1652,23 @@ export function buildPrintHtml(data: PrintData): string {
         granularStepper('om-minus', 'om-plus', 'f-om', 0.1);
         granularStepper('omfs-minus', 'omfs-plus', 'f-omfs', 0.05);
         granularStepper('otfs-minus', 'otfs-plus', 'f-otfs', 0.05);
+        granularStepper('qnofs-minus', 'qnofs-plus', 'f-qnofs', 0.05);
+        granularStepper('qfs-minus', 'qfs-plus', 'f-qfs', 0.05);
+        granularStepper('qmarkfs-minus', 'qmarkfs-plus', 'f-qmarkfs', 0.05);
+        granularStepper('sectionfs-minus', 'sectionfs-plus', 'f-sectionfs', 0.05);
+        granularStepper('ansfs-minus', 'ansfs-plus', 'f-ansfs', 0.05);
+        granularStepper('expfs-minus', 'expfs-plus', 'f-expfs', 0.05);
+        granularStepper('hschoolfs-minus', 'hschoolfs-plus', 'f-hschoolfs', 0.05);
+        granularStepper('htitlefs-minus', 'htitlefs-plus', 'f-htitlefs', 0.05);
+        granularStepper('hsubjectfs-minus', 'hsubjectfs-plus', 'f-hsubjectfs', 0.05);
+        granularStepper('ansheadfs-minus', 'ansheadfs-plus', 'f-ansheadfs', 0.05);
+        granularStepper('omborder-minus', 'omborder-plus', 'f-omborder', 0.1);
+        granularStepper('ansgap-minus', 'ansgap-plus', 'f-ansgap', 0.5);
         // Per-control visibility: controls that only affect the paper (or only
         // the answer key) are hidden when the other target is selected.
         var PAPER_ONLY = ['f-school','f-title','f-date','dateTodayBtn','dateCalBtn','f-cols','f-header','t-name','t-school','t-title','t-subject','t-time','t-marks','t-rollclass','t-runningtitle','f-marks','f-instr','f-instrtext','f-group','f-breaks','f-labels','f-num','f-qpgno','f-qgap','f-cgap','f-om','f-omfs','f-omalign','f-otfs','f-optgap','f-qnogap','f-optvgap','f-opthgap','f-hschoolw','f-hschoolc','f-htitlew','f-htitlec','f-hsubjectw','f-hsubjectc','f-sectionw','f-sectionc','shuffleBtn','shuffleQBtn','f-fs','f-font','f-lh','m-top','m-right','m-bottom','m-left'];
         var ANS_ONLY = ['f-anscols','f-answers','f-exp','f-ansheadw','f-ansheadc'];
-        function hideEl(id, visible){ var el = document.getElementById(id); if (!el) return; var box = el.parentElement; if (box && box !== document.querySelector('.settings') && box.querySelectorAll('input,select,button,textarea').length <= 4) { box.style.display = visible ? '' : 'none'; } else { el.style.display = visible ? '' : 'none'; var prev = el.previousElementSibling; if (prev && prev.tagName === 'LABEL') prev.style.display = visible ? '' : 'none'; } }
+        function hideEl(id, visible){ var el = document.getElementById(id); if (!el) return; var box = el.parentElement; // grid2 cell: hide the whole cell (label + control) if (box && box.parentElement && box.parentElement.classList && box.parentElement.classList.contains('grid2')) { box.parentElement.style.display = visible ? '' : 'none'; return; } // .row container: hide the whole row if (box && box.classList && box.classList.contains('row')) { box.style.display = visible ? '' : 'none'; return; } // simple control inside .settings: hide element + preceding label if (box && box !== document.querySelector('.settings')) { box.style.display = visible ? '' : 'none'; return; } el.style.display = visible ? '' : 'none'; var prev = el.previousElementSibling; if (prev && prev.tagName === 'LABEL') prev.style.display = visible ? '' : 'none'; }
         function applyTargetUI(){ var t = S.target || 'paper'; var sectTargets = { 'Header items': ['paper','both'], 'Page numbers': ['paper','both'], 'Granular (circle, option, gap)': ['paper','both'] }; var secs = document.querySelectorAll('.sect'); secs.forEach(function(sec){ var title = (sec.textContent || '').trim(); var applicable = sectTargets[title]; var visible = !applicable || applicable.indexOf(t) !== -1; sec.style.display = visible ? '' : 'none'; var sib = sec.nextElementSibling; while (sib && !sib.classList.contains('sect') && sib.id !== 'printBtn'){ sib.style.display = visible ? '' : 'none'; sib = sib.nextElementSibling; } }); PAPER_ONLY.forEach(function(id){ hideEl(id, t !== 'ans'); }); ANS_ONLY.forEach(function(id){ hideEl(id, t !== 'paper'); }); var pb = document.getElementById('printBtn'); if (pb) pb.style.display = ''; }
         var tgtEl = document.getElementById('f-target');
         if (tgtEl) { var tgtH = function(){ S.target = tgtEl.value; applyTargetUI(); pushVar('target'); scheduleRender(); savePrefs(); }; tgtEl.addEventListener('input', tgtH); tgtEl.addEventListener('change', tgtH); }
