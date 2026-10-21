@@ -621,7 +621,6 @@ export function buildPrintHtml(data: PrintData): string {
             <div><label>Answer key text color</label><input type="text" id="f-ansc" placeholder="#000"></div>
           </div>
           <label>Fit more per page</label>
-          <label>Fit more per page</label>
           <div class="btnrow">
             <button class="btnsm" type="button" id="dens-compact" title="Tight margins and spacing — most questions per sheet">Compact</button>
             <button class="btnsm" type="button" id="dens-standard" title="Balanced defaults">Standard</button>
@@ -1621,32 +1620,111 @@ export function buildPrintHtml(data: PrintData): string {
         granularStepper('ansheadfs-minus', 'ansheadfs-plus', 'f-ansheadfs', 0.05);
         granularStepper('omborder-minus', 'omborder-plus', 'f-omborder', 0.1);
         granularStepper('ansgap-minus', 'ansgap-plus', 'f-ansgap', 0.5);
-        // Per-control visibility: controls that only affect the paper (or only
-        // the answer key) are hidden when the other target is selected.
-
-        // Per-control visibility: controls that only affect the paper (or only
-        // the answer key) are hidden when the other target is selected.
+        /* Per-control visibility: controls that only affect the paper (or only
+           the answer key) are hidden when the other target is selected — and
+           their labels, grid cells and section headings go with them, so the
+           panel never shows a heading (Date, Columns, Font size…) with no
+           control under it. Visibility is derived structurally, so a mixed row
+           such as "Column gap + Answer key columns" keeps whichever half still
+           applies to the chosen target. */
         function applyTargetUI(){
           var t = S.target || 'paper';
-          var sectTargets = { 'Header items': ['paper','both'], 'Page numbers': ['paper','both'], 'Granular (circle, option, gap)': ['paper','both'] };
-          var secs = document.querySelectorAll('.sect');
-          secs.forEach(function(sec){
-            var title = (sec.textContent || '').trim();
-            var applicable = sectTargets[title];
-            var visible = !applicable || applicable.indexOf(t) !== -1;
-            sec.style.display = visible ? '' : 'none';
-            var sib = sec.nextElementSibling;
-            while (sib && !sib.classList.contains('sect') && sib.id !== 'printBtn'){
-              sib.style.display = visible ? '' : 'none';
-              sib = sib.nextElementSibling;
-            }
-          });
-          // Per-control visibility
-          var PAPER_ONLY = ['f-school','f-title','f-date','dateTodayBtn','dateCalBtn','f-cols','f-header','t-name','t-school','t-title','t-subject','t-time','t-marks','t-rollclass','t-runningtitle','f-marks','f-instr','f-instrtext','f-group','f-breaks','f-labels','f-num','f-qpgno','f-qgap','f-cgap','f-om','f-omfs','f-omalign','f-otfs','f-optgap','f-qnogap','f-optvgap','f-opthgap','f-hschoolw','f-hschoolc','f-htitlew','f-htitlec','f-hsubjectw','f-hsubjectc','f-sectionw','f-sectionc','f-qnofs','f-qfs','f-qmarkfs','f-sectionfs','f-hschoolfs','f-htitlefs','f-hsubjectfs','f-qnow','f-qnoc','f-qmarksw','f-qmarksc','f-omborder','shuffleBtn','shuffleQBtn','f-fs','f-font','f-lh','m-top','m-right','m-bottom','m-left'];
+          var PAPER_ONLY = ['f-school','f-title','f-date','dateTodayBtn','dateCalBtn','f-cols','f-header','t-name','t-date','t-school','t-title','t-subject','t-time','t-marks','t-rollclass','t-runningtitle','t-pageno','f-marks','f-instr','f-instrtext','f-group','f-breaks','f-labels','f-num','f-qpgno','f-qgap','f-cgap','f-om','f-omfs','f-omalign','f-otfs','f-optgap','f-qnogap','f-optvgap','f-opthgap','f-hschoolw','f-hschoolc','f-htitlew','f-htitlec','f-hsubjectw','f-hsubjectc','f-sectionw','f-sectionc','f-qnofs','f-qfs','f-qmarkfs','f-sectionfs','f-hschoolfs','f-htitlefs','f-hsubjectfs','f-qnow','f-qnoc','f-qmarksw','f-qmarksc','f-omborder','shuffleBtn','shuffleQBtn','resetBtn','dens-compact','dens-standard','dens-spacious','f-pagenumpos','f-pagenumfmt','f-fs','f-font','f-lh','m-top','m-right','m-bottom','m-left'];
           var ANS_ONLY = ['f-anscols','f-answers','f-exp','f-ansheadw','f-ansheadc','f-ansfs','f-expfs','f-ansheadfs','f-answ','f-ansc','f-ansgap'];
-          function hideEl(id, visible){ var el = document.getElementById(id); if (!el) return; var box = el.parentElement; if (box && box.parentElement && box.parentElement.classList && box.parentElement.classList.contains('grid2')) { box.parentElement.style.display = visible ? '' : 'none'; return; } if (box && box.classList && box.classList.contains('row')) { box.style.display = visible ? '' : 'none'; return; } if (box && box !== document.querySelector('.settings')) { box.style.display = visible ? '' : 'none'; return; } el.style.display = visible ? '' : 'none'; var prev = el.previousElementSibling; if (prev && prev.tagName === 'LABEL') prev.style.display = visible ? '' : 'none'; }
-          PAPER_ONLY.forEach(function(id){ hideEl(id, t !== 'ans'); });
-          ANS_ONLY.forEach(function(id){ hideEl(id, t !== 'paper'); });
+          var hide = {};
+          if (t === 'ans') PAPER_ONLY.forEach(function(id){ hide[id] = 1; });
+          if (t === 'paper') ANS_ONLY.forEach(function(id){ hide[id] = 1; });
+          /* A stepper's +/- buttons follow the input they nudge, and the custom
+             dropdown button follows the native select it mirrors. */
+          function ctrlShown(c){
+            if (!c) return true;
+            if (c.tagName === 'BUTTON'){
+              var st = c.closest ? c.closest('.stepper, .tselect') : null;
+              if (st){
+                var src = st.tagName === 'SELECT' ? st : st.querySelector('input,select');
+                if (src) c = src;
+              }
+            }
+            return !(c.id && hide[c.id]);
+          }
+          function anyShown(el){
+            if (!el || !el.querySelectorAll) return false;
+            var cs = el.querySelectorAll('input,select,textarea,button');
+            for (var i = 0; i < cs.length; i++){ if (ctrlShown(cs[i])) return true; }
+            return false;
+          }
+          function blockShown(el){
+            if (!el || el.style.display === 'none') return false;
+            if (/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(el.tagName)) return ctrlShown(el);
+            if (el.querySelector('input,select,textarea,button')) return anyShown(el);
+            return true;
+          }
+          /* 1 — the controls themselves, plus the custom dropdown / stepper
+             shell drawn on top of them. */
+          PAPER_ONLY.concat(ANS_ONLY).forEach(function(id){
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.style.display = hide[id] ? 'none' : '';
+            var shell = el.closest ? el.closest('.tselect') : null;
+            if (shell) shell.style.display = hide[id] ? 'none' : '';
+          });
+          /* 2 — grid cells that hold only hidden controls, then the grid. */
+          var grids = document.querySelectorAll('.settings .grid2, .settings .grid4');
+          for (var g = 0; g < grids.length; g++){
+            var cells = grids[g].children, live = 0;
+            for (var c = 0; c < cells.length; c++){
+              var cell = cells[c];
+              /* Only wrapper cells can be collapsed; a control that sits
+                 directly in the grid is left to the per-control pass. */
+              if (cell.tagName !== 'DIV'){
+                if (/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(cell.tagName) && ctrlShown(cell)) live++;
+                continue;
+              }
+              var on = !cell.querySelector('input,select,textarea,button') || anyShown(cell);
+              cell.style.display = on ? '' : 'none';
+              if (on) live++;
+            }
+            grids[g].style.display = live ? '' : 'none';
+          }
+          /* 3 — checkbox rows, the date row, toggle groups and button strips. */
+          var groups = document.querySelectorAll('.settings .row, .settings .drow, .settings .tog, .settings .btnrow');
+          for (g = 0; g < groups.length; g++){
+            var grp = groups[g], any = false;
+            if (grp.classList.contains('tog')){
+              for (var k = 0; k < grp.children.length; k++){
+                var item = grp.children[k], ok = anyShown(item);
+                if (item.querySelector('input') && !ok) item.style.display = 'none';
+                else { item.style.display = ''; any = true; }
+              }
+            } else {
+              any = anyShown(grp);
+            }
+            grp.style.display = any ? '' : 'none';
+          }
+          /* 4 — labels follow the control (or the block) right after them. */
+          var kids = Array.prototype.slice.call(document.querySelector('.settings').children);
+          kids.forEach(function(el){
+            if (el.tagName !== 'LABEL') return;
+            var ref = el.htmlFor ? document.getElementById(el.htmlFor) : null;
+            if (!ref){ var n = el.nextElementSibling; while (n && n.tagName === 'LABEL') n = n.nextElementSibling; ref = n; }
+            var h = !ref || ref.style.display === 'none' || !blockShown(ref) || (ref.id && hide[ref.id]);
+            el.style.display = h ? 'none' : '';
+          });
+          /* 5 — section headings with nothing left beneath them. */
+          kids.forEach(function(el, i){
+            if (!el.classList || !el.classList.contains('sect')) return;
+            var j = i + 1, any = false;
+            while (j < kids.length){
+              var nb = kids[j];
+              /* A section ends at the next heading — or at the first
+                 panel-level block (checkbox row, button, hint), which is not
+                 part of any section. */
+              if (nb.classList && (nb.classList.contains('sect') || nb.classList.contains('row') || nb.classList.contains('btnrow') || nb.classList.contains('btn') || nb.classList.contains('pginfo') || nb.classList.contains('hint'))) break;
+              if (blockShown(nb)){ any = true; break; }
+              j++;
+            }
+            el.style.display = any ? '' : 'none';
+          });
           var pb = document.getElementById('printBtn'); if (pb) pb.style.display = '';
         }
         var tgtEl = document.getElementById('f-target');
