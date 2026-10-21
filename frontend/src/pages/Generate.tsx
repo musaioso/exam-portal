@@ -117,7 +117,10 @@ export default function Generate() {
   const [pageTo, setPageTo] = useState("");
   const [text, setText] = useState("");
   const [uploadPct, setUploadPct] = useState<number | null>(null);
-  const [ocrLang, setOcrLang] = useState("eng");
+  // Bangla is the common case for scanned pages here, and the English model
+  // alone turns Bangla script into Latin garbage. Default to both so an
+  // upload is never silently misread.
+  const [ocrLang, setOcrLang] = useState("eng+ben");
   const [history, setHistory] = useState<any[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
