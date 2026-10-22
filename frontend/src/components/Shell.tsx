@@ -94,12 +94,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
               title={isCollapsed ? n.label : undefined}
               className={cn(
                 "flex items-center rounded-xl text-sm transition-colors duration-150",
-                isCollapsed ? "justify-center w-10 h-10" : "gap-3 px-3 py-2 h-9",
+                isCollapsed ? "justify-center w-10 h-10" : "w-full px-3 py-2 h-9",
                 active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-ink/10"
               )}
             >
               <Icon size={ICON_SIZE} className="shrink-0" />
-              {!isCollapsed && <span className="truncate">{n.label}</span>}
+              <span className={cn(
+                "truncate transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-3 max-w-[200px] opacity-100"
+              )}>{n.label}</span>
             </Link>
           );
         })}
@@ -111,25 +114,28 @@ export function Shell({ children }: { children: React.ReactNode }) {
             to="/profile"
             onClick={close}
             title={isCollapsed ? (user?.name || "Profile") : undefined}
-            className={cn("flex items-center rounded-xl text-xs text-slate-400 transition-colors duration-150 hover:bg-ink/10", isCollapsed ? "justify-center w-10 h-10" : "min-w-0 px-2 py-2")}
+            className={cn("flex items-center rounded-xl text-xs text-slate-400 transition-colors duration-150 hover:bg-ink/10", isCollapsed ? "justify-center w-10 h-10" : "w-full px-3 py-2")}
           >
-            {isCollapsed ? (
-              <UserCircle size={ICON_SIZE} className="text-slate-400" />
-            ) : (
-              <div className="flex min-w-0 items-center gap-1.5 leading-tight">
-                <span className="truncate font-medium text-slate-200">{user?.name}</span>
-                <span className="shrink-0 text-slate-600" aria-hidden="true">·</span>
-                <span className="shrink-0 capitalize text-slate-500">{user?.role}</span>
-              </div>
-            )}
+            <UserCircle size={ICON_SIZE} className="shrink-0 text-slate-400" />
+            <div className={cn(
+              "flex min-w-0 items-center gap-1.5 overflow-hidden leading-tight transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+              isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-3 max-w-[200px] opacity-100"
+            )}>
+              <span className="truncate font-medium text-slate-200">{user?.name}</span>
+              <span className="shrink-0 text-slate-600" aria-hidden="true">·</span>
+              <span className="shrink-0 capitalize text-slate-500">{user?.role}</span>
+            </div>
           </Link>
           <button
             onClick={() => { logout(); nav("/login"); }}
             title={isCollapsed ? "Logout" : undefined}
-            className={cn("flex items-center rounded-xl text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10", isCollapsed ? "justify-center w-10 h-10" : "w-full gap-3 px-3 py-2 h-9")}
+            className={cn("flex items-center rounded-xl text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10", isCollapsed ? "justify-center w-10 h-10" : "w-full px-3 py-2 h-9")}
           >
             <LogOut size={ICON_SIZE} className="shrink-0" />
-            {!isCollapsed && <span className="truncate">Logout</span>}
+            <span className={cn(
+              "truncate transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+              isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-3 max-w-[200px] opacity-100"
+            )}>Logout</span>
           </button>
         </div>
       </aside>
