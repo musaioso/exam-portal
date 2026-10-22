@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { optionLabel } from "../lib/labels";
@@ -110,6 +110,8 @@ export default function StandalonePractice() {
   const [booting, setBooting] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Monotonic counter so a stale filter fetch can never overwrite a newer one.
+  const filterRequestRef = useRef(0);
 
   const [subjectId, setSubjectId] = useState(searchParams.get("subject") || "");
   /** Several chapters may be picked at once. Empty means "every chapter". */
@@ -132,6 +134,10 @@ export default function StandalonePractice() {
   // The chapter list is sent along so the counts and the difficulty breakdown
   // describe the questions the round will really hold.
   useEffect(() => {
+    // A request id guards against stale responses: if the selection changed
+    // again before this fetch resolved, its result is discarded instead of
+    // overwriting the newer counts.
+    const requestId = ++filterRequestRef.current;
     api
       .get("/questions/practice/filters", {
         params: {
@@ -140,6 +146,7 @@ export default function StandalonePractice() {
         },
       })
       .then(({ data }) => {
+        if (requestId !== filterRequestRef.current) return;
         setSubjects(data.subjects || []);
         setChapters(data.chapters || []);
         setDifficulties(data.difficulties || []);
