@@ -75,8 +75,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </button>
 
         {/* Logo row */}
-        <div className={cn("mb-2 flex items-center transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "justify-center pt-10 pb-2" : "px-2 py-3 pr-10")}>
-          <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-5 w-5" : undefined} />
+        <div className={cn("mb-2 flex transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "justify-center pt-10 pb-2" : "items-center px-2 py-3 pr-10")}>
+          <div className={cn(isCollapsed ? "flex items-center justify-center w-10 h-9" : "flex items-center")}>
+            <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-5 w-5" : undefined} />
+          </div>
         </div>
 
         {items.map(n => {
