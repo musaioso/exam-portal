@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
-import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, ChevronLeft, ChevronRight, FileQuestion, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, FileQuestion, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import { StorageWarning } from "./StorageWarning";
@@ -58,29 +58,31 @@ export function Shell({ children }: { children: React.ReactNode }) {
     const isCollapsed = collapsed && !forceExpanded;
     return (
       <aside className={cn(
-        "relative flex h-full flex-col gap-1 p-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden",
+        "relative flex h-full flex-col gap-1 p-3 transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden",
         isCollapsed ? "w-14 items-center" : "w-64",
-        solid ? "bg-slate-900 shadow-2xl" : "border-r border-slate-700/50 bg-slate-900/40 backdrop-blur",
+        solid ? "bg-slate-900 shadow-2xl" : "border-r border-slate-700/50 bg-slate-900/40",
       )}>
-        {/* Toggle button: centered at top, themed for visibility. */}
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          className={cn(
-            "absolute top-2 z-20 grid h-8 w-8 place-items-center rounded-lg text-indigo-300 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-indigo-500/20 hover:text-indigo-100 bg-indigo-500/10 border border-indigo-500/30",
-            isCollapsed ? "right-3" : "right-2",
+        {/* Toggle sits on its own fixed-height row so nothing below it shifts.
+            `right-0` rides the width transition and lands dead-centre (28px)
+            when the ribbon reaches 56px — no left/right jump. */}
+        <div className="relative h-8 w-full shrink-0">
+          {!forceExpanded && (
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              className="absolute right-0 top-0 z-20 grid h-8 w-8 place-items-center rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 transition-colors duration-150 hover:bg-indigo-500/20 hover:text-indigo-100"
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+            >
+              {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+            </button>
           )}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
-        >
-          {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-        </button>
+        </div>
 
-        {/* Logo row */}
-        <div className={cn("mb-2 flex transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "justify-center pt-10 pb-2" : "items-center px-2 py-3 pr-10")}>
-          <div className={cn(isCollapsed ? "flex items-center justify-center w-10 h-10" : "flex items-center")}>
-            <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-5 w-5" : undefined} />
-          </div>
+        {/* Logo row: same height and same top offset in both states, so the
+            mark never travels vertically while collapsing. */}
+        <div className={cn("mb-2 flex h-10 w-full shrink-0 items-center", isCollapsed ? "justify-center" : "px-2")}>
+          <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-5 w-5" : undefined} />
         </div>
 
         {items.map(n => {
@@ -94,31 +96,31 @@ export function Shell({ children }: { children: React.ReactNode }) {
               title={isCollapsed ? n.label : undefined}
               className={cn(
                 "flex items-center rounded-xl text-sm transition-colors duration-150",
-                isCollapsed ? "justify-center w-10 h-10" : "w-full px-3 py-2 h-9",
+                isCollapsed ? "justify-center w-10 h-10" : "w-full px-3 h-10",
                 active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-ink/10"
               )}
             >
               <Icon size={ICON_SIZE} className="shrink-0" />
               <span className={cn(
-                "truncate transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                "truncate transition-[opacity,max-width,margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                 isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-3 max-w-[200px] opacity-100"
               )}>{n.label}</span>
             </Link>
           );
         })}
-        <div className={cn("mt-auto space-y-1 border-t border-slate-700/50 pt-4 transition-all duration-300", isCollapsed && "flex flex-col items-center")}>
-          <div className={cn("flex items-center justify-center", isCollapsed ? "w-10 h-10" : "w-full")}>
+        <div className={cn("mt-auto space-y-1 border-t border-slate-700/50 pt-4", isCollapsed && "flex flex-col items-center")}>
+          <div className={cn("flex h-10 items-center justify-center", isCollapsed ? "w-10" : "w-full")}>
             <ThemeToggle compact={isCollapsed} />
           </div>
           <Link
             to="/profile"
             onClick={close}
             title={isCollapsed ? (user?.name || "Profile") : undefined}
-            className={cn("flex items-center rounded-xl text-xs text-slate-400 transition-colors duration-150 hover:bg-ink/10", isCollapsed ? "justify-center w-10 h-10" : "w-full px-3 py-2")}
+            className={cn("flex h-10 items-center rounded-xl text-xs text-slate-400 transition-colors duration-150 hover:bg-ink/10", isCollapsed ? "justify-center w-10" : "w-full px-3")}
           >
             <UserCircle size={ICON_SIZE} className="shrink-0 text-slate-400" />
             <div className={cn(
-              "flex min-w-0 items-center gap-1.5 overflow-hidden leading-tight transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+              "flex min-w-0 items-center gap-1.5 overflow-hidden leading-tight transition-[opacity,max-width,margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
               isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-3 max-w-[200px] opacity-100"
             )}>
               <span className="truncate font-medium text-slate-200">{user?.name}</span>
@@ -129,11 +131,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => { logout(); nav("/login"); }}
             title={isCollapsed ? "Logout" : undefined}
-            className={cn("flex items-center rounded-xl text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10", isCollapsed ? "justify-center w-10 h-10" : "w-full px-3 py-2 h-9")}
+            className={cn("flex h-10 items-center rounded-xl text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10", isCollapsed ? "justify-center w-10" : "w-full px-3")}
           >
             <LogOut size={ICON_SIZE} className="shrink-0" />
             <span className={cn(
-              "truncate transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+              "truncate transition-[opacity,max-width,margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
               isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-3 max-w-[200px] opacity-100"
             )}>Logout</span>
           </button>
@@ -145,7 +147,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen">
       {/* Desktop sidebar */}
-      <div className="hidden md:block transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">{sidebar()}</div>
+      <div className="hidden md:block">{sidebar()}</div>
 
       {/* Mobile drawer */}
       {open && (
@@ -169,7 +171,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <Logo size="sm" to="/dashboard" className="gap-2" />
         </header>
 
-        <main className="flex-1 overflow-auto p-4 md:p-6 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
+        <main className="flex-1 overflow-auto p-4 md:p-6">
           <StorageWarning className="mb-6" />
           {children}
         </main>

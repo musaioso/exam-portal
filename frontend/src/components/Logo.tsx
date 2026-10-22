@@ -45,7 +45,7 @@ export function Logo({
         aria-label="MCQ Studio logo"
         className={cn(
           size === "lg" ? "h-12 w-12" : size === "sm" ? "h-10 w-10" : "h-9 w-9",
-          "shrink-0 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+          "shrink-0 transition-[width,height] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
           iconClassName
         )}
       >
