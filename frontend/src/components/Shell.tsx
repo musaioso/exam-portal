@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
-import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck } from "lucide-react";
+import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, FilePenLine } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import { StorageWarning } from "./StorageWarning";
@@ -18,6 +18,7 @@ const NAV = [
   { to: "/users", label: "Students", icon: Users, roles: ["admin","teacher"] },
   { to: "/results", label: "Results", icon: GraduationCap, roles: ["admin","teacher","student"] },
   { to: "/practice/standalone", label: "Standalone Practice", icon: Target, roles: ["admin","teacher","student"] },
+  { to: "/proofreading", label: "Proofreading", icon: FilePenLine, roles: ["admin","teacher","student"] },
   { to: "/profile", label: "My Profile", icon: UserCircle, roles: ["admin","teacher","student"] },
 ];
 
