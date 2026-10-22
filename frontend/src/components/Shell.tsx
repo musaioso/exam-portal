@@ -60,7 +60,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     const isCollapsed = collapsed && !forceExpanded;
     return (
       <aside className={cn(
-        "relative flex h-full flex-col gap-1 p-3 transition-[width] duration-200 ease-out",
+        "relative flex h-full flex-col gap-1 p-3 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden",
         isCollapsed ? "w-14 items-center" : "w-64",
         solid ? "bg-slate-900 shadow-2xl" : "border-r border-slate-700/50 bg-slate-900/40 backdrop-blur",
       )}>
@@ -76,7 +76,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </button>
 
         {/* Logo row: top padding clears the floating toggle button. */}
-        <div className={cn("mb-2 flex items-center", isCollapsed ? "justify-center px-0 pt-10 pb-2" : "px-2 py-3 pr-10")}>
+        <div className={cn("mb-2 flex items-center transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "justify-center px-0 pt-10 pb-2" : "px-2 py-3 pr-10")}>
           <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-7 w-7" : undefined} />
         </div>
 
@@ -96,11 +96,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
               )}
             >
               <Icon size={17} className="shrink-0" />
-              {!isCollapsed && <span className="truncate">{n.label}</span>}
+              <span className={cn("truncate transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]")}>{n.label}</span>
             </Link>
           );
         })}
-        <div className={cn("mt-auto space-y-1 border-t border-slate-700/50 pt-4", isCollapsed && "flex flex-col items-center")}>
+        <div className={cn("mt-auto space-y-1 border-t border-slate-700/50 pt-4 transition-all duration-300", isCollapsed && "flex flex-col items-center")}>
           <ThemeToggle compact={isCollapsed} />
           <Link
             to="/profile"
@@ -120,7 +120,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10", isCollapsed && "justify-center px-2")}
           >
             <LogOut size={17} className="shrink-0" />
-            {!isCollapsed && <span>Logout</span>}
+            <span className={cn("truncate transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]")}>Logout</span>
           </button>
         </div>
       </aside>
@@ -130,7 +130,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen">
       {/* Desktop sidebar */}
-      <div className="hidden md:block transition-[width] duration-200 ease-out">{sidebar()}</div>
+      <div className="hidden md:block transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">{sidebar()}</div>
 
       {/* Mobile drawer */}
       {open && (
@@ -154,7 +154,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <Logo size="sm" to="/dashboard" className="gap-2" />
         </header>
 
-        <main className="flex-1 overflow-auto p-4 md:p-6 transition-all duration-200">
+        <main className="flex-1 overflow-auto p-4 md:p-6 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]">
           <StorageWarning className="mb-6" />
           {children}
         </main>
