@@ -89,8 +89,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
               onClick={close}
               title={isCollapsed ? n.label : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors duration-150 h-9",
-                isCollapsed && "justify-center px-0 gap-0",
+                "flex items-center gap-3 rounded-xl text-sm transition-colors duration-150 h-9",
+                isCollapsed ? "justify-center w-10 px-0" : "px-3 py-2",
                 active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-ink/10"
               )}
             >
