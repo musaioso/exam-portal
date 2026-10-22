@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
-import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, ChevronLeft, ChevronRight, FileQuestion } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import { StorageWarning } from "./StorageWarning";
@@ -10,7 +10,7 @@ import { cn } from "./ui";
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin","teacher","student"] },
   { to: "/subjects", label: "Subjects & Chapters", icon: BookOpen, roles: ["admin","teacher"] },
-  { to: "/questions", label: "Question Bank", icon: BookOpen, roles: ["admin","teacher"] },
+  { to: "/questions", label: "Question Bank", icon: FileQuestion, roles: ["admin","teacher"] },
   { to: "/generate", label: "AI Generate", icon: Sparkles, roles: ["admin","teacher"] },
   { to: "/spelling", label: "Spelling MCQs", icon: SpellCheck, roles: ["admin","teacher"] },
   { to: "/exams", label: "Exams", icon: ClipboardList, roles: ["admin","teacher","student"] },
