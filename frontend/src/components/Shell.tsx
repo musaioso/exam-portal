@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
 import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, FileQuestion, PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -34,6 +34,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   });
 
   const close = () => setOpen(false);
+  const resizeTimer = useRef<number | null>(null);
 
   const toggleCollapsed = () => {
     setCollapsed((c) => {
@@ -41,6 +42,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
       try { localStorage.setItem(STORAGE_KEY, next ? "1" : "0"); } catch { /* ignore */ }
       return next;
     });
+    // Suppress backdrop blurs while the width animates (see index.css).
+    document.body.classList.add("is-resizing-sidebar");
+    if (resizeTimer.current) window.clearTimeout(resizeTimer.current);
+    resizeTimer.current = window.setTimeout(() => {
+      document.body.classList.remove("is-resizing-sidebar");
+    }, 360);
   };
 
   React.useEffect(() => {
@@ -51,14 +58,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
       }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (resizeTimer.current) window.clearTimeout(resizeTimer.current);
+      document.body.classList.remove("is-resizing-sidebar");
+    };
   }, []);
 
   const sidebar = (solid = false, forceExpanded = false) => {
     const isCollapsed = collapsed && !forceExpanded;
     return (
       <aside className={cn(
-        "relative flex h-full flex-col gap-1 p-3 transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden",
+        "relative flex h-full flex-col gap-1 p-3 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] overflow-hidden",
         isCollapsed ? "w-14 items-center" : "w-64",
         solid ? "bg-slate-900 shadow-2xl" : "border-r border-slate-700/50 bg-slate-900/40",
       )}>
@@ -81,8 +92,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
         {/* Logo row: same height and same top offset in both states, so the
             mark never travels vertically while collapsing. */}
-        <div className={cn("mb-2 flex h-10 w-full shrink-0 items-center", isCollapsed ? "justify-center" : "px-2")}>
-          <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-5 w-5" : undefined} />
+        <div className={cn("mb-2 flex h-10 w-full shrink-0 items-center", isCollapsed ? "pl-1.5" : "pl-2")}>
+          <Logo
+            size={isCollapsed ? "sm" : "md"}
+            to="/dashboard"
+            className="gap-0"
+            iconClassName={isCollapsed ? "h-5 w-5" : undefined}
+            textClassName={isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-3 max-w-[200px] opacity-100"}
+          />
         </div>
 
         {items.map(n => {
@@ -102,7 +119,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             >
               <Icon size={ICON_SIZE} className="shrink-0" />
               <span className={cn(
-                "truncate transition-[opacity,max-width,margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                "truncate transition-[opacity,max-width,margin-left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
                 isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-3 max-w-[200px] opacity-100"
               )}>{n.label}</span>
             </Link>
@@ -120,7 +137,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           >
             <UserCircle size={ICON_SIZE} className="shrink-0 text-slate-400" />
             <div className={cn(
-              "flex min-w-0 items-center gap-1.5 overflow-hidden leading-tight transition-[opacity,max-width,margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+              "flex min-w-0 items-center gap-1.5 overflow-hidden leading-tight transition-[opacity,max-width,margin-left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
               isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-3 max-w-[200px] opacity-100"
             )}>
               <span className="truncate font-medium text-slate-200">{user?.name}</span>
@@ -135,7 +152,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           >
             <LogOut size={ICON_SIZE} className="shrink-0" />
             <span className={cn(
-              "truncate transition-[opacity,max-width,margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+              "truncate transition-[opacity,max-width,margin-left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
               isCollapsed ? "ml-0 max-w-0 opacity-0" : "ml-3 max-w-[200px] opacity-100"
             )}>Logout</span>
           </button>

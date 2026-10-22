@@ -70,6 +70,15 @@ body::after {
   border-radius: 1.5rem;
 }
 
+/* While the sidebar width animates, every card in the page is re-laid out on
+   each frame — re-snapshotting a backdrop blur for each one is what makes the
+   collapse stutter. Drop the blur for those ~300ms; the tint stays. */
+body.is-resizing-sidebar .glass,
+body.is-resizing-sidebar [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* --------------------------------------------------------------------------
    Card hover: the card lifts, its edge brightens and a soft green glow
    appears. No moving parts.

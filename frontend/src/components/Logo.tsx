@@ -18,6 +18,7 @@ export function Logo({
   showText = true,
   size = "md",
   to,
+  textClassName,
 }: {
   className?: string;
   /** Override the mark's box size, e.g. "h-12 w-12". */
@@ -26,6 +27,8 @@ export function Logo({
   size?: "lg" | "md" | "sm";
   /** When set, the logo becomes a clickable link to this path. */
   to?: string;
+  /** Extra classes for the wordmark (used to fade/slide it with the sidebar). */
+  textClassName?: string;
 }) {
   // React ids can contain ":" which breaks url(#…) references — strip them.
   const uid = useId().replace(/:/g, "");
@@ -45,7 +48,7 @@ export function Logo({
         aria-label="MCQ Studio logo"
         className={cn(
           size === "lg" ? "h-12 w-12" : size === "sm" ? "h-10 w-10" : "h-9 w-9",
-          "shrink-0 transition-[width,height] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+          "shrink-0 transition-[width,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
           iconClassName
         )}
       >
@@ -81,7 +84,10 @@ export function Logo({
         />
       </svg>
       {showText && (
-        <div>
+        <div className={cn(
+          "min-w-0 overflow-hidden whitespace-nowrap transition-[opacity,max-width,margin-left] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          textClassName
+        )}>
           <div className={cn("font-semibold leading-tight", text.name)}>MCQ Studio</div>
           <div className={cn("text-slate-400", text.sub)}>NCTB 2025 · English Version</div>
         </div>
