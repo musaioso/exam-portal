@@ -22,6 +22,7 @@ const NAV = [
 ];
 
 const STORAGE_KEY = "mcq_sidebar_collapsed";
+const ICON_SIZE = 18;
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -43,7 +44,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Keyboard shortcut: Ctrl/Cmd+B toggles collapse (desktop only).
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === "b" || e.key === "B")) {
@@ -55,7 +55,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // forceExpanded: mobile drawer always shows the full sidebar.
   const sidebar = (solid = false, forceExpanded = false) => {
     const isCollapsed = collapsed && !forceExpanded;
     return (
@@ -75,9 +74,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
 
-        {/* Logo row: top padding clears the floating toggle button. */}
-        <div className={cn("mb-2 flex items-center transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "justify-center px-0 pt-10 pb-2" : "px-2 py-3 pr-10")}>
-          <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-7 w-7" : undefined} />
+        {/* Logo row */}
+        <div className={cn("mb-2 flex items-center transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "justify-center pt-10 pb-2" : "px-2 py-3 pr-10")}>
+          <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-5 w-5" : undefined} />
         </div>
 
         {items.map(n => {
@@ -90,36 +89,38 @@ export function Shell({ children }: { children: React.ReactNode }) {
               onClick={close}
               title={isCollapsed ? n.label : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors duration-150",
-                isCollapsed && "justify-center px-2",
+                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors duration-150 h-9",
+                isCollapsed && "justify-center px-0 gap-0",
                 active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-ink/10"
               )}
             >
-              <Icon size={17} className="shrink-0" />
+              <Icon size={ICON_SIZE} className="shrink-0" />
               <span className={cn("truncate transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]")}>{n.label}</span>
             </Link>
           );
         })}
         <div className={cn("mt-auto space-y-1 border-t border-slate-700/50 pt-4 transition-all duration-300", isCollapsed && "flex flex-col items-center")}>
-          <ThemeToggle compact={isCollapsed} />
+          <div className="h-9 flex items-center justify-center">
+            <ThemeToggle compact={isCollapsed} />
+          </div>
           <Link
             to="/profile"
             onClick={close}
             title={isCollapsed ? (user?.name || "Profile") : undefined}
-            className={cn("block rounded-xl px-2 py-1.5 text-xs text-slate-400 hover:bg-ink/10", isCollapsed && "text-center")}
+            className={cn("flex items-center gap-2 rounded-xl px-2 py-1.5 text-xs text-slate-400 hover:bg-ink/10 h-9", isCollapsed && "justify-center px-0")}
           >
             {isCollapsed ? (
-              <UserCircle size={17} className="mx-auto text-slate-400" />
+              <UserCircle size={ICON_SIZE} className="text-slate-400" />
             ) : (
-              <>{user?.name}<br/><span className="text-slate-500">{user?.role}</span></>
+              <><span className="truncate">{user?.name}</span><br/><span className="text-slate-500">{user?.role}</span></>
             )}
           </Link>
           <button
             onClick={() => { logout(); nav("/login"); }}
             title={isCollapsed ? "Logout" : undefined}
-            className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10", isCollapsed && "justify-center px-2")}
+            className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10 h-9", isCollapsed && "justify-center px-0 gap-0")}
           >
-            <LogOut size={17} className="shrink-0" />
+            <LogOut size={ICON_SIZE} className="shrink-0" />
             <span className={cn("truncate transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]")}>Logout</span>
           </button>
         </div>
