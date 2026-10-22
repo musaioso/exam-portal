@@ -273,7 +273,7 @@ export function buildProofreadingPassage(opts: {
     const item = SPELLING_BANK.find((b) => b.correct === correct);
     // Avoid trailing-hasanta variants in a passage: they render as a broken
     // glyph and read as a typo of the page, not of the word.
-    const variants = item ? item.wrong.filter((w) => !w.endsWith("্")) : [];
+    const variants = item ? item.wrong.filter((w) => !w.endsWith("্") && w.trim() !== correct.trim()) : [];
     const pool = variants.length ? variants : item ? item.wrong : [correct];
     const wrong = pool[Math.floor(rnd() * pool.length)];
     const misspelled = sentence.replace(correct, wrong);

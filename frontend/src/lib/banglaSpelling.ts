@@ -209,8 +209,8 @@ const RAW: [string, string, string, string, string][] = [
   ["প্রয়োগ", "প্রয়োগা", "প্রয়োগ্", "প্রয়োগি", "য-ফলা/র-ফলা"],
 
   // ── সন্ধি / সমাস ─────────────────────────────────────────────────────────
-  ["বিদ্যালয়", "বিদ্যালয়", "বিদ্যালয়া", "বিদ্যালয়্", "সন্ধি/সমাস"],
-  ["বিশ্ববিদ্যালয়", "বিশ্ববিদ্যালয়", "বিশ্ববিদ্যালয়া", "বিশ্ববিদ্যালয়্", "সন্ধি/সমাস"],
+  ["বিদ্যালয়", "বিদ্যালয", "বিদ্যালয়া", "বিদ্যালয়্", "সন্ধি/সমাস"],
+  ["বিশ্ববিদ্যালয়", "বিশ্ববিদ্যালয", "বিশ্ববিদ্যালয়া", "বিশ্ববিদ্যালয়্", "সন্ধি/সমাস"],
   ["কার্যক্রম", "কার্যক্রমা", "কার্য্ক্রম", "কার্যক্রম্", "সন্ধি/সমাস"],
   ["কার্যকর", "কার্যকরা", "কার্য্কর", "কার্যকর্", "সন্ধি/সমাস"],
   ["কার্যকরী", "কার্যকরি", "কার্যকরীা", "কার্যকরী্", "সন্ধি/সমাস"],
@@ -305,7 +305,8 @@ export function buildSpellingQuestions(options: {
     const prompt = PROMPTS[cand.variant % PROMPTS.length](cand.shown);
     if (exclude.has(prompt)) continue;
 
-    const options = shuffle([cand.item.correct, ...cand.item.wrong], random);
+    const distractors = cand.item.wrong.filter((w) => w.trim() !== cand.item.correct.trim());
+    const options = shuffle([cand.item.correct, ...distractors], random);
     const explanation = `শুদ্ধ বানান: ${cand.item.correct}। ${TAG_NOTE[cand.item.tag] || ""}`.trim();
 
     out.push({
