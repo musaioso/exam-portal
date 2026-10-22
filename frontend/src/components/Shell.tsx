@@ -109,7 +109,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             to="/profile"
             onClick={close}
             title={isCollapsed ? (user?.name || "Profile") : undefined}
-            className={cn("flex items-center rounded-xl px-2 py-1.5 text-xs text-slate-400 hover:bg-ink/10 h-10", isCollapsed ? "justify-center w-full" : "")}
+            className={cn("flex items-center rounded-xl text-xs text-slate-400 hover:bg-ink/10", isCollapsed ? "justify-center h-10 w-full" : "px-2 py-1.5")}
           >
             {isCollapsed ? (
               <UserCircle size={ICON_SIZE} className="text-slate-400" />
