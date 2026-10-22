@@ -76,7 +76,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
         {/* Logo row */}
         <div className={cn("mb-2 flex transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]", isCollapsed ? "justify-center pt-10 pb-2" : "items-center px-2 py-3 pr-10")}>
-          <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-5 w-5" : undefined} />
+          <div className={cn(isCollapsed ? "flex items-center justify-center w-10 h-10" : "flex items-center")}>
+            <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-5 w-5" : undefined} />
+          </div>
         </div>
 
         {items.map(n => {
@@ -89,8 +91,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
               onClick={close}
               title={isCollapsed ? n.label : undefined}
               className={cn(
-                "flex items-center rounded-xl text-sm transition-colors duration-150 h-9",
-                isCollapsed ? "justify-center w-full" : "gap-3 px-3 py-2",
+                "flex items-center rounded-xl text-sm transition-colors duration-150",
+                isCollapsed ? "justify-center w-10 h-10" : "gap-3 px-3 py-2 h-9",
                 active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-ink/10"
               )}
             >
@@ -100,14 +102,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
           );
         })}
         <div className={cn("mt-auto space-y-1 border-t border-slate-700/50 pt-4 transition-all duration-300", isCollapsed && "flex flex-col items-center")}>
-          <div className="h-9 flex items-center justify-center w-full">
+          <div className="h-10 flex items-center justify-center w-full">
             <ThemeToggle compact={isCollapsed} />
           </div>
           <Link
             to="/profile"
             onClick={close}
             title={isCollapsed ? (user?.name || "Profile") : undefined}
-            className={cn("flex items-center rounded-xl px-2 py-1.5 text-xs text-slate-400 hover:bg-ink/10 h-9", isCollapsed ? "justify-center w-full" : "")}
+            className={cn("flex items-center rounded-xl px-2 py-1.5 text-xs text-slate-400 hover:bg-ink/10 h-10", isCollapsed ? "justify-center w-full" : "")}
           >
             {isCollapsed ? (
               <UserCircle size={ICON_SIZE} className="text-slate-400" />
@@ -118,7 +120,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => { logout(); nav("/login"); }}
             title={isCollapsed ? "Logout" : undefined}
-            className={cn("flex w-full items-center rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10 h-9", isCollapsed && "justify-center")}
+            className={cn("flex w-full items-center rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10 h-10", isCollapsed && "justify-center")}
           >
             <LogOut size={ICON_SIZE} className="shrink-0" />
             {!isCollapsed && <span className="truncate">Logout</span>}
