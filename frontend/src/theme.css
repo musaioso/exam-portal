@@ -84,9 +84,9 @@ html[data-theme="dark"] {
     #04120b;
   --bubble-1: rgba(16, 185, 129, 0.55);
   --bubble-2: rgba(20, 184, 166, 0.38);
-  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03));
-  --glass-border: rgba(255, 255, 255, 0.13);
-  --glass-shadow: 0 10px 40px -15px rgba(16, 185, 129, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
+  --glass-border: rgba(255, 255, 255, 0.22);
+  --glass-shadow: 0 10px 40px -15px rgba(16, 185, 129, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
   --glass-hover-shadow: 0 20px 50px -14px rgba(16, 185, 129, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   --glass-hover-border: rgba(52, 211, 153, 0.40);
   --skel: rgba(255, 255, 255, 0.09);
@@ -166,7 +166,7 @@ html[data-theme="light"] {
     #f5fbf7;
   --bubble-1: rgba(16, 185, 129, 0.22);
   --bubble-2: rgba(20, 184, 166, 0.18);
-  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.62));
+  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
   --glass-border: rgba(6, 95, 70, 0.14);
   --glass-shadow: 0 10px 34px -18px rgba(6, 95, 70, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.55) inset;
   --glass-hover-shadow: 0 20px 46px -18px rgba(6, 95, 70, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;

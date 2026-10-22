@@ -37,10 +37,10 @@ export function AuthShell({ title, subtitle, top, children }: {
         <ThemeToggle compact />
       </div>
 
-      <div className="glass grid w-full max-w-4xl overflow-hidden lg:grid-cols-2">
+      <div className="glass grid w-full max-w-4xl overflow-hidden rounded-2xl lg:grid-cols-2 border-t-2 border-t-indigo-400/60">
         {/* Brand story — desktop only, so the form keeps the whole phone screen. */}
-        <aside className="relative hidden flex-col justify-between gap-10 overflow-hidden border-r border-slate-600/40 p-8 lg:flex">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-indigo-500/15 via-cyan-400/10 to-transparent" />
+        <aside className="relative hidden flex-col justify-between gap-10 overflow-hidden border-r border-slate-600/60 p-8 lg:flex bg-slate-900/30">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-indigo-500/25 via-cyan-400/15 to-transparent" />
 
           <div className="relative">
             <Logo size="lg" />
@@ -73,7 +73,7 @@ export function AuthShell({ title, subtitle, top, children }: {
         </aside>
 
         {/* Form panel */}
-        <div className="p-5 sm:p-8">
+        <div className="p-5 sm:p-8 bg-slate-900/20 dark:bg-slate-900/20">
           <div className="mb-5 lg:hidden">
             <Logo size="sm" />
           </div>
