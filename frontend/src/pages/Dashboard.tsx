@@ -274,7 +274,7 @@ export default function Dashboard() {
 
   /* ---------------------------------------------------------------- student chart data */
   const studentPassFail = useMemo(() => {
-    const graded = gradedAttempts(attempts);
+    const graded = attempts.filter((a: any) => a.status !== "in_progress" && Number(a.total) > 0);
     const pass = graded.filter((a: any) => (percent(a.score, a.total) ?? 0) >= PASS_MARK).length;
     const fail = graded.length - pass;
     return [
@@ -284,7 +284,7 @@ export default function Dashboard() {
   }, [attempts]);
 
   const studentScoreBands = useMemo(() => {
-    const graded = gradedAttempts(attempts);
+    const graded = attempts.filter((a: any) => a.status !== "in_progress" && Number(a.total) > 0);
     const bands = [
       { label: "Excellent (≥80)", value: 0, tone: "emerald" as const },
       { label: "Good (50–79)", value: 0, tone: "indigo" as const },
@@ -301,29 +301,7 @@ export default function Dashboard() {
     return bands;
   }, [attempts]);
 
-  const studentBadgeChart = useMemo(() => {
-    const earned = badgeList.filter((b: any) => b.earned).length;
-    return [
-      { label: "Earned", value: earned, tone: "amber" as const },
-      { label: "Remaining", value: badgeList.length - earned, tone: "slate" as const },
-    ];
-  }, [badgeList]);
-
-  const studentSubjectChart = useMemo(() => {
-    return (subjectStats || []).map((s: any) => ({
-      label: s.name,
-      value: Math.max(1, s.average),
-      tone: "indigo" as const,
-    }));
-  }, [subjectStats]);
-
   /* --------------------------------------------------------------- teacher/admin chart data */
-  const questionTypeChart = useMemo(() => [
-    { label: "MCQ", value: mix.type.mcq, tone: "indigo" as const },
-    { label: "Short", value: mix.type.short, tone: "cyan" as const },
-    { label: "Long", value: mix.type.long, tone: "emerald" as const },
-  ], [mix]);
-
   const questionBySubjectChart = useMemo(() => {
     const counts = new Map<string, number>();
     for (const q of questions) {
@@ -337,24 +315,7 @@ export default function Dashboard() {
       .slice(0, 8);
   }, [questions, subjects]);
 
-  const examStatusChart = useMemo(() => [
-    { label: "Published", value: publishedExams.length, tone: "emerald" as const },
-    { label: "Draft", value: draftExams.length, tone: "slate" as const },
-  ], [publishedExams.length, draftExams.length]);
 
-  const difficultyChart = useMemo(() => {
-    const counts = { easy: 0, medium: 0, hard: 0 };
-    for (const q of questions) {
-      const d = (q.difficulty || "medium").toLowerCase();
-      if (d in counts) counts[d as keyof typeof counts]++;
-      else counts.medium++;
-    }
-    return [
-      { label: "Easy", value: counts.easy, tone: "emerald" as const },
-      { label: "Medium", value: counts.medium, tone: "amber" as const },
-      { label: "Hard", value: counts.hard, tone: "rose" as const },
-    ];
-  }, [questions]);
 
   const userRoleChart = useMemo(() => {
     const counts = { admin: 0, teacher: 0, student: 0 };
@@ -386,22 +347,7 @@ export default function Dashboard() {
     ];
   }, [attempts]);
 
-  const topStudentsChart = useMemo(() => {
-    const byStudent = new Map<string, { sum: number; n: number; name: string }>();
-    for (const a of attempts) {
-      if (a.status === "in_progress" || !Number(a.total)) continue;
-      const sid = a.user_id || a.student_id;
-      if (!sid) continue;
-      const b = byStudent.get(sid) || { sum: 0, n: 0, name: a.student_name || sid.slice(0, 8) };
-      b.sum += (Number(a.score) / Number(a.total)) * 100;
-      b.n += 1;
-      byStudent.set(sid, b);
-    }
-    return Array.from(byStudent.values())
-      .map((b) => ({ label: b.name, value: Math.round(b.sum / b.n), tone: "indigo" as const }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-  }, [attempts]);
+
 
   const examActivityChart = useMemo(() => {
     const buckets = new Map<string, number>();
@@ -513,7 +459,25 @@ export default function Dashboard() {
       })
     : [];
   const badgeEarned = badgeList.filter((b) => b.earned).length;
+  const studentBadgeChart = isStudent
+    ? [
+        { label: "Earned", value: badgeEarned, tone: "amber" as const },
+        { label: "Remaining", value: badgeList.length - badgeEarned, tone: "slate" as const },
+      ]
+    : [];
   const subjectStats = isStudent ? subjectBreakdown(attempts, exams, data.subjects) : [];
+  const studentSubjectChart = isStudent
+    ? subjectStats.map((s: any) => ({
+        label: s.name,
+        value: Math.max(1, s.average),
+        tone: "indigo" as const,
+      }))
+    : [];
+
+  const examStatusChart = [
+    { label: "Published", value: publishedExams.length, tone: "emerald" as const },
+    { label: "Draft", value: draftExams.length, tone: "slate" as const },
+  ];
   /** Last in a best-first list = the subject to work on next. */
   const weakSubject = subjectStats.length > 1 ? subjectStats[subjectStats.length - 1] : null;
 
