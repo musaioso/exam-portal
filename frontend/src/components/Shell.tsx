@@ -66,7 +66,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={toggleCollapsed}
-          className="absolute left-1/2 -translate-x-1/2 top-2 z-20 grid h-8 w-8 place-items-center rounded-lg text-indigo-300 transition-colors duration-150 hover:bg-indigo-500/20 hover:text-indigo-100 bg-indigo-500/10 border border-indigo-500/30"
+          className={cn(
+            "absolute top-2 z-20 grid h-8 w-8 place-items-center rounded-lg text-indigo-300 transition-colors duration-150 hover:bg-indigo-500/20 hover:text-indigo-100 bg-indigo-500/10 border border-indigo-500/30",
+            isCollapsed ? "left-1/2 -translate-x-1/2" : "right-2",
+          )}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
         >
@@ -108,12 +111,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
             to="/profile"
             onClick={close}
             title={isCollapsed ? (user?.name || "Profile") : undefined}
-            className={cn("flex items-center rounded-xl text-xs text-slate-400 hover:bg-ink/10", isCollapsed ? "justify-center w-10 h-10" : "px-2 py-1.5")}
+            className={cn("flex items-center rounded-xl text-xs text-slate-400 transition-colors duration-150 hover:bg-ink/10", isCollapsed ? "justify-center w-10 h-10" : "min-w-0 px-2 py-2")}
           >
             {isCollapsed ? (
               <UserCircle size={ICON_SIZE} className="text-slate-400" />
             ) : (
-              <><span className="truncate">{user?.name}</span><br/><span className="text-slate-500">{user?.role}</span></>
+              <div className="flex min-w-0 items-center gap-1.5 leading-tight">
+                <span className="truncate font-medium text-slate-200">{user?.name}</span>
+                <span className="shrink-0 text-slate-600" aria-hidden="true">·</span>
+                <span className="shrink-0 capitalize text-slate-500">{user?.role}</span>
+              </div>
             )}
           </Link>
           <button
