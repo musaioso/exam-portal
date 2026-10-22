@@ -321,13 +321,17 @@ export default function Spelling() {
                         className={cn(
                           "flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-sm",
                           right
-                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                            ? "border-emerald-500/50 bg-emerald-500/15 font-medium text-emerald-200"
                             : "border-slate-600/30 text-slate-300",
                         )}
                       >
                         <span className="text-xs opacity-70">{optionLabel(q.prompt, oi)}.</span>
                         <span className="flex-1">{o}</span>
-                        {right && <CheckCircle2 size={14} className="text-emerald-400" />}
+                        {right && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-200">
+                            <CheckCircle2 size={11} /> সঠিক
+                          </span>
+                        )}
                       </div>
                     );
                   })}

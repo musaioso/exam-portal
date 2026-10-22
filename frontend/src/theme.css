@@ -142,16 +142,23 @@ html[data-theme="light"] {
   --color-cyan-500: #0d9488;
 
   /* info */
+  --color-sky-200: #115e59;
   --color-sky-300: #0f766e;
   --color-sky-400: #0f766e;
+  --color-cyan-200: #115e59;
 
-  /* success / warning / danger */
+  /* success / warning / danger (all shades used on tinted chips must stay
+     dark enough to read on the light canvas) */
+  --color-emerald-100: #064e3b;
+  --color-emerald-200: #065f46;
   --color-emerald-300: #047857;
   --color-emerald-400: #047857;
   --color-emerald-500: #059669;
+  --color-amber-100: #78350f;
   --color-amber-200: #92400e;
   --color-amber-300: #b45309;
   --color-amber-500: #d97706;
+  --color-rose-100: #881337;
   --color-rose-200: #9f1239;
   --color-rose-300: #be123c;
   --color-rose-400: #be123c;

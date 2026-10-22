@@ -1197,8 +1197,23 @@ export default function Generate() {
                           {it.options && (
                             <ul className="mt-2 space-y-1 text-sm">
                               {it.options.map((o, oi) => (
-                                <li key={oi} className={cn("rounded-lg px-2 py-1", o === it.answer ? "bg-emerald-500/15 text-emerald-200" : "text-slate-300")}>
-                                  {optionLabel(it.prompt, oi)}. {o} {o === it.answer && "✓"}
+                                <li
+                                  key={oi}
+                                  className={cn(
+                                    "flex items-start gap-2 rounded-lg px-2 py-1",
+                                    o === it.answer
+                                      ? "border border-emerald-500/40 bg-emerald-500/15 font-medium text-emerald-200"
+                                      : "text-slate-300"
+                                  )}
+                                >
+                                  <span className="flex-1">
+                                    {optionLabel(it.prompt, oi)}. {o}
+                                  </span>
+                                  {o === it.answer && (
+                                    <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
+                                      <Check size={10} /> Correct
+                                    </span>
+                                  )}
                                 </li>
                               ))}
                             </ul>
