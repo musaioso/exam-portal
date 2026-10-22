@@ -22,6 +22,62 @@
         }
       })();
     </script>
+    <script>
+      // Bootstrap safety net. If the app fails to boot (a stale cached bundle is
+      // the usual culprit) we show a recoverable panel instead of a blank page.
+      // The reload button busts the cache so the browser fetches a fresh index.
+      (function () {
+        var shown = false;
+        function bust() {
+          var u = new URL(window.location.href);
+          u.searchParams.set("v", Date.now().toString());
+          window.location.replace(u.toString());
+        }
+        function panel(reason) {
+          if (shown) return;
+          shown = true;
+          var box = document.createElement("div");
+          box.setAttribute("data-mcq-recovery", "1");
+          box.style.cssText =
+            "position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;" +
+            "justify-content:center;padding:24px;background:#0b1120;color:#e2e8f0;" +
+            "font:15px/1.7 'Plus Jakarta Sans',system-ui,sans-serif;text-align:center";
+          var inner = document.createElement("div");
+          inner.style.cssText = "max-width:520px";
+          inner.innerHTML =
+            '<h2 style="margin:0 0 10px;font-size:20px">অ্যাপটি লোড হয়নি</h2>' +
+            '<p style="margin:0 0 18px;color:#94a3b8">' +
+            "আপনার ব্রাউজারে পুরনো সংস্করণের ফাইল সংরক্ষিত আছে। রিফ্রেশ করলে নতুন সংস্করণ লোড হবে।" +
+            "</p>" +
+            '<button id="mcq-recovery-btn" style="padding:10px 22px;border:0;border-radius:12px;' +
+            "background:linear-gradient(90deg,#8b5cf6,#22d3ee);color:#fff;font-weight:700;cursor:pointer" +
+            ">রিফ্রেশ করুন</button>";
+          box.appendChild(inner);
+          var mount = function () {
+            if (document.body) document.body.appendChild(box);
+          };
+          if (document.body) mount();
+          else document.addEventListener("DOMContentLoaded", mount);
+          var btn = document.getElementById("mcq-recovery-btn");
+          if (btn) btn.onclick = bust;
+        }
+        // A crash during boot leaves #root empty. Catch it after a grace period.
+        window.setTimeout(function () {
+          var root = document.getElementById("root");
+          if (root && root.children.length === 0) panel("boot");
+        }, 6000);
+        // Uncaught exceptions during render also mean a blank page.
+        window.addEventListener(
+          "error",
+          function (e) {
+            if (e && e.target && e.target !== window) return; // asset load error
+            var root = document.getElementById("root");
+            if (root && root.children.length === 0) panel("error");
+          },
+          true
+        );
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
