@@ -1,7 +1,7 @@
-import { useState } from "react";
+import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
-import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, FilePenLine } from "lucide-react";
+import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import { StorageWarning } from "./StorageWarning";
@@ -18,9 +18,10 @@ const NAV = [
   { to: "/users", label: "Students", icon: Users, roles: ["admin","teacher"] },
   { to: "/results", label: "Results", icon: GraduationCap, roles: ["admin","teacher","student"] },
   { to: "/practice/standalone", label: "Standalone Practice", icon: Target, roles: ["admin","teacher","student"] },
-  { to: "/proofreading", label: "Proofreading", icon: FilePenLine, roles: ["admin","teacher","student"] },
   { to: "/profile", label: "My Profile", icon: UserCircle, roles: ["admin","teacher","student"] },
 ];
+
+const STORAGE_KEY = "mcq_sidebar_collapsed";
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -28,19 +29,63 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const items = NAV.filter(n => user && n.roles.includes(user.role));
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(STORAGE_KEY) === "1"; } catch { return false; }
+  });
 
   const close = () => setOpen(false);
 
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      try { localStorage.setItem(STORAGE_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  // Keyboard shortcut: Ctrl/Cmd+B toggles collapse (desktop only).
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "b" || e.key === "B")) {
+        e.preventDefault();
+        toggleCollapsed();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const sidebar = (solid = false) => (
     <aside className={cn(
-      "flex h-full w-64 flex-col gap-1 p-4",
-      solid
-        ? "bg-slate-900 shadow-2xl"
-        : "border-r border-slate-700/50 bg-slate-900/40 backdrop-blur",
+      "flex h-full flex-col gap-1 p-3 transition-all duration-200",
+      collapsed ? "w-14 items-center" : "w-64",
+      solid ? "bg-slate-900 shadow-2xl" : "border-r border-slate-700/50 bg-slate-900/40 backdrop-blur",
     )}>
-      <div className="mb-2 px-2 py-3">
-        <Logo size="md" className="gap-2" />
+      <div className={cn("mb-2 flex items-center", collapsed ? "justify-center px-0 py-2" : "justify-between px-2 py-3")}>
+        <Logo size={collapsed ? "sm" : "md"} showText={!collapsed} to="/dashboard" iconClassName={collapsed ? "h-7 w-7" : undefined} />
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition hover:bg-ink/10 hover:text-slate-200"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar (Ctrl+B)"
+          >
+            <ChevronLeft size={16} />
+          </button>
+        )}
       </div>
+      {collapsed && (
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          className="mb-2 grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition hover:bg-ink/10 hover:text-slate-200"
+          aria-label="Expand sidebar"
+          title="Expand sidebar (Ctrl+B)"
+        >
+          <ChevronRight size={16} />
+        </button>
+      )}
       {items.map(n => {
         const Icon = n.icon;
         const active = loc.pathname.startsWith(n.to);
@@ -49,27 +94,39 @@ export function Shell({ children }: { children: React.ReactNode }) {
             key={n.to}
             to={n.to}
             onClick={close}
-            className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition ${active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-ink/10"}`}
+            title={collapsed ? n.label : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
+              collapsed && "justify-center px-2",
+              active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-ink/10"
+            )}
           >
-            <Icon size={17} /> {n.label}
+            <Icon size={17} className="shrink-0" />
+            {!collapsed && <span className="truncate">{n.label}</span>}
           </Link>
         );
       })}
-      <div className="mt-auto space-y-1 border-t border-slate-700/50 pt-4">
-        <ThemeToggle />
+      <div className={cn("mt-auto space-y-1 border-t border-slate-700/50 pt-4", collapsed && "flex flex-col items-center")}>
+        <ThemeToggle compact={collapsed} />
         <Link
           to="/profile"
           onClick={close}
-          title="My profile"
-          className="block rounded-xl px-2 py-1.5 text-xs text-slate-400 hover:bg-ink/10"
+          title={collapsed ? (user?.name || "Profile") : undefined}
+          className={cn("block rounded-xl px-2 py-1.5 text-xs text-slate-400 hover:bg-ink/10", collapsed && "text-center")}
         >
-          {user?.name}<br/><span className="text-slate-500">{user?.role}</span>
+          {collapsed ? (
+            <UserCircle size={17} className="mx-auto text-slate-400" />
+          ) : (
+            <>{user?.name}<br/><span className="text-slate-500">{user?.role}</span></>
+          )}
         </Link>
         <button
           onClick={() => { logout(); nav("/login"); }}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition hover:bg-ink/10"
+          title={collapsed ? "Logout" : undefined}
+          className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition hover:bg-ink/10", collapsed && "justify-center px-2")}
         >
-          <LogOut size={17} /> Logout
+          <LogOut size={17} className="shrink-0" />
+          {!collapsed && <span>Logout</span>}
         </button>
       </div>
     </aside>
@@ -99,7 +156,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           >
             <Menu size={20} />
           </button>
-          <Logo size="sm" className="gap-2" />
+          <Logo size="sm" to="/dashboard" className="gap-2" />
         </header>
 
         <main className="flex-1 overflow-auto p-4 md:p-6">

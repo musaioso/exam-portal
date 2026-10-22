@@ -684,7 +684,7 @@ export default function Generate() {
                 {/* AI vision reading — the accurate path for small/dense Bangla
                     print, which the built-in OCR turns into Latin garbage. */}
                 {visionProviders.length > 0 && (
-                  <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3">
+                  <div className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <Button
                         type="button"
@@ -713,7 +713,7 @@ export default function Generate() {
                 </p>
 
                 {docs.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-slate-600/70 px-4 py-6 text-center text-sm text-slate-500">
+                  <p className="rounded-2xl border border-dashed border-slate-600/70 px-4 py-6 text-center text-sm text-slate-500">
                     No sources uploaded yet. Upload a PDF or page photos, or switch to “Paste text”.
                   </p>
                 ) : (
@@ -724,7 +724,7 @@ export default function Generate() {
                         <label
                           key={d.id}
                           className={cn(
-                            "flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition",
+                            "flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition",
                             checked ? "border-violet-400/70 bg-violet-500/10 text-slate-100" : "border-slate-600/60 text-slate-300 hover:bg-ink/10"
                           )}
                         >
@@ -873,7 +873,7 @@ export default function Generate() {
                 {modelsLoading ? (
                   <Skeleton className="h-10" />
                 ) : enabledProviders.length === 0 ? (
-                  <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+                  <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
                     No AI provider is configured yet. Open “Manage API keys” above and paste a key (Groq, DeepSeek, OpenAI…) —
                     it is checked against the vendor and saved on the server.
                   </div>
@@ -911,7 +911,7 @@ export default function Generate() {
             </div>
 
             {showKeys && (
-              <div className="mt-4 space-y-2 rounded-xl border border-slate-600/50 bg-slate-900/40 p-3 sm:p-4">
+              <div className="mt-4 space-y-2 rounded-2xl border border-slate-600/50 bg-slate-900/40 p-3 sm:p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-semibold text-slate-300">API keys — validated against the vendor, stored on the server, never displayed again.</p>
                   <button type="button" onClick={() => setShowKeys(false)} className="rounded-lg p-1 text-slate-500 hover:text-slate-300"><X size={14} /></button>
@@ -920,7 +920,7 @@ export default function Generate() {
                   <Skeleton className="h-10" />
                 ) : (
                   keys.map((k) => (
-                    <div key={k.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700/50 bg-ink/5 px-3 py-2.5">
+                    <div key={k.id} className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-700/50 bg-ink/5 px-3 py-2.5">
                       <span className="w-36 shrink-0 truncate text-sm font-medium text-slate-200">{k.label}</span>
                       {k.enabled ? (
                         <Badge className={k.source === "env" ? "border-sky-500/40 bg-sky-500/15 text-sky-200" : "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"}>
@@ -1020,13 +1020,13 @@ export default function Generate() {
               </div>
 
               {truncated && (
-                <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-200">
+                <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-200">
                   The source was longer than the model’s window — questions came from the first part only. Use page ranges for full coverage.
                 </p>
               )}
 
               {dropped.length > 0 && (
-                <details className="rounded-xl border border-slate-600/60 bg-slate-900/40 px-4 py-3 text-sm text-slate-400">
+                <details className="rounded-2xl border border-slate-600/60 bg-slate-900/40 px-4 py-3 text-sm text-slate-400">
                   <summary className="cursor-pointer text-slate-300">{dropped.length} item{dropped.length === 1 ? "" : "s"} rejected while parsing</summary>
                   <ul className="mt-2 space-y-1 text-xs">
                     {dropped.slice(0, 20).map((d, i) => <li key={i}>• #{d.index + 1}: {d.reason}</li>)}

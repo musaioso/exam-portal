@@ -3,11 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { Card, Button, Skeleton, cn } from "../components/ui";
+import { PieChart, DonutChart } from "../components/Chart";
 import {
   Activity, ArrowRight, Award, BookOpen, BookPlus, CalendarDays, ChartColumn, CheckCircle2,
   CircleAlert, ClipboardList, Clock, Crown, DatabaseBackup, Download, FilePlus2, FileQuestion,
   Flame, GraduationCap, ListChecks, Medal, Percent, PlayCircle, Printer, RotateCcw, Sparkles,
-  Target, TrendingUp, Trophy, UserPlus, Users,
+  Target, TrendingUp, Trophy, UserPlus, Users, ShieldCheck,
 } from "lucide-react";
 import { badges as badgeDefs, streakDays, subjectBreakdown } from "../lib/progress";
 
@@ -270,6 +271,151 @@ export default function Dashboard() {
   }, [isStudent]);
 
   const { subjects, questions, exams, users, attempts } = data;
+
+  /* ---------------------------------------------------------------- student chart data */
+  const studentPassFail = useMemo(() => {
+    const graded = gradedAttempts(attempts);
+    const pass = graded.filter((a: any) => (percent(a.score, a.total) ?? 0) >= PASS_MARK).length;
+    const fail = graded.length - pass;
+    return [
+      { label: "Passed", value: pass, tone: "emerald" as const },
+      { label: "Failed", value: fail, tone: "rose" as const },
+    ];
+  }, [attempts]);
+
+  const studentScoreBands = useMemo(() => {
+    const graded = gradedAttempts(attempts);
+    const bands = [
+      { label: "Excellent (≥80)", value: 0, tone: "emerald" as const },
+      { label: "Good (50–79)", value: 0, tone: "indigo" as const },
+      { label: "Pass (33–49)", value: 0, tone: "amber" as const },
+      { label: "Fail (<33)", value: 0, tone: "rose" as const },
+    ];
+    for (const a of graded) {
+      const p = percent(a.score, a.total) ?? 0;
+      if (p >= 80) bands[0].value++;
+      else if (p >= 50) bands[1].value++;
+      else if (p >= PASS_MARK) bands[2].value++;
+      else bands[3].value++;
+    }
+    return bands;
+  }, [attempts]);
+
+  const studentBadgeChart = useMemo(() => {
+    const earned = badgeList.filter((b: any) => b.earned).length;
+    return [
+      { label: "Earned", value: earned, tone: "amber" as const },
+      { label: "Remaining", value: badgeList.length - earned, tone: "slate" as const },
+    ];
+  }, [badgeList]);
+
+  const studentSubjectChart = useMemo(() => {
+    return (subjectStats || []).map((s: any) => ({
+      label: s.name,
+      value: Math.max(1, s.average),
+      tone: "indigo" as const,
+    }));
+  }, [subjectStats]);
+
+  /* --------------------------------------------------------------- teacher/admin chart data */
+  const questionTypeChart = useMemo(() => [
+    { label: "MCQ", value: mix.type.mcq, tone: "indigo" as const },
+    { label: "Short", value: mix.type.short, tone: "cyan" as const },
+    { label: "Long", value: mix.type.long, tone: "emerald" as const },
+  ], [mix]);
+
+  const questionBySubjectChart = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const q of questions) {
+      const sid = q.subject_id;
+      if (sid) counts.set(sid, (counts.get(sid) || 0) + 1);
+    }
+    return subjects
+      .map((s: any) => ({ label: s.name, value: counts.get(s.id) || 0, tone: "indigo" as const }))
+      .filter((d: any) => d.value > 0)
+      .sort((a: any, b: any) => b.value - a.value)
+      .slice(0, 8);
+  }, [questions, subjects]);
+
+  const examStatusChart = useMemo(() => [
+    { label: "Published", value: publishedExams.length, tone: "emerald" as const },
+    { label: "Draft", value: draftExams.length, tone: "slate" as const },
+  ], [publishedExams.length, draftExams.length]);
+
+  const difficultyChart = useMemo(() => {
+    const counts = { easy: 0, medium: 0, hard: 0 };
+    for (const q of questions) {
+      const d = (q.difficulty || "medium").toLowerCase();
+      if (d in counts) counts[d as keyof typeof counts]++;
+      else counts.medium++;
+    }
+    return [
+      { label: "Easy", value: counts.easy, tone: "emerald" as const },
+      { label: "Medium", value: counts.medium, tone: "amber" as const },
+      { label: "Hard", value: counts.hard, tone: "rose" as const },
+    ];
+  }, [questions]);
+
+  const userRoleChart = useMemo(() => {
+    const counts = { admin: 0, teacher: 0, student: 0 };
+    for (const u of users) {
+      const r = u.role;
+      if (r in counts) counts[r as keyof typeof counts]++;
+    }
+    return [
+      { label: "Students", value: counts.student, tone: "amber" as const },
+      { label: "Teachers", value: counts.teacher, tone: "indigo" as const },
+      { label: "Admins", value: counts.admin, tone: "rose" as const },
+    ];
+  }, [users]);
+
+  const accountHealthChart = useMemo(() => {
+    const withPin = users.filter((u: any) => u.pin).length;
+    return [
+      { label: "Has PIN", value: withPin, tone: "emerald" as const },
+      { label: "No PIN", value: users.length - withPin, tone: "slate" as const },
+    ];
+  }, [users]);
+
+  const classPerformanceChart = useMemo(() => {
+    const graded = attempts.filter((a: any) => a.status !== "in_progress" && Number(a.total) > 0);
+    const pass = graded.filter((a: any) => (percent(a.score, a.total) ?? 0) >= PASS_MARK).length;
+    return [
+      { label: "Passed", value: pass, tone: "emerald" as const },
+      { label: "Failed", value: graded.length - pass, tone: "rose" as const },
+    ];
+  }, [attempts]);
+
+  const topStudentsChart = useMemo(() => {
+    const byStudent = new Map<string, { sum: number; n: number; name: string }>();
+    for (const a of attempts) {
+      if (a.status === "in_progress" || !Number(a.total)) continue;
+      const sid = a.user_id || a.student_id;
+      if (!sid) continue;
+      const b = byStudent.get(sid) || { sum: 0, n: 0, name: a.student_name || sid.slice(0, 8) };
+      b.sum += (Number(a.score) / Number(a.total)) * 100;
+      b.n += 1;
+      byStudent.set(sid, b);
+    }
+    return Array.from(byStudent.values())
+      .map((b) => ({ label: b.name, value: Math.round(b.sum / b.n), tone: "indigo" as const }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [attempts]);
+
+  const examActivityChart = useMemo(() => {
+    const buckets = new Map<string, number>();
+    for (const e of exams) {
+      if (!e.created_at) continue;
+      const d = new Date(Number(e.created_at));
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      buckets.set(key, (buckets.get(key) || 0) + 1);
+    }
+    return Array.from(buckets.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([k, v]) => ({ label: k, value: v, tone: "cyan" as const }));
+  }, [exams]);
 
   /* ---------------------------------------------------------------- shared */
   const publishedExams = useMemo(() => exams.filter((e: any) => e.is_published), [exams]);
@@ -590,6 +736,34 @@ export default function Dashboard() {
             </Panel>
           </div>
 
+          {/* Score distribution charts */}
+          {studentStats.finished.length > 0 && (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Panel title="Pass / fail" icon={Award}>
+                <DonutChart
+                  data={studentPassFail}
+                  size={130}
+                  centerLabel={`${studentStats.finished.filter((a: any) => (percent(a.score, a.total) ?? 0) >= PASS_MARK).length}`}
+                  centerSub="passed"
+                />
+              </Panel>
+              <Panel title="Score bands" icon={TrendingUp}>
+                <PieChart data={studentScoreBands} size={130} />
+              </Panel>
+            </div>
+          )}
+
+          {studentStats.finished.length > 0 && (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Panel title="Badges earned" icon={Award}>
+                <DonutChart data={studentBadgeChart} size={130} centerLabel={String(badgeList.filter((b: any) => b.earned).length)} centerSub="of 9" />
+              </Panel>
+              <Panel title="Subject performance" icon={ChartColumn}>
+                <PieChart data={studentSubjectChart} size={130} emptyText="No subject data yet" />
+              </Panel>
+            </div>
+          )}
+
           {/* Study streak + the badge case */}
           <Panel
             title="Study streak & badges"
@@ -721,7 +895,7 @@ export default function Dashboard() {
                     <div
                       key={r.student_id}
                       className={cn(
-                        "flex items-center gap-3 rounded-xl border px-3 py-2 text-sm",
+                        "flex items-center gap-3 rounded-2xl border px-3 py-2 text-sm",
                         r.student_id === board.me?.student_id
                           ? "border-indigo-500/30 bg-indigo-500/5"
                           : "border-slate-600/40"
@@ -867,6 +1041,75 @@ export default function Dashboard() {
               )}
             </Panel>
           </div>
+
+          {/* Charts: questions by subject + exam status */}
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Panel title="Questions by subject" icon={BookOpen}>
+              {loading ? (
+                <div className="space-y-3">{[0,1,2,3].map(i => <Skeleton key={i} className="h-9 w-full" />)}</div>
+              ) : questionBySubjectChart.length === 0 ? (
+                <EmptyState icon={BookOpen} title="No subjects yet" hint="Create subjects and add questions." to="/subjects" cta="Add subject" />
+              ) : (
+                <PieChart data={questionBySubjectChart} size={130} />
+              )}
+            </Panel>
+            <Panel title="Exam status" icon={ClipboardList}>
+              {loading ? (
+                <div className="space-y-3">{[0,1,2].map(i => <Skeleton key={i} className="h-9 w-full" />)}</div>
+              ) : exams.length === 0 ? (
+                <EmptyState icon={ClipboardList} title="No exams yet" hint="Create your first exam." to="/exams?new=1" cta="New exam" />
+              ) : (
+                <DonutChart data={examStatusChart} size={130} centerLabel={String(exams.length)} centerSub="exams" />
+              )}
+            </Panel>
+          </div>
+
+          {/* Charts: class performance (+ admin extras) */}
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Panel title="Class performance" icon={GraduationCap}>
+              {loading ? (
+                <div className="space-y-3">{[0,1,2].map(i => <Skeleton key={i} className="h-9 w-full" />)}</div>
+              ) : attempts.length === 0 ? (
+                <EmptyState icon={GraduationCap} title="No attempts yet" hint="Student attempts will appear here." to="/exams" cta="View exams" />
+              ) : (
+                <DonutChart data={classPerformanceChart} size={130} centerLabel={String(attempts.length)} centerSub="attempts" />
+              )}
+            </Panel>
+            {user?.role === "admin" && (
+              <Panel title="Users by role" icon={Users}>
+                {loading ? (
+                  <div className="space-y-3">{[0,1,2].map(i => <Skeleton key={i} className="h-9 w-full" />)}</div>
+                ) : users.length === 0 ? (
+                  <EmptyState icon={Users} title="No users" hint="Add students and teachers." to="/users" cta="Add user" />
+                ) : (
+                  <DonutChart data={userRoleChart} size={130} centerLabel={String(users.length)} centerSub="accounts" />
+                )}
+              </Panel>
+            )}
+          </div>
+
+          {user?.role === "admin" && (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Panel title="Account health" icon={ShieldCheck}>
+                {loading ? (
+                  <div className="space-y-3">{[0,1,2].map(i => <Skeleton key={i} className="h-9 w-full" />)}</div>
+                ) : users.length === 0 ? (
+                  <EmptyState icon={Users} title="No users" hint="Add students and teachers." to="/users" cta="Add user" />
+                ) : (
+                  <DonutChart data={accountHealthChart} size={130} centerLabel={String(users.filter((u: any) => u.pin).length)} centerSub="with PIN" />
+                )}
+              </Panel>
+              <Panel title="Exam activity (last 6 months)" icon={CalendarDays}>
+                {loading ? (
+                  <div className="space-y-3">{[0,1,2,3].map(i => <Skeleton key={i} className="h-9 w-full" />)}</div>
+                ) : examActivityChart.length === 0 ? (
+                  <EmptyState icon={CalendarDays} title="No exams yet" hint="Create exams to see activity." to="/exams?new=1" cta="New exam" />
+                ) : (
+                  <PieChart data={examActivityChart} size={130} />
+                )}
+              </Panel>
+            </div>
+          )}
 
           <div className="grid gap-4 xl:grid-cols-3">
             {/* Recent attempts */}

@@ -6,7 +6,7 @@ import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge, Skele
 import { confirmDialog, alertDialog } from "../components/Dialog";
 import { CopyCheck, Plus, Trash2, Upload } from "lucide-react";
 
-const empty = { subject_id: "", chapter_id: "", type: "mcq", difficulty: "medium", prompt: "", options: ["", "", "", ""], answer: "", explanation: "", marks: 1 };
+const empty = { subject_id: "", chapter_id: "", type: "mcq", difficulty: "medium", prompt: "", options: ["", "", "", ""], answer: "", explanation: "", marks: 1, page_number: "" };
 
 type DupeItem = {
   id: string; prompt: string; type: string; difficulty: string;
@@ -189,6 +189,8 @@ export default function Questions() {
     const payload: any = { ...form };
     if (payload.type === "mcq") payload.options = payload.options.filter((o: string) => o.trim() !== "");
     else payload.options = undefined;
+    if (payload.page_number === "" || payload.page_number === null || payload.page_number === undefined) delete payload.page_number;
+    else if (payload.page_number !== undefined) payload.page_number = Number(payload.page_number);
     try {
       if (editing) await api.put(`/questions/${editing}`, payload);
       else await api.post("/questions", payload);
@@ -239,6 +241,7 @@ export default function Questions() {
       type: q.type, difficulty: q.difficulty, prompt: q.prompt,
       options: q.options || ["", "", "", ""], answer: q.answer || "",
       explanation: q.explanation || "", marks: q.marks,
+      page_number: q.page_number ?? q.page ?? "",
     });
     setEditing(q.id); setShowForm(true);
   };
@@ -567,7 +570,7 @@ export default function Questions() {
                         <label
                           key={it.id}
                           className={cn(
-                            "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2 transition",
+                            "flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-2 transition",
                             dupeKeep[g.key] === it.id
                               ? "border-violet-400/60 bg-violet-500/10"
                               : "border-slate-600/40 hover:border-violet-400/40",

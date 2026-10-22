@@ -65,7 +65,7 @@ function TogglePill({ checked, onChange, children }: {
 }) {
   return (
     <label className={cn(
-      "inline-flex cursor-pointer select-none items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
+      "inline-flex cursor-pointer select-none items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition",
       checked ? "border-indigo-500/60 bg-indigo-500/10 text-slate-100" : "border-slate-600/50 text-slate-300 hover:border-slate-500 hover:bg-ink/5"
     )}>
       <input type="checkbox" className="h-4 w-4" checked={checked} onChange={(e) => onChange(e.target.checked)} />
@@ -523,7 +523,7 @@ export default function Exams() {
                         type="button"
                         onClick={() => toggleSubject(s.id)}
                         className={cn(
-                          "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition",
+                          "inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition",
                           active
                             ? "border-indigo-500/60 bg-indigo-500/15 text-slate-100 shadow-sm shadow-indigo-500/20"
                             : "border-slate-600/50 text-slate-300 hover:border-slate-500 hover:bg-ink/5"
@@ -540,7 +540,7 @@ export default function Exams() {
               )}
 
               {form.subjectIds.length > 0 && (
-                <div className="mt-4 rounded-xl border border-slate-600/40 bg-ink/5 p-3">
+                <div className="mt-4 rounded-2xl border border-slate-600/40 bg-ink/5 p-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <span className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
                       <Clock size={13} className="text-indigo-300" /> Time per subject (minutes)
@@ -571,7 +571,7 @@ export default function Exams() {
             {/* 3 — Smart tools */}
             <FormSection step={3} icon={Wand2} title="Smart tools" hint="Optional shortcuts — fill the paper or set marks automatically.">
               <div className="grid gap-3 lg:grid-cols-2">
-                <div className="space-y-3 rounded-xl border border-slate-600/40 bg-ink/5 p-3">
+                <div className="space-y-3 rounded-2xl border border-slate-600/40 bg-ink/5 p-3">
                   <div className="text-xs font-medium text-slate-300">Auto paper by counts</div>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <Field label="MCQ"><NumberInput min={0} value={blueprint.mcq} onChange={e => setBlueprint({ ...blueprint, mcq: Number(e.target.value) || 0 })} /></Field>
@@ -589,7 +589,7 @@ export default function Exams() {
                   <Button type="button" variant="outline" onClick={generateByBlueprint}><Wand2 size={14} /> Generate paper</Button>
                 </div>
 
-                <div className="space-y-3 rounded-xl border border-slate-600/40 bg-ink/5 p-3">
+                <div className="space-y-3 rounded-2xl border border-slate-600/40 bg-ink/5 p-3">
                   <div className="text-xs font-medium text-slate-300">Auto marks by type</div>
                   <div className="grid grid-cols-3 gap-2">
                     <Field label="MCQ"><NumberInput min={0} value={typeMarks.mcq} onChange={e => setTypeMarks({ ...typeMarks, mcq: Number(e.target.value) || 0 })} /></Field>
@@ -646,7 +646,7 @@ export default function Exams() {
                 </Field>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-end gap-x-4 gap-y-3 rounded-xl border border-slate-600/40 bg-ink/5 p-3">
+              <div className="mt-4 flex flex-wrap items-end gap-x-4 gap-y-3 rounded-2xl border border-slate-600/40 bg-ink/5 p-3">
                 <Button type="button" variant="outline" onClick={selectFiltered}>Select filtered ({filteredQs.length})</Button>
                 <Button type="button" variant="ghost" onClick={clearSelection} disabled={form.question_ids.length === 0}>Clear selection</Button>
                 <span aria-hidden="true" className="hidden h-9 w-px self-end bg-slate-600/50 sm:block" />
@@ -667,7 +667,7 @@ export default function Exams() {
               <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-2 lg:col-span-2">
                   <div className="text-xs text-slate-400">Question bank · {filteredQs.length} match{filteredQs.length === 1 ? "" : "es"}</div>
-                  <div className="max-h-80 space-y-1 overflow-auto rounded-xl border border-slate-600/40 p-1.5">
+                  <div className="max-h-80 space-y-1 overflow-auto rounded-2xl border border-slate-600/40 p-1.5">
                     {pageQs.map(q => {
                       const picked = form.question_ids.includes(q.id);
                       const ch = chapters.find((c: any) => c.id === q.chapter_id);
@@ -698,7 +698,7 @@ export default function Exams() {
                   )}
                 </div>
 
-                <div className="space-y-2 rounded-xl border border-slate-600/40 p-3">
+                <div className="space-y-2 rounded-2xl border border-slate-600/40 p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-sm font-medium text-slate-300"><GripVertical size={14} className="text-indigo-300" /> Paper order</div>
                     <span className="text-xs text-slate-400 tabular-nums">{form.question_ids.length} items</span>

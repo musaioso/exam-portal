@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { Link } from "react-router-dom";
 import { cn } from "./ui";
 
 /**
@@ -7,18 +8,24 @@ import { cn } from "./ui";
  * truth for the auth pages, the sidebar and anywhere else the brand shows up.
  *
  * `size` only sets sensible defaults; pass `iconClassName` / className to tweak.
+ *
+ * `to` makes the whole logo a link (used by the sidebar, mobile header and
+ * auth pages so the brand mark is always a "home" affordance).
  */
 export function Logo({
   className,
   iconClassName,
   showText = true,
   size = "md",
+  to,
 }: {
   className?: string;
   /** Override the mark's box size, e.g. "h-12 w-12". */
   iconClassName?: string;
   showText?: boolean;
   size?: "lg" | "md" | "sm";
+  /** When set, the logo becomes a clickable link to this path. */
+  to?: string;
 }) {
   // React ids can contain ":" which breaks url(#…) references — strip them.
   const uid = useId().replace(/:/g, "");
@@ -29,7 +36,7 @@ export function Logo({
     sm: { name: "text-base", sub: "text-xs" },
   }[size];
 
-  return (
+  const inner = (
     <div className={cn("flex items-center gap-3", className)}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -45,7 +52,7 @@ export function Logo({
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse">
             <stop stopColor="#10b981" />
-            <stop offset="1" stopColor="#2dd4bf" />
+            <stop offset={1} stopColor="#2dd4bf" />
           </linearGradient>
         </defs>
         <rect width="96" height="96" rx="26" fill={`url(#${gid})`} />
@@ -81,4 +88,17 @@ export function Logo({
       )}
     </div>
   );
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className="inline-flex cursor-pointer transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 rounded-xl"
+        aria-label="Go to dashboard"
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return inner;
 }

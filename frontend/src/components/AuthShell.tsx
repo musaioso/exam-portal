@@ -43,7 +43,7 @@ export function AuthShell({ title, subtitle, top, children }: {
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-indigo-500/25 via-cyan-400/15 to-transparent" />
 
           <div className="relative">
-            <Logo size="lg" />
+            <Logo size="lg" to="/login" />
           </div>
 
           <div className="relative space-y-6">
@@ -75,7 +75,7 @@ export function AuthShell({ title, subtitle, top, children }: {
         {/* Form panel */}
         <div className="p-5 sm:p-8 bg-slate-900/20 dark:bg-slate-900/20">
           <div className="mb-5 lg:hidden">
-            <Logo size="sm" />
+            <Logo size="sm" to="/login" />
           </div>
 
           {top && <div className="mb-5">{top}</div>}

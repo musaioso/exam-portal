@@ -206,14 +206,14 @@ export default function Print() {
           <button
             type="button"
             onClick={() => { setMode("exam"); }}
-            className={`px-3 py-1.5 rounded-xl border ${mode === "exam" ? "border-indigo-500 bg-indigo-500/15 text-indigo-200" : "border-slate-700 text-slate-300 hover:bg-ink/5"}`}
+            className={`px-3 py-1.5 rounded-2xl border ${mode === "exam" ? "border-indigo-500 bg-indigo-500/15 text-indigo-200" : "border-slate-700 text-slate-300 hover:bg-ink/5"}`}
           >
             From a ready exam
           </button>
           <button
             type="button"
             onClick={() => { setMode("manual"); setExam(null); setSelected([]); setTitle("Question Paper"); setShuffleQuestions(true); setShuffleOptions(true); }}
-            className={`px-3 py-1.5 rounded-xl border ${mode === "manual" ? "border-indigo-500 bg-indigo-500/15 text-indigo-200" : "border-slate-700 text-slate-300 hover:bg-ink/5"}`}
+            className={`px-3 py-1.5 rounded-2xl border ${mode === "manual" ? "border-indigo-500 bg-indigo-500/15 text-indigo-200" : "border-slate-700 text-slate-300 hover:bg-ink/5"}`}
           >
             Pick questions manually
           </button>
@@ -308,7 +308,7 @@ export default function Print() {
           )}
 
           {exam && (
-            <div className="text-xs text-slate-400 rounded-xl border border-slate-700 p-2 space-y-1">
+            <div className="text-xs text-slate-400 rounded-2xl border border-slate-700 p-2 space-y-1">
               <div className="flex items-center gap-1 text-slate-300"><FileText size={13} /> {exam.title}</div>
               <div>{exam.is_published ? "Published" : "Draft"} · {exam.duration_minutes} min · {exam.total_marks} marks</div>
               {isMultiSubject && (

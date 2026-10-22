@@ -214,7 +214,7 @@ export default function Proofreading() {
           </div>
 
           {selected.size > 0 && !submitted && (
-            <div className="space-y-2 rounded-xl border border-slate-600/40 bg-ink/5 p-3">
+            <div className="space-y-2 rounded-2xl border border-slate-600/40 bg-ink/5 p-3">
               <p className="text-xs font-semibold text-slate-300">চিহ্নিত শব্দগুলোর শুদ্ধ বানান লিখুন:</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {passage.tokens
@@ -289,7 +289,7 @@ export default function Proofreading() {
                   <div
                     key={t.id}
                     className={cn(
-                      "rounded-xl border p-3 text-sm",
+                      "rounded-2xl border p-3 text-sm",
                       status === "correct" && "border-emerald-500/30 bg-emerald-500/5",
                       status === "wrong-spelling" && "border-amber-500/30 bg-amber-500/5",
                       status === "missed" && "border-rose-500/30 bg-rose-500/5",
@@ -316,7 +316,7 @@ export default function Proofreading() {
               })}
 
             {result.falsePos > 0 && (
-              <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-200">
+              <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-200">
                 <X size={15} className="mr-1 inline text-rose-400" />
                 {result.falsePos}টি শব্দ আপনি ভুল বলেছেন, কিন্তু সেগুলো আসলে শুদ্ধ ছিল।
               </div>

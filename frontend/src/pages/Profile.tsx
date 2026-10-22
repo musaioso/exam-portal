@@ -163,7 +163,7 @@ export default function Profile() {
                 <p className="text-xs text-slate-400">এই পিন দিয়েই আপনি লগইন করেন — কাউকে দেবেন না।</p>
               </div>
               <div className="flex items-center gap-2">
-                <div className="rounded-xl border border-slate-600/50 bg-ink/5 px-4 py-2 font-mono text-lg tracking-[0.3em]">
+                <div className="rounded-2xl border border-slate-600/50 bg-ink/5 px-4 py-2 font-mono text-lg tracking-[0.3em]">
                   {showPin ? (me?.pin ?? "—") : "••••"}
                 </div>
                 <Button variant="ghost" onClick={() => setShowPin(v => !v)} title={showPin ? "লুকান" : "দেখুন"}>

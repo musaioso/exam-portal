@@ -348,7 +348,7 @@ export function buildPrintHtml(data: PrintData): string {
         .grid4 input { padding: 4px 2px; text-align: center; font-size: 12px; min-width: 0; }
         .sect { font-size: 11px; font-weight: 700; color: var(--color-slate-300); margin: 12px 0 4px; border-top: 1px solid var(--glass-border); padding-top: 8px; }
         .tog { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; font-size: 12px; }
-        .tog label { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--color-slate-300); font-size: 12px; }
+        .tog label { display: flex; align-items: center; gap: 5px; margin: 0; color: var(--color-slate-300); font-size: 12px; min-width: 0; }
         .hint { font-size: 11px; color: var(--color-slate-500); margin-top: 10px; line-height: 1.5; }
         .pginfo { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--color-slate-300); }
         .stage { overflow: auto; padding: 18px; position: relative; z-index: 1; }

@@ -268,7 +268,7 @@ export default function Spelling() {
         </div>
 
         {!subjectId && (
-          <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
             প্রশ্ন তৈরি করতে আগে সাবজেক্ট বাছুন — নাহলে জানা যাবে না প্রশ্নগুলো কোথায় যাবে।
           </p>
         )}
@@ -319,7 +319,7 @@ export default function Spelling() {
                       <div
                         key={o + oi}
                         className={cn(
-                          "flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm",
+                          "flex items-center gap-2 rounded-2xl border px-3 py-1.5 text-sm",
                           right
                             ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
                             : "border-slate-600/30 text-slate-300",

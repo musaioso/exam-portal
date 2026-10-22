@@ -253,7 +253,7 @@ export default function Results() {
                 {showKey && practiceCount > 0 && (
                   <Link
                     to={`/practice/${detail.id}`}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
                   >
                     <Target size={14} /> ভুল {practiceCount}টি অনুশীলন
                   </Link>
@@ -261,7 +261,7 @@ export default function Results() {
               </div>
 
               {questions.map((q: any, i: number) => (
-                <div key={q.id} className="rounded-xl border border-slate-700/50 p-3 text-sm space-y-1.5">
+                <div key={q.id} className="rounded-2xl border border-slate-700/50 p-3 text-sm space-y-1.5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="font-medium">
                       {i + 1}. {q.prompt}{" "}

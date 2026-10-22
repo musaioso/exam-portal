@@ -220,7 +220,7 @@ export default function Subjects() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Subjects & Chapters</h1>
-      {error && <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm text-rose-300">{error}</div>}
+      {error && <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm text-rose-300">{error}</div>}
       {canManage && (
         <Card>
           <h2 className="font-semibold mb-3">Add Subject (NCTB 2025)</h2>

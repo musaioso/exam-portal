@@ -197,7 +197,7 @@ export default function Users() {
                         <button
                           type="button"
                           onClick={() => resetPin(u.id)}
-                          className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-600/50 bg-ink/5 px-2.5 py-1 text-[11px] font-medium text-slate-300 transition hover:border-indigo-400/60 hover:bg-indigo-500/10 hover:text-slate-100"
+                          className="flex cursor-pointer items-center gap-1.5 rounded-2xl border border-slate-600/50 bg-ink/5 px-2.5 py-1 text-[11px] font-medium text-slate-300 transition hover:border-indigo-400/60 hover:bg-indigo-500/10 hover:text-slate-100"
                         >
                           <KeyRound size={13} /> PIN দিন
                         </button>

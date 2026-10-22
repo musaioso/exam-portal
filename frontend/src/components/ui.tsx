@@ -165,7 +165,7 @@ export function Select({ className, style, children, value, onChange, disabled, 
           ref={menuRef}
           role="listbox"
           style={{ position: "absolute", top: pos.top, left: pos.left, width: pos.width, zIndex: 100001 }}
-          className="max-h-64 overflow-auto rounded-xl border border-slate-600/80 bg-slate-900/98 backdrop-blur-xl shadow-2xl py-1"
+          className="max-h-64 overflow-auto rounded-2xl border border-slate-600/80 bg-slate-900/98 backdrop-blur-xl shadow-2xl py-1"
         >
           {options.map((o, i) => {
             const active = String(o.value) === String(value);

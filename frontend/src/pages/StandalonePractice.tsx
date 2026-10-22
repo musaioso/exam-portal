@@ -334,7 +334,7 @@ export default function StandalonePractice() {
               ))}
             </div>
             {selectedSubjectEmpty && (
-              <div className="mt-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              <div className="mt-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
                 এই বিষয়ে এখন কোনো মাল্টিপল-চয়েস প্রশ্ন নেই।{" "}
                 <button
                   className="underline underline-offset-2 hover:text-amber-100"
@@ -508,7 +508,7 @@ export default function StandalonePractice() {
             const ok = isCorrect(qq, p);
             const keyText = qq.answer_index >= 0 ? qq.options[qq.answer_index] : String(qq.answer ?? "");
             return (
-              <div key={qq.id} className="rounded-xl border border-slate-700/40 p-3">
+              <div key={qq.id} className="rounded-2xl border border-slate-700/40 p-3">
                 <div className="flex items-start gap-2">
                   <span className={cn("mt-0.5 shrink-0", ok ? "text-emerald-400" : "text-rose-400")}>
                     {ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
@@ -597,7 +597,7 @@ export default function StandalonePractice() {
                   type="button"
                   onClick={() => choose(i)}
                   disabled={answered}
-                  className={`flex w-full items-center gap-3 text-left text-sm p-3 rounded-xl border transition ${
+                  className={`flex w-full items-center gap-3 text-left text-sm p-3 rounded-2xl border transition ${
                     answered
                       ? isKey
                         ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
@@ -636,7 +636,7 @@ export default function StandalonePractice() {
             <div className="space-y-3">
               <div
                 className={cn(
-                  "rounded-xl border px-3 py-2 text-sm",
+                  "rounded-2xl border px-3 py-2 text-sm",
                   correct
                     ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                     : "border-rose-500/40 bg-rose-500/10 text-rose-200"
@@ -659,7 +659,7 @@ export default function StandalonePractice() {
               </div>
 
               {q.explanation && (
-                <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-3 py-2 text-sm text-slate-300">
+                <div className="rounded-2xl border border-indigo-500/25 bg-indigo-500/10 px-3 py-2 text-sm text-slate-300">
                   <Lightbulb size={14} className="mr-1.5 inline -mt-0.5 text-indigo-300" />
                   {q.explanation}
                 </div>

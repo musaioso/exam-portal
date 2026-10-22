@@ -208,7 +208,7 @@ export default function Practice() {
         {answered && (
           <div className="mt-3 space-y-3">
             <div
-              className={`rounded-xl border px-3 py-2 text-sm ${
+              className={`rounded-2xl border px-3 py-2 text-sm ${
                 right
                   ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                   : "border-rose-500/40 bg-rose-500/10 text-rose-200"
@@ -232,7 +232,7 @@ export default function Practice() {
             </div>
 
             {q.explanation && (
-              <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-3 py-2 text-sm text-slate-300">
+              <div className="rounded-2xl border border-indigo-500/25 bg-indigo-500/10 px-3 py-2 text-sm text-slate-300">
                 <Lightbulb size={14} className="mr-1.5 inline -mt-0.5 text-indigo-300" />
                 {q.explanation}
               </div>
