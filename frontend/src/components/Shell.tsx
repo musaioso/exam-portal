@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
 import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, ChevronLeft, ChevronRight } from "lucide-react";
@@ -55,93 +55,88 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const sidebar = (solid = false) => (
-    <aside className={cn(
-      "flex h-full flex-col gap-1 p-3 transition-all duration-200",
-      collapsed ? "w-14 items-center" : "w-64",
-      solid ? "bg-slate-900 shadow-2xl" : "border-r border-slate-700/50 bg-slate-900/40 backdrop-blur",
-    )}>
-      <div className={cn("mb-2 flex items-center", collapsed ? "justify-center px-0 py-2" : "justify-between px-2 py-3")}>
-        <Logo size={collapsed ? "sm" : "md"} showText={!collapsed} to="/dashboard" iconClassName={collapsed ? "h-7 w-7" : undefined} />
-        {!collapsed && (
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition hover:bg-ink/10 hover:text-slate-200"
-            aria-label="Collapse sidebar"
-            title="Collapse sidebar (Ctrl+B)"
-          >
-            <ChevronLeft size={16} />
-          </button>
-        )}
-      </div>
-      {collapsed && (
+  // forceExpanded: mobile drawer always shows the full sidebar.
+  const sidebar = (solid = false, forceExpanded = false) => {
+    const isCollapsed = collapsed && !forceExpanded;
+    return (
+      <aside className={cn(
+        "relative flex h-full flex-col gap-1 p-3 transition-[width] duration-200 ease-out",
+        isCollapsed ? "w-14 items-center" : "w-64",
+        solid ? "bg-slate-900 shadow-2xl" : "border-r border-slate-700/50 bg-slate-900/40 backdrop-blur",
+      )}>
+        {/* Toggle button: fixed position, never moves between states. */}
         <button
           type="button"
           onClick={toggleCollapsed}
-          className="mb-2 grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition hover:bg-ink/10 hover:text-slate-200"
-          aria-label="Expand sidebar"
-          title="Expand sidebar (Ctrl+B)"
+          className="absolute right-2 top-2 z-20 grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition-colors duration-150 hover:bg-ink/10 hover:text-slate-200"
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
         >
-          <ChevronRight size={16} />
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
-      )}
-      {items.map(n => {
-        const Icon = n.icon;
-        const active = loc.pathname.startsWith(n.to);
-        return (
+
+        {/* Logo row: top padding clears the floating toggle button. */}
+        <div className={cn("mb-2 flex items-center", isCollapsed ? "justify-center px-0 pt-10 pb-2" : "px-2 py-3 pr-10")}>
+          <Logo size={isCollapsed ? "sm" : "md"} showText={!isCollapsed} to="/dashboard" iconClassName={isCollapsed ? "h-7 w-7" : undefined} />
+        </div>
+
+        {items.map(n => {
+          const Icon = n.icon;
+          const active = loc.pathname.startsWith(n.to);
+          return (
+            <Link
+              key={n.to}
+              to={n.to}
+              onClick={close}
+              title={isCollapsed ? n.label : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors duration-150",
+                isCollapsed && "justify-center px-2",
+                active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-ink/10"
+              )}
+            >
+              <Icon size={17} className="shrink-0" />
+              {!isCollapsed && <span className="truncate">{n.label}</span>}
+            </Link>
+          );
+        })}
+        <div className={cn("mt-auto space-y-1 border-t border-slate-700/50 pt-4", isCollapsed && "flex flex-col items-center")}>
+          <ThemeToggle compact={isCollapsed} />
           <Link
-            key={n.to}
-            to={n.to}
+            to="/profile"
             onClick={close}
-            title={collapsed ? n.label : undefined}
-            className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
-              collapsed && "justify-center px-2",
-              active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:bg-ink/10"
-            )}
+            title={isCollapsed ? (user?.name || "Profile") : undefined}
+            className={cn("block rounded-xl px-2 py-1.5 text-xs text-slate-400 hover:bg-ink/10", isCollapsed && "text-center")}
           >
-            <Icon size={17} className="shrink-0" />
-            {!collapsed && <span className="truncate">{n.label}</span>}
+            {isCollapsed ? (
+              <UserCircle size={17} className="mx-auto text-slate-400" />
+            ) : (
+              <>{user?.name}<br/><span className="text-slate-500">{user?.role}</span></>
+            )}
           </Link>
-        );
-      })}
-      <div className={cn("mt-auto space-y-1 border-t border-slate-700/50 pt-4", collapsed && "flex flex-col items-center")}>
-        <ThemeToggle compact={collapsed} />
-        <Link
-          to="/profile"
-          onClick={close}
-          title={collapsed ? (user?.name || "Profile") : undefined}
-          className={cn("block rounded-xl px-2 py-1.5 text-xs text-slate-400 hover:bg-ink/10", collapsed && "text-center")}
-        >
-          {collapsed ? (
-            <UserCircle size={17} className="mx-auto text-slate-400" />
-          ) : (
-            <>{user?.name}<br/><span className="text-slate-500">{user?.role}</span></>
-          )}
-        </Link>
-        <button
-          onClick={() => { logout(); nav("/login"); }}
-          title={collapsed ? "Logout" : undefined}
-          className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition hover:bg-ink/10", collapsed && "justify-center px-2")}
-        >
-          <LogOut size={17} className="shrink-0" />
-          {!collapsed && <span>Logout</span>}
-        </button>
-      </div>
-    </aside>
-  );
+          <button
+            onClick={() => { logout(); nav("/login"); }}
+            title={isCollapsed ? "Logout" : undefined}
+            className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10", isCollapsed && "justify-center px-2")}
+          >
+            <LogOut size={17} className="shrink-0" />
+            {!isCollapsed && <span>Logout</span>}
+          </button>
+        </div>
+      </aside>
+    );
+  };
 
   return (
     <div className="flex h-screen">
       {/* Desktop sidebar */}
-      <div className="hidden md:block">{sidebar()}</div>
+      <div className="hidden md:block transition-[width] duration-200 ease-out">{sidebar()}</div>
 
       {/* Mobile drawer */}
       {open && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={close} />
-          <div className="absolute inset-y-0 left-0 z-50">{sidebar(true)}</div>
+          <div className="absolute inset-y-0 left-0 z-50">{sidebar(true, true)}</div>
         </div>
       )}
 
@@ -159,7 +154,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <Logo size="sm" to="/dashboard" className="gap-2" />
         </header>
 
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-4 md:p-6 transition-all duration-200">
           <StorageWarning className="mb-6" />
           {children}
         </main>
