@@ -38,6 +38,8 @@ type GenQuestion = {
   answer: string;
   explanation: string | null;
   marks: number;
+  /** Book page the answer came from, when the source was a single document */
+  page: number | null;
   isDuplicate?: boolean;
 };
 type ReviewItem = GenQuestion & { include: boolean; needsRecheck?: boolean };
@@ -60,6 +62,14 @@ const OCR_LANG_OPTIONS = [
   { value: "eng+ben", label: "English + বাংলা" },
 ];
 const ACCEPT = ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg";
+
+/** "12" → 12; blank, "12-13" or junk → null (the DB keeps only whole pages). */
+function parsePage(raw: string): number | null {
+  const s = raw.trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
 
 /** One numbered block of the form. Same shape as the exam builder's. */
 function FormSection({ step, title, hint, icon: Icon, right, done, children }: {
@@ -115,6 +125,9 @@ export default function Generate() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pageFrom, setPageFrom] = useState("");
   const [pageTo, setPageTo] = useState("");
+  // Printed book page number of the source's first page (chapter extracts often
+  // renumber, so this keeps generated page refs pointing at the real textbook).
+  const [firstPage, setFirstPage] = useState("1");
   const [text, setText] = useState("");
   const [uploadPct, setUploadPct] = useState<number | null>(null);
   // Bangla is the common case for scanned pages here, and the English model
@@ -145,6 +158,9 @@ export default function Generate() {
   const [modelsLoading, setModelsLoading] = useState(true);
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
+  // "Free models only" is remembered per provider; OpenRouter starts filtered
+  // to free models so adding the key never requires a paid top-up.
+  const [freeOnlyByProvider, setFreeOnlyByProvider] = useState<Record<string, boolean>>({});
   // Optional seed from the server (AI_DEFAULT_MODEL), e.g. a Gemini model.
   const [preferredModel, setPreferredModel] = useState("");
   const [keys, setKeys] = useState<KeyStatus[]>([]);
@@ -158,7 +174,7 @@ export default function Generate() {
   const [usage, setUsage] = useState<{ inputTokens?: number; outputTokens?: number } | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
-  const [draft, setDraft] = useState<{ prompt: string; options: string[]; answer: string; explanation: string } | null>(null);
+  const [draft, setDraft] = useState<{ prompt: string; options: string[]; answer: string; explanation: string; page: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [batchId, setBatchId] = useState("");
   const reviewRef = useRef<HTMLDivElement>(null);
@@ -166,6 +182,14 @@ export default function Generate() {
   const enabledProviders = useMemo(() => providers.filter((p) => p.enabled), [providers]);
   const currentProvider = enabledProviders.find((p) => p.id === providerId);
   const currentModel = currentProvider?.models.find((m) => m.id === modelId);
+  const freeOnly = freeOnlyByProvider[providerId] ?? providerId === "openrouter";
+  // Only offer the filter when the provider actually has usable free models
+  // (OpenCode's free tier is app-only, so it cannot be called from here).
+  const hasFreeModels = !!currentProvider?.models.some((m) => m.free && !m.appOnly);
+  const freeFilter = freeOnly && hasFreeModels;
+  const modelChoices = (currentProvider?.models || []).filter(
+    (m) => !freeFilter || (m.free && !m.appOnly)
+  );
   const selectedDocs = docs.filter((d) => selectedIds.includes(d.id));
   const selectedChars = selectedDocs.reduce((n, d) => n + (d.char_count || 0), 0);
   const dupCount = items.filter((i) => i.isDuplicate).length;
@@ -219,24 +243,34 @@ export default function Generate() {
     else setChapters([]);
   }, [subjectId]);
 
-  // Default the pickers to the first usable provider/model (lists are sorted
-  // server-callable-first, newest-first by the backend; app-only free-tier
-  // models sink to the bottom because this backend cannot call them).
-  // A server-provided seed (AI_DEFAULT_MODEL, e.g. a Gemini model) wins when
-  // that model is actually offered by the provider.
+  // A different source means a different book/page base — drop stale page input
+  // rather than silently applying the previous document's offset to a new one.
+  useEffect(() => {
+    setPageFrom("");
+    setPageTo("");
+    setFirstPage("1");
+  }, [selectedIds]);
+
+  // Keep a valid provider selected once the lists arrive. Model choice is
+  // handled by the effect below, which knows about the free-only filter.
   useEffect(() => {
     if (enabledProviders.length === 0) return;
-    const stillValid = enabledProviders.some((p) => p.id === providerId);
-    const p = stillValid ? enabledProviders.find((x) => x.id === providerId)! : enabledProviders[0];
-    if (!stillValid) setProviderId(p.id);
-    const usable = p.models.filter((m) => !m.appOnly);
-    const seed = preferredModel ? usable.find((m) => m.id === preferredModel) : undefined;
-    if (!p.models.some((m) => m.id === modelId && !m.appOnly)) {
-      setModelId((seed || usable[0] || p.models[0])?.id || "");
-    } else if (seed && !modelId) {
-      setModelId(seed.id);
-    }
+    if (!enabledProviders.some((p) => p.id === providerId)) setProviderId(enabledProviders[0].id);
   }, [providers]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pick a model the current provider and filter actually offer. The server
+  // seed (AI_DEFAULT_MODEL, e.g. a Gemini model) wins when it is allowed.
+  useEffect(() => {
+    if (!currentProvider) return;
+    const free = currentProvider.models.some((m) => m.free && !m.appOnly);
+    const allowed = currentProvider.models.filter(
+      (m) => !m.appOnly && (!(freeOnly && free) || m.free)
+    );
+    if (modelId && allowed.some((m) => m.id === modelId)) return;
+    const seed = preferredModel ? allowed.find((m) => m.id === preferredModel) : undefined;
+    const fallback = allowed[0] || currentProvider.models.find((m) => !m.appOnly) || currentProvider.models[0];
+    setModelId((seed || fallback)?.id || "");
+  }, [currentProvider, freeOnly, modelId, preferredModel]);
 
   // No provider configured → open the key panel so the fix is right there.
   useEffect(() => {
@@ -438,6 +472,8 @@ export default function Generate() {
         if (selectedIds.length === 1) {
           if (pageFrom) payload.pageFrom = Number(pageFrom);
           if (pageTo) payload.pageTo = Number(pageTo);
+          const fp = Number(firstPage);
+          if (Number.isInteger(fp) && fp > 0) payload.firstPage = fp;
         }
       }
       const { data } = await api.post("/ai/generate", payload, { timeout: 10 * 60 * 1000 });
@@ -492,6 +528,7 @@ export default function Generate() {
       options: it.options ? [...it.options] : [],
       answer: it.answer,
       explanation: it.explanation || "",
+      page: it.page != null ? String(it.page) : "",
     });
     setEditing(idx);
   };
@@ -521,6 +558,7 @@ export default function Generate() {
             options: items[i].type === "mcq" ? options : null,
             answer: items[i].type === "mcq" ? options.find((o) => o.trim() === draft.answer.trim())! : draft.answer.trim(),
             explanation: draft.explanation.trim() || null,
+            page: parsePage(draft.page),
             needsRecheck: true,
           }
         : it
@@ -549,6 +587,7 @@ export default function Generate() {
           answer: q.answer,
           explanation: q.explanation,
           marks: q.marks,
+          ...(q.page != null ? { page_number: q.page } : {}),
           ...(chapterId ? { chapter_id: chapterId } : {}),
         })),
       });
@@ -755,17 +794,24 @@ export default function Generate() {
                   </div>
                 )}
 
-                {selectedDocs.length === 1 && (selectedDocs[0].pages ?? 0) > 1 && (
+                {selectedDocs.length === 1 && (
                   <div className="flex flex-wrap items-end gap-3 rounded-xl bg-slate-900/40 p-3">
-                    <Field label="Pages (optional)">
-                      <div className="flex items-center gap-2">
-                        <NumberInput placeholder="from" value={pageFrom} onChange={(e) => setPageFrom(e.target.value)} min={1} max={selectedDocs[0].pages ?? 9999} className="w-24" />
-                        <span className="text-slate-500">–</span>
-                        <NumberInput placeholder="to" value={pageTo} onChange={(e) => setPageTo(e.target.value)} min={1} max={selectedDocs[0].pages ?? 9999} className="w-24" />
-                      </div>
+                    {(selectedDocs[0].pages ?? 0) > 1 && (
+                      <Field label="Pages (optional)">
+                        <div className="flex items-center gap-2">
+                          <NumberInput placeholder="from" value={pageFrom} onChange={(e) => setPageFrom(e.target.value)} min={1} max={selectedDocs[0].pages ?? 9999} className="w-24" />
+                          <span className="text-slate-500">–</span>
+                          <NumberInput placeholder="to" value={pageTo} onChange={(e) => setPageTo(e.target.value)} min={1} max={selectedDocs[0].pages ?? 9999} className="w-24" />
+                        </div>
+                      </Field>
+                    )}
+                    <Field label="Starts at book page">
+                      <NumberInput value={firstPage} onChange={(e) => setFirstPage(e.target.value)} min={1} className="w-24" />
                     </Field>
                     <p className="pb-2 text-xs text-slate-500">
-                      Leave empty for the whole book (long books are cut to the first part automatically).
+                      Page 1 of this source is book page {firstPage || "1"} — each question is tagged with
+                      the book page its answer came from.
+                      {(selectedDocs[0].pages ?? 0) > 1 && " Leave the range empty for the whole book (long books are cut to the first part automatically)."}
                     </p>
                   </div>
                 )}
@@ -878,7 +924,7 @@ export default function Generate() {
                     it is checked against the vendor and saved on the server.
                   </div>
                 ) : (
-                  <Select value={providerId} onChange={(e) => { setProviderId(e.target.value); const p = enabledProviders.find((x) => x.id === e.target.value); setModelId(p?.models[0]?.id || ""); }}>
+                  <Select value={providerId} onChange={(e) => { setProviderId(e.target.value); setModelId(""); }}>
                     {enabledProviders.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                   </Select>
                 )}
@@ -888,13 +934,29 @@ export default function Generate() {
                   <Skeleton className="h-10" />
                 ) : (
                   <Select value={modelId} onChange={(e) => setModelId(e.target.value)} disabled={!currentProvider}>
-                    {(currentProvider?.models || []).map((m) => (
+                    {modelChoices.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name || m.id}{m.appOnly ? " · OpenCode app only" : m.free ? " · free" : ""}
                       </option>
                     ))}
-                    {(currentProvider?.models.length ?? 0) === 0 && <option value="">No models returned</option>}
+                    {modelChoices.length === 0 && <option value="">No models returned</option>}
                   </Select>
+                )}
+                {hasFreeModels && (
+                  <label className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={freeOnly}
+                      onChange={(e) =>
+                        setFreeOnlyByProvider((m) => ({ ...m, [providerId]: e.target.checked }))
+                      }
+                      className="h-3.5 w-3.5 accent-violet-500"
+                    />
+                    Free models only
+                    <span className="text-slate-500">
+                      · {currentProvider?.models.filter((m) => m.free && !m.appOnly).length} available
+                    </span>
+                  </label>
                 )}
                 {currentProvider?.error && (
                   <p className="mt-1.5 text-xs text-rose-400">
@@ -968,7 +1030,9 @@ export default function Generate() {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-600/40 bg-ink/5 px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <StatChip icon={FileText}>
-                {mode === "text" ? "pasted text" : `${selectedIds.length} source${selectedIds.length === 1 ? "" : "s"}`}
+                {mode === "text"
+                  ? `${text.trim().length.toLocaleString()} chars pasted`
+                  : `${selectedIds.length} source${selectedIds.length === 1 ? "" : "s"} · ${selectedChars.toLocaleString()} chars`}
               </StatChip>
               <StatChip icon={Sparkles} tone="text-violet-300">{providerId ? `${providerId} · ${modelId || "—"}` : "no model"}</StatChip>
               <span className={cn("text-xs", sourceHint.startsWith("Ready") ? "text-emerald-300" : "text-amber-300")}>{sourceHint}</span>
@@ -1050,6 +1114,9 @@ export default function Generate() {
                       <div className="mb-2 flex flex-wrap items-center gap-2">
                         <Badge>{it.type.toUpperCase()}</Badge>
                         <Badge className="border-slate-500/40 bg-slate-500/15 text-slate-300">{it.difficulty}</Badge>
+                        {it.page != null && (
+                          <Badge className="border-cyan-500/40 bg-cyan-500/15 text-cyan-200">Book page {it.page}</Badge>
+                        )}
                         {it.isDuplicate && (
                           <Badge className="border-amber-500/40 bg-amber-500/15 text-amber-200">
                             <span className="inline-flex items-center gap-1"><Lock size={11} /> Already exists — excluded</span>
@@ -1106,6 +1173,19 @@ export default function Generate() {
                             <Input value={draft.answer} onChange={(e) => setDraft({ ...draft, answer: e.target.value })} placeholder="Model answer" />
                           )}
                           <Textarea rows={2} value={draft.explanation} onChange={(e) => setDraft({ ...draft, explanation: e.target.value })} placeholder="Explanation (why the answer is correct)" />
+                          <div className="flex flex-wrap items-end gap-3">
+                            <label className="flex flex-col gap-1 text-xs text-slate-400">
+                              Book page
+                              <Input
+                                type="number"
+                                min={1}
+                                value={draft.page}
+                                onChange={(e) => setDraft({ ...draft, page: e.target.value })}
+                                placeholder="e.g. 42"
+                                className="w-28"
+                              />
+                            </label>
+                          </div>
                           <div className="flex gap-2">
                             <Button type="button" onClick={commitEdit}><Save size={15} /> Apply</Button>
                             <Button type="button" variant="outline" onClick={() => { setEditing(null); setDraft(null); }}>Cancel</Button>

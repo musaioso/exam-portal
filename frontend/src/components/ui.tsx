@@ -6,15 +6,19 @@ import { twMerge } from "tailwind-merge";
 
 export function cn(...i: any[]) { return twMerge(clsx(i)); }
 
-export function Button({ className, variant="primary", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary"|"ghost"|"danger"|"outline" }) {
-  const base = "inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95";
+export function Button({ className, variant="primary", size="md", ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary"|"ghost"|"danger"|"outline"; size?: "sm"|"md" }) {
+  const base = "inline-flex items-center gap-2 rounded-2xl font-semibold transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95";
   const v: Record<string,string> = {
     primary: "bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 text-white shadow-lg shadow-fuchsia-500/30 hover:shadow-xl hover:shadow-fuchsia-400/40 hover:-translate-y-0.5",
     ghost: "hover:bg-ink/10 text-slate-200",
     danger: "bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg shadow-rose-500/30",
     outline: "border border-slate-600/70 hover:bg-ink/10 text-slate-200 hover:border-violet-400/60",
   };
-  return <button className={cn(base, v[variant], className)} {...props} />;
+  const sizes: Record<string,string> = {
+    sm: "px-3 py-1.5 text-xs",
+    md: "px-4 py-2 text-sm",
+  };
+  return <button className={cn(base, sizes[size], v[variant], className)} {...props} />;
 }
 
 export function Card({ className, children, hover = true }: { className?: string; children: React.ReactNode; hover?: boolean }) {

@@ -97,22 +97,76 @@ async function fetchGoogleModels(key?: string): Promise<ModelInfo[]> {
       id: String(m.name || "").replace(/^models\//, ""),
       name: m.displayName || undefined,
       context: m.inputTokenLimit ? Number(m.inputTokenLimit) : undefined,
-    }));
+    }))
+    // Gemini lists image, TTS, music, deep-research and agent models next to
+    // the chat models. They advertise generateContent too, but answer with an
+    // image/audio payload or need an async job — a teacher picking one just
+    // hits an error. Keep only text-chat families.
+    .filter((m: ModelInfo) => !GOOGLE_NON_CHAT.some((needle) => m.id.toLowerCase().includes(needle)))
+    .map((m: ModelInfo) => ({ ...m, rank: googleRank(m.id) }));
+}
+
+/**
+ * Families that cannot answer a text question. Matched as substrings against
+ * the model id (`gemini-2.5-flash-image`, `*-tts`, `lyria-3.5`, …).
+ */
+const GOOGLE_NON_CHAT = [
+  "tts", "image", "imagen", "nano-banana", "nanobanana", "lyria",
+  "deep-research", "antigravity", "computer-use", "robotics",
+  "transcribe", "embedding", "embed-", "veo",
+];
+
+/**
+ * Default-pick ordering. Gemini publishes no release dates, so score the id:
+ * Flash first (available on free tiers), then Pro, then Flash-Lite, Omni and
+ * Gemma; within a family the newest version wins and pinned versions outrank
+ * the floating "-latest" aliases.
+ */
+function googleRank(id: string): number {
+  const version = Number((id.match(/^gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+  const family =
+    /flash-lite/.test(id) ? 2_000 :
+    /omni/.test(id) ? 1_000 :
+    /flash/.test(id) ? 4_000 :
+    /pro/.test(id) ? 3_000 :
+    /^gemma/.test(id) ? 500 :
+    100;
+  const pinned = /-latest$/.test(id) ? 0 : 1;
+  return family + version * 10 + pinned;
 }
 
 async function fetchOpenRouterModels(_key?: string): Promise<ModelInfo[]> {
   const data = await json("https://openrouter.ai/api/v1/models");
-  return (data?.data || []).map((m: any) => {
-    const pin = Number(m?.pricing?.prompt || 0);
-    const pout = Number(m?.pricing?.completion || 0);
-    return {
-      id: String(m.id || ""),
-      name: m.name || undefined,
-      context: m.context_length ? Number(m.context_length) : undefined,
-      free: pin === 0 && pout === 0,
-      pricing: pin || pout ? { input: pin * 1_000_000, output: pout * 1_000_000 } : undefined,
-    };
-  });
+  return (data?.data || [])
+    .filter((m: any) => {
+      if (typeof m?.id !== "string") return false;
+      // ":batch" variants only accept the async Batch API, not chat/completions.
+      if (m.id.endsWith(":batch")) return false;
+      // Keep text-in/text-out models; drop image and audio generators, which
+      // advertise chat-shaped endpoints but do not return an answer.
+      const out = m?.architecture?.output_modalities;
+      return !Array.isArray(out) || out.length === 0 || (out.includes("text") && out.every((o: string) => o === "text"));
+    })
+    .map((m: any) => {
+      const pin = Number(m?.pricing?.prompt || 0);
+      const pout = Number(m?.pricing?.completion || 0);
+      const input = m?.architecture?.input_modalities;
+      const vision = Array.isArray(input) ? input.includes("image") : undefined;
+      const free = pin === 0 && pout === 0;
+      return {
+        id: String(m.id || ""),
+        name: m.name || undefined,
+        created: m.created ? Number(m.created) : undefined,
+        context: m.context_length ? Number(m.context_length) : undefined,
+        free,
+        vision,
+        // Free vision models first: they cost nothing and can also read page
+        // photos, so they make the best free-only default. Everything else
+        // keeps the newest-first order.
+        rank: free && vision ? 1 : 0,
+        pricing: pin || pout ? { input: pin * 1_000_000, output: pout * 1_000_000 } : undefined,
+      };
+    });
 }
 
 async function fetchOllamaModels(_key?: string): Promise<ModelInfo[]> {

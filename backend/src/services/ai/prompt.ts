@@ -27,6 +27,12 @@ export interface GenerateParams {
   language: "auto" | "english" | "bangla";
   /** Prompts already in the bank — sent as the AVOID list (capped) */
   avoidPrompts?: string[];
+  /**
+   * Source page numbers present in `text` (which carries "[Page N]" markers).
+   * When set, each question is tagged with the page its answer came from.
+   * Only meaningful for a single multi-page source — see resolveSource().
+   */
+  pages?: number[];
 }
 
 export interface GeneratedQuestion {
@@ -37,6 +43,8 @@ export interface GeneratedQuestion {
   answer: string;
   explanation: string | null;
   marks: number;
+  /** 1-based page in the source the answer is found on, or null when unknown */
+  page: number | null;
   /** true when an identical (normalized) prompt already exists in the bank */
   isDuplicate?: boolean;
 }
@@ -69,10 +77,11 @@ Rules:
 4. For MCQs: give exactly 4 options with exactly one correct answer. The correct "answer" field must be the option text copied verbatim from "options". Distractors must be plausible, similar in length and style, and drawn from the source's subject matter.
 5. Never repeat any question from the AVOID list, and never produce two questions that ask the same thing.
 6. Include a short explanation stating why the answer is correct, referencing the source.
-7. Output ONLY a JSON array. No markdown fences, no commentary before or after.
+7. When the source material carries "[Page N]" headers, add "page": N to every question — the page where its answer is stated. Omit "page" when the source has no such markers.
+8. Output ONLY a JSON array. No markdown fences, no commentary before or after.
 
 Each array item must match:
-{"type": "mcq" | "short" | "long", "difficulty": "easy" | "medium" | "hard", "prompt": "<question>", "options": ["<choice>", ...] (mcq only), "answer": "<for mcq: exactly one of options>", "explanation": "<why>", "marks": <positive integer>}`;
+{"type": "mcq" | "short" | "long", "difficulty": "easy" | "medium" | "hard", "prompt": "<question>", "options": ["<choice>", ...] (mcq only), "answer": "<for mcq: exactly one of options>", "explanation": "<why>", "marks": <positive integer>, "page": <source page number, only when the source is page-marked>}`;
 
 function buildUserMessage(params: GenerateParams): string {
   const types = params.types.join(", ");
@@ -105,7 +114,22 @@ function buildUserMessage(params: GenerateParams): string {
         avoid.map((p) => `- ${p.slice(0, MAX_AVOID_LEN)}`).join("\n")
     );
   }
+  if (params.pages && params.pages.length > 0) {
+    parts.push(
+      `The source is split into pages labelled [Page N]. Set "page" on every question to the page whose text states its answer.`
+    );
+  }
   return parts.join("\n\n");
+}
+
+/**
+ * Pages whose "[Page N]" marker survived truncation. Stops the model citing a
+ * page that exists in the document but was cut out of the prompt.
+ */
+function pagesInText(text: string, pages: number[]): number[] {
+  const seen = new Set<number>();
+  for (const m of text.matchAll(/\[Page (\d+)\]/g)) seen.add(Number(m[1]));
+  return pages.filter((p) => seen.has(p));
 }
 
 /* --------------------------------------------------------------- validation */
@@ -118,7 +142,24 @@ const itemSchema = z.object({
   answer: z.string().optional(),
   explanation: z.string().optional(),
   marks: z.union([z.number(), z.string()]).optional(),
+  page: z.union([z.number(), z.string()]).optional(),
 });
+
+const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
+
+/**
+ * Accept only pages that actually exist in the source. The model is told to
+ * report them, but a hallucinated number would silently point the printed
+ * answer key at the wrong book page — better to store no page than a wrong one.
+ */
+function coercePage(raw: unknown, valid?: Set<number>): number | null {
+  if (!valid || valid.size === 0) return null;
+  const s = String(raw ?? "").replace(/[০-৯]/g, (d) => String(BN_DIGITS.indexOf(d))).trim();
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isInteger(n) || n < 1) return null;
+  return valid.has(n) ? n : null;
+}
 
 function coerceType(raw: string): QuestionType | null {
   const t = raw.trim().toLowerCase();
@@ -161,7 +202,7 @@ function extractArray(text: string): unknown[] {
  * dropped. MCQ answers are matched to their option with the same normalization
  * used by the duplicate scanner, so "১. A option" still matches option "A option".
  */
-function coerceItem(raw: unknown): { ok: true; question: GeneratedQuestion } | { ok: false; reason: string } {
+function coerceItem(raw: unknown, validPages?: Set<number>): { ok: true; question: GeneratedQuestion } | { ok: false; reason: string } {
   const parsed = itemSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, reason: "Missing required fields (type/prompt/answer)" };
   const item = parsed.data;
@@ -172,6 +213,7 @@ function coerceItem(raw: unknown): { ok: true; question: GeneratedQuestion } | {
   if (!prompt) return { ok: false, reason: "Empty prompt" };
   const answer = String(item.answer || "").trim();
   if (!answer) return { ok: false, reason: "Empty answer" };
+  const page = coercePage(item.page, validPages);
 
   let options: string[] | null = null;
   if (type === "mcq") {
@@ -191,6 +233,7 @@ function coerceItem(raw: unknown): { ok: true; question: GeneratedQuestion } | {
         answer: match, // canonical option text, not the model's phrasing
         explanation: item.explanation ? String(item.explanation).trim() : null,
         marks: Number(item.marks) > 0 ? Math.floor(Number(item.marks)) : 1,
+        page,
       },
     };
   }
@@ -204,6 +247,7 @@ function coerceItem(raw: unknown): { ok: true; question: GeneratedQuestion } | {
       answer,
       explanation: item.explanation ? String(item.explanation).trim() : null,
       marks: Number(item.marks) > 0 ? Math.floor(Number(item.marks)) : 1,
+      page,
     },
   };
 }
@@ -268,12 +312,16 @@ export async function generateQuestions(
   let raw = tryExtract(result.text);
   let questions: GeneratedQuestion[] = [];
   let dropped: DroppedItem[] = [];
+  const visiblePages = params.pages && params.pages.length
+    ? pagesInText(params.text.slice(0, MAX_SOURCE_CHARS), params.pages)
+    : undefined;
+  const validPages = visiblePages && visiblePages.length ? new Set(visiblePages) : undefined;
 
   const coerceAll = (items: unknown[]) => {
     questions = [];
     dropped = [];
     items.forEach((item, index) => {
-      const coerced = coerceItem(item);
+      const coerced = coerceItem(item, validPages);
       if (coerced.ok) questions.push(coerced.question);
       else dropped.push({ index, reason: coerced.reason });
     });

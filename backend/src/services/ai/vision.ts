@@ -1,7 +1,7 @@
 import { AIError, ChatImage, ProviderConfig } from "./types";
 import { chatComplete } from "./chat";
 import { getProviderConfig, providerSummaries } from "./providers";
-import { listModelIds, supportsVision } from "./models";
+import { listVisionModelIds } from "./models";
 
 /**
  * Vision-model OCR — the high-accuracy path for scanned Bangla pages.
@@ -58,7 +58,7 @@ export async function visionCapableProviders(): Promise<
     if (!s.enabled) continue;
     let models: string[] = [];
     try {
-      models = (await listModelIds(s.id)).filter(supportsVision);
+      models = await listVisionModelIds(s.id);
     } catch {
       // A vendor outage must not break the page — this provider just isn't
       // offered as a vision option.
@@ -96,7 +96,7 @@ export async function resolveVisionModels(
 
   let available: string[] = [];
   try {
-    available = (await listModelIds(providerId)).filter(supportsVision);
+    available = await listVisionModelIds(providerId);
   } catch (err: any) {
     throw new AIError(
       `Could not list ${cfg.label} models to find one that reads images.`,
@@ -117,7 +117,7 @@ export async function resolveVisionModels(
   // input, so well-known general vision families are tried ahead of them.
   const rest = available.filter((m) => m !== preferredModel);
   rest.sort((a, b) => visionRank(b) - visionRank(a));
-  const ordered = preferredModel && supportsVision(preferredModel)
+  const ordered = preferredModel && available.includes(preferredModel)
     ? [preferredModel, ...rest]
     : rest;
   return { models: ordered, cfg };

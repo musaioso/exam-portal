@@ -189,8 +189,16 @@ export default function Questions() {
     const payload: any = { ...form };
     if (payload.type === "mcq") payload.options = payload.options.filter((o: string) => o.trim() !== "");
     else payload.options = undefined;
-    if (payload.page_number === "" || payload.page_number === null || payload.page_number === undefined) delete payload.page_number;
-    else if (payload.page_number !== undefined) payload.page_number = Number(payload.page_number);
+    // Keep the page as free text so ranges ("42-43") survive, and add the
+    // numeric form the print answer key and importers expect. Always send
+    // `page` (even blank) so clearing the field clears the stored page.
+    const rawPage = String(payload.page_number ?? "").trim();
+    delete payload.page_number;
+    payload.page = rawPage;
+    if (rawPage) {
+      const n = Number(rawPage);
+      if (Number.isInteger(n) && n > 0) payload.page_number = n;
+    }
     try {
       if (editing) await api.put(`/questions/${editing}`, payload);
       else await api.post("/questions", payload);
@@ -647,6 +655,14 @@ export default function Questions() {
                 </Select>
               </Field>
               <Field label="Marks"><NumberInput value={form.marks} onChange={e=>setForm({...form,marks:Number(e.target.value)})} /></Field>
+              <Field label="Book page (optional)">
+                <Input
+                  value={form.page_number}
+                  onChange={e => setForm({ ...form, page_number: e.target.value })}
+                  placeholder="e.g. 42 or 42-43"
+                  inputMode="numeric"
+                />
+              </Field>
             </div>
             <Field label="Question prompt"><Textarea rows={3} value={form.prompt} onChange={e=>setForm({...form,prompt:e.target.value})} required /></Field>
             {form.type === "mcq" && (

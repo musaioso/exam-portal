@@ -30,10 +30,12 @@ export async function listModels(opts: { refresh?: boolean } = {}): Promise<Prov
         const models = await fetchModels();
         // Server-callable models first (app-only ones — OpenCode's free tier —
         // cannot be used by this backend, so they sink to the bottom and are
-        // never the default), then newest, then A→Z — deterministic across vendors.
+        // never the default), then vendors' manual rank (Gemini), then newest,
+        // then A→Z — deterministic across vendors.
         models.sort(
           (a, b) =>
             Number(!!a.appOnly) - Number(!!b.appOnly) ||
+            (b.rank ?? 0) - (a.rank ?? 0) ||
             (b.created || 0) - (a.created || 0) ||
             (a.name || a.id).localeCompare(b.name || b.id)
         );
@@ -70,6 +72,18 @@ export function invalidateModels(id?: string) {
 export async function listModelIds(providerId: string): Promise<string[]> {
   await listModels();
   return (cache.get(providerId)?.models || []).map((m) => m.id);
+}
+
+/**
+ * Model ids that can read an image, in catalog order. Uses the vendor's
+ * published modalities when available (OpenRouter) and falls back to the id
+ * heuristic for vendors that do not publish them.
+ */
+export async function listVisionModelIds(providerId: string): Promise<string[]> {
+  await listModels();
+  return (cache.get(providerId)?.models || [])
+    .filter((m) => m.vision ?? supportsVision(m.id))
+    .map((m) => m.id);
 }
 
 /**

@@ -326,18 +326,22 @@ router.post("/", requireAuth, requireRole("admin", "teacher"), async (req: Reque
       });
     }
   }
-  const pageRaw = (req.body as any)?.page ?? (req.body as any)?.page_number ?? (req.body as any)?.book_page ?? null;
+  const pageRaw = (req.body as any)?.page ?? (req.body as any)?.page_number ?? (req.body as any)?.book_page ?? (req.body as any)?.pageNo ?? (req.body as any)?.page_no ?? null;
   let pageVal: string | null = null;
+  let pageNum: number | null = null;
   if (pageRaw !== null && pageRaw !== undefined) {
     const s = String(pageRaw).trim();
     pageVal = s === "" ? null : s;
+    const n = Number(pageRaw);
+    if (Number.isFinite(n) && n > 0) pageNum = Math.floor(n);
   }
   const id = uuid();
-  await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at,page)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,created_by,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [id, subject_id, chapter_id || null, type, difficulty || "medium", prompt,
       options ? JSON.stringify(options) : null, answer || null, explanation || null, marks || 1,
-      req.user!.id, Date.now(), pageVal]);
+      pageVal, pageNum,
+      req.user!.id, Date.now()]);
   res.json({ question: { id } });
 });
 
@@ -478,19 +482,22 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
       }
       const difficulty = VALID_DIFF.has(row.difficulty) ? row.difficulty : "medium";
       const marks = row.marks != null && Number.isFinite(Number(row.marks)) && Number(row.marks) > 0 ? Number(row.marks) : 1;
-      // Book/source page ref — kept as TEXT so ranges ("42-43") survive too.
+      // Book/source page ref — keep both numeric and text forms
       const pageRaw = row.page ?? row.page_number ?? row.book_page ?? row.pageNo ?? row.page_no ?? null;
       let pageVal: string | null = null;
+      let pageNum: number | null = null;
       if (pageRaw !== null && pageRaw !== undefined) {
         const s = String(pageRaw).trim();
         pageVal = s === "" ? null : s;
+        const n = Number(pageRaw);
+        if (Number.isFinite(n) && n > 0) pageNum = Math.floor(n);
       }
       const id = uuid();
-      await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at,page)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,created_by,created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [id, subject_id, chapter_id, type, difficulty, prompt,
           options ? JSON.stringify(options) : null, row.answer != null ? String(row.answer) : null,
-          row.explanation != null ? String(row.explanation) : null, marks, req.user!.id, Date.now(), pageVal]);
+          row.explanation != null ? String(row.explanation) : null, marks, pageVal, pageNum, req.user!.id, Date.now()]);
       if (skipDuplicates) (await promptsFor(subject_id)).add(promptKey);
       imported++;
     } catch (e: any) {
@@ -505,28 +512,46 @@ router.post("/:id/duplicate", requireAuth, requireRole("admin", "teacher"), asyn
   const src = await get(db, "SELECT * FROM questions WHERE id=?", [req.params.id]) as any;
   if (!src) return res.status(404).json({ error: "Not found" });
   const id = uuid();
-  await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,created_by,created_at,page)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    [id, src.subject_id, src.chapter_id, src.type, src.difficulty, src.prompt, src.options, src.answer, src.explanation, src.marks, req.user!.id, Date.now(), src.page ?? null]);
+  await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,created_by,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [id, src.subject_id, src.chapter_id, src.type, src.difficulty, src.prompt, src.options, src.answer, src.explanation, src.marks, src.page ?? null, src.page_number ?? null, req.user!.id, Date.now()]);
   res.json({ question: { id } });
 });
 router.put("/:id", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
-  const { subject_id, chapter_id, type, difficulty, prompt, options, answer, explanation, marks } = req.body || {};
-  const pageRaw = (req.body as any)?.page ?? (req.body as any)?.page_number ?? (req.body as any)?.book_page ?? null;
+  const body: any = req.body || {};
+  const { subject_id, chapter_id, type, difficulty, prompt, options, answer, explanation, marks } = body;
+  // Was a page sent at all? The form always sends one, but other clients may
+  // omit it — in that case leave any stored page untouched instead of clearing
+  // it. Must be decided before `??` coerces absent keys to null.
+  const hasPage = ["page", "page_number", "book_page", "pageNo", "page_no"].some((k) => k in body);
+  const pageRaw = hasPage ? (body.page ?? body.page_number ?? body.book_page ?? body.pageNo ?? body.page_no ?? null) : null;
   let pageVal: string | null = null;
+  let pageNum: number | null = null;
   if (pageRaw !== null && pageRaw !== undefined) {
     const s = String(pageRaw).trim();
     pageVal = s === "" ? null : s;
+    const n = Number(pageRaw);
+    if (Number.isFinite(n) && n > 0) pageNum = Math.floor(n);
   }
   const db = await getDb();
-  await run(db, `UPDATE questions SET
-    subject_id=COALESCE(?,subject_id), chapter_id=COALESCE(?,chapter_id), type=COALESCE(?,type),
-    difficulty=COALESCE(?,difficulty), prompt=COALESCE(?,prompt),
-    options=?, answer=COALESCE(?,answer), explanation=COALESCE(?,explanation), marks=COALESCE(?,marks),
-    page=COALESCE(?,page)
-    WHERE id=?`,
-    [subject_id, chapter_id, type, difficulty, prompt,
-      options ? JSON.stringify(options) : null, answer, explanation, marks, pageVal, req.params.id]);
+  if (hasPage) {
+    await run(db, `UPDATE questions SET
+      subject_id=COALESCE(?,subject_id), chapter_id=COALESCE(?,chapter_id), type=COALESCE(?,type),
+      difficulty=COALESCE(?,difficulty), prompt=COALESCE(?,prompt),
+      options=?, answer=COALESCE(?,answer), explanation=COALESCE(?,explanation), marks=COALESCE(?,marks),
+      page=?, page_number=?
+      WHERE id=?`,
+      [subject_id, chapter_id, type, difficulty, prompt,
+        options ? JSON.stringify(options) : null, answer, explanation, marks, pageVal, pageNum, req.params.id]);
+  } else {
+    await run(db, `UPDATE questions SET
+      subject_id=COALESCE(?,subject_id), chapter_id=COALESCE(?,chapter_id), type=COALESCE(?,type),
+      difficulty=COALESCE(?,difficulty), prompt=COALESCE(?,prompt),
+      options=?, answer=COALESCE(?,answer), explanation=COALESCE(?,explanation), marks=COALESCE(?,marks)
+      WHERE id=?`,
+      [subject_id, chapter_id, type, difficulty, prompt,
+        options ? JSON.stringify(options) : null, answer, explanation, marks, req.params.id]);
+  }
   res.json({ ok: true });
 });
 

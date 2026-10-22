@@ -142,6 +142,12 @@ const generateSchema = z.object({
   documentId: z.string().optional(),
   pageFrom: z.coerce.number().int().min(1).optional(),
   pageTo: z.coerce.number().int().min(1).optional(),
+  /**
+   * Printed book page number of the source's FIRST page. A chapter extract
+   * usually renumbers from 1, so without this its questions would be labelled
+   * "page 1, 2, 3…" instead of the real textbook pages. Defaults to 1.
+   */
+  firstPage: z.coerce.number().int().min(1).optional(),
   text: z.string().optional(),
   count: z.coerce.number().int().min(1).max(50).default(10),
   difficulty: z.enum(["easy", "medium", "hard", "mixed"]).default("mixed"),
@@ -156,8 +162,13 @@ const generateSchema = z.object({
  * A page range only applies when exactly one document is selected — with a
  * mixed batch ("chapter 3 PDF + these two page photos") a global range makes
  * no sense, so the whole of each selected source is used.
+ *
+ * For a single document the text is marked up with "[Page N]" headers and the
+ * set of real page numbers is returned, so generated questions can carry the
+ * book page they came from (printed in the answer key). Multiple sources are
+ * joined without markers: page numbers from different files would collide.
  */
-async function resolveSource(input: z.infer<typeof generateSchema>): Promise<{ text?: string; error?: string }> {
+async function resolveSource(input: z.infer<typeof generateSchema>): Promise<{ text?: string; pages?: number[]; error?: string }> {
   const ids = input.documentIds?.length ? input.documentIds : input.documentId ? [input.documentId] : [];
   if (ids.length > 0) {
     const db = await getDb();
@@ -178,13 +189,23 @@ async function resolveSource(input: z.infer<typeof generateSchema>): Promise<{ t
         const to = Math.min(input.pageTo ?? pages.length, pages.length);
         if (input.pageFrom && input.pageFrom > pages.length) return { error: `The document only has ${pages.length} pages.` };
         if (from > to) return { error: "pageFrom must not be greater than pageTo." };
-        const sliced = pages.slice(from - 1, to).join("\n\n");
-        if (!sliced.trim()) return { error: "No text found on the selected pages." };
-        parts.push(sliced);
-      } else {
-        const joined = pages.join("\n\n");
-        if (joined.trim()) parts.push(joined);
+        // Map the document's own page index to the printed book page, so a
+        // chapter extract starting at book page 47 is labelled 47, not 1.
+        const firstPage = input.firstPage ?? 1;
+        // Number and mark every non-empty page so the model can cite one.
+        const picked: Array<{ page: number; text: string }> = [];
+        for (let i = from - 1; i < to; i++) {
+          const t = String(pages[i] ?? "");
+          if (t.trim()) picked.push({ page: firstPage + i, text: t });
+        }
+        if (picked.length === 0) return { error: "No text found on the selected pages." };
+        return {
+          text: picked.map((p) => `[Page ${p.page}]\n${p.text}`).join("\n\n"),
+          pages: picked.map((p) => p.page),
+        };
       }
+      const joined = pages.join("\n\n");
+      if (joined.trim()) parts.push(joined);
     }
     const text = parts.join("\n\n");
     if (!text.trim()) return { error: "No text found in the selected sources." };
@@ -246,6 +267,7 @@ router.post("/generate", async (req: Request, res: Response) => {
       types: input.types,
       language: input.language,
       avoidPrompts: bankPrompts,
+      pages: source.pages,
     });
 
     // Nothing valid even after the model's one repair round-trip.

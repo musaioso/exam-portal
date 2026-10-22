@@ -12,7 +12,7 @@
  * always grammatical except for the targeted errors.
  */
 
-import { SPELLING_BANK, type SpellingItem } from "./banglaSpelling";
+import { SPELLING_BANK } from "./banglaSpelling";
 
 export type ProofToken = {
   id: number;

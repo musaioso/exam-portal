@@ -18,6 +18,12 @@ export interface ModelInfo {
   /** True when the provider bills nothing for this model */
   free?: boolean;
   /**
+   * Whether the model accepts image input. Only set when the vendor publishes
+   * modalities (OpenRouter does); undefined means "unknown, use the id
+   * heuristic in models.ts".
+   */
+  vision?: boolean;
+  /**
    * True when the model refuses calls made from a server (OpenCode's free-tier
    * models only run inside the OpenCode app). Shown with a warning in the UI and
    * sorted last so they are not picked by default.
@@ -25,6 +31,12 @@ export interface ModelInfo {
   appOnly?: boolean;
   /** Unix seconds when known — used to sort newest first */
   created?: number;
+  /**
+   * Manual sort priority (higher first) for vendors that do not publish dates,
+   * e.g. Gemini. Sits above `created` in the model-list ordering so the most
+   * useful model becomes the default.
+   */
+  rank?: number;
   /** Context window in tokens when known */
   context?: number;
   /** USD per 1M tokens when known (OpenRouter publishes these) */

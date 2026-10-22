@@ -3,7 +3,7 @@ import { getDb, run, all, execScript } from "./database";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "8";
+export const SCHEMA_VERSION = "9";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -55,6 +55,10 @@ CREATE TABLE IF NOT EXISTS questions (
   answer TEXT,
   explanation TEXT,
   marks INTEGER DEFAULT 1,
+  -- free-text book ref (whole pages or ranges like "42-43")
+  page TEXT,
+  -- numeric form used by the importer and print answer key
+  page_number INTEGER,
   created_by TEXT,
   created_at INTEGER NOT NULL,
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
@@ -176,6 +180,8 @@ export async function migrate() {
   await run(db, "UPDATE ai_documents SET kind='pdf' WHERE kind IS NULL");
   // v6: store source/book page number for questions (used in print answer key)
   await ensureColumn(db, "questions", "page", "TEXT");
+  // v9: numeric page number for easier import/export
+  await ensureColumn(db, "questions", "page_number", "INTEGER");
   await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('schema_version', ?)", [SCHEMA_VERSION]);
 }
 

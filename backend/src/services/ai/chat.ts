@@ -12,30 +12,59 @@ import { AIError, ChatMessage, ChatResult, ChatStyle, ProviderConfig } from "./t
 
 const TIMEOUT_MS = 120_000;
 
+/**
+ * Transient vendor failures worth another attempt. Quota 429s are excluded on
+ * purpose: retrying a hard quota error just burns time and worsens the limit.
+ */
+const RETRY_STATUSES = new Set([500, 502, 503, 504]);
+const RETRY_DELAYS_MS = [900, 2600];
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 async function postJSON(url: string, headers: Record<string, string>, body: unknown, timeoutMs: number) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...headers },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-  } catch (err: any) {
-    clearTimeout(timer);
-    if (err?.name === "AbortError") {
-      throw new AIError("The AI provider timed out. Try again or pick a faster model.", 504);
+  let networkError: any;
+  // Gemini in particular answers 503 "high demand" and the odd dropped
+  // connection; one or two short retries turn those into successful runs.
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      clearTimeout(timer);
+      // A timeout is already the full budget — retrying would double the wait.
+      if (err?.name === "AbortError") {
+        throw new AIError("The AI provider timed out. Try again or pick a faster model.", 504);
+      }
+      networkError = err;
+      continue;
     }
-    throw new AIError("Could not reach the AI provider. Check your network or provider URL.", 502, String(err?.message || err));
+    clearTimeout(timer);
+
+    let text = "";
+    try {
+      text = await res.text();
+    } catch (err: any) {
+      networkError = err;
+      continue;
+    }
+    let data: any = null;
+    try { data = text ? JSON.parse(text) : null; } catch { /* non-JSON error body — handled below */ }
+    if (!res.ok) {
+      const mapped = mapProviderError(res.status, data, text);
+      if (RETRY_STATUSES.has(res.status) && attempt < RETRY_DELAYS_MS.length) continue;
+      throw mapped;
+    }
+    return data;
   }
-  clearTimeout(timer);
-  const text = await res.text();
-  let data: any = null;
-  try { data = text ? JSON.parse(text) : null; } catch { /* non-JSON error body — handled below */ }
-  if (!res.ok) throw mapProviderError(res.status, data, text);
-  return data;
+  throw new AIError("Could not reach the AI provider. Check your network or provider URL.", 502, String(networkError?.message || networkError || ""));
 }
 
 /** Turn a vendor HTTP error into an AIError with a message a teacher can act on. */
@@ -68,10 +97,46 @@ function mapProviderError(status: number, data: any, raw: string): AIError {
     }
     return new AIError("The API key for this provider was rejected. Update it in the server environment.", status, detail);
   }
-  if (status === 404) return new AIError("The model was not found on this provider. Refresh the model list and pick an available model.", status, detail);
-  if (status === 429) return new AIError("The provider is rate-limiting or out of quota. Wait a moment or try another model.", status, detail);
+  if (status === 404) {
+    // Gemini retires model ids and names the replacement in the error text
+    // ("…models/old is no longer available… use models/new instead").
+    const ids = [...String(detail || "").matchAll(/models\/([A-Za-z0-9._-]+)/g)]
+      .map((m) => m[1].replace(/[.,;:)]+$/, ""));
+    const suggested = ids.length > 1 ? ids[ids.length - 1] : null;
+    if (suggested && /no longer available|retired|decommission/i.test(lower)) {
+      return new AIError(
+        `This model has been retired by the provider. Pick ${suggested} instead (refresh the model list).`,
+        status,
+        detail
+      );
+    }
+    return new AIError("The model was not found on this provider. Refresh the model list and pick an available model.", status, detail);
+  }
+  if (status === 429) {
+    // "exceeded your current quota / check your plan and billing" is a plan
+    // limit, not a momentary rate limit — telling the user to wait is wrong.
+    if (/quota|billing|plan/i.test(lower)) {
+      return new AIError(
+        "This model is outside your plan's quota. On a free tier, pick a Flash or Flash-Lite model, or enable billing on the provider account.",
+        status,
+        detail
+      );
+    }
+    return new AIError("The provider is rate-limiting requests. Wait a moment or try another model.", status, detail);
+  }
   if (status === 402) return new AIError("The provider reports insufficient credit.", status, detail);
-  if (status === 503 || status === 502 || status === 500) {
+  if (status === 400 && /response modalit/i.test(lower)) {
+    // e.g. a TTS model asked for text: it only returns audio.
+    return new AIError("This model does not return text (it is an image or audio model). Pick a text model.", status, detail);
+  }
+  if (status === 503) {
+    return new AIError(
+      "The provider is overloaded right now (Gemini Flash models return this transiently). Try again in a minute or pick another model.",
+      status,
+      detail
+    );
+  }
+  if (status === 500 || status === 502) {
     return new AIError(
       "The provider is temporarily unavailable or over capacity. Try again shortly or pick another model.",
       status,

@@ -6,6 +6,7 @@ import { confirmDialog, alertDialog, choiceDialog } from "../components/Dialog";
 import {
   Plus, Trash2, PlayCircle, Shuffle, X, Wand2, Printer, ArrowUp, ArrowDown, GripVertical,
   FileText, Pencil, ClipboardList, BookOpen, Settings2, ListChecks, Check, Clock, Trophy, Search,
+  RotateCcw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 

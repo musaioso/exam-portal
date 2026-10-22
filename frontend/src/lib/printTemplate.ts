@@ -764,8 +764,12 @@ export function buildPrintHtml(data: PrintData): string {
            page_number/book_page). Kept verbatim — ranges like "42-43" print
            as-is. Empty when the question carries no page. */
         function bookPageRef(q){
-          if (!q || q.page === undefined || q.page === null) return '';
-          var s = String(q.page).trim();
+          if (!q) return '';
+          /* Prefer the free-text ref (ranges like "42-43"); fall back to the
+             numeric page_number stored by the importer / AI generator. */
+          var v = (q.page !== undefined && q.page !== null && String(q.page).trim() !== '') ? q.page : q.page_number;
+          if (v === undefined || v === null) return '';
+          var s = String(v).trim();
           return s === '' ? '' : s;
         }
         /* Every option already prints its label inside the marker circle, so an

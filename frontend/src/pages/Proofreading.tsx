@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useToast } from "../components/Toast";
-import { Card, Button, Field, Select, NumberInput, Badge, Input, cn } from "../components/ui";
+import { Card, Button, Field, Select, NumberInput, Input, cn } from "../components/ui";
 import {
   PenLine, Wand2, RotateCcw, CheckCircle2, AlertCircle, X, BookOpen, Sparkles,
 } from "lucide-react";
