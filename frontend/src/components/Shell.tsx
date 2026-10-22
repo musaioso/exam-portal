@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
-import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, ChevronLeft, ChevronRight, FileQuestion } from "lucide-react";
+import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, ChevronLeft, ChevronRight, FileQuestion, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import { StorageWarning } from "./StorageWarning";
@@ -18,7 +18,6 @@ const NAV = [
   { to: "/users", label: "Students", icon: Users, roles: ["admin","teacher"] },
   { to: "/results", label: "Results", icon: GraduationCap, roles: ["admin","teacher","student"] },
   { to: "/practice/standalone", label: "Standalone Practice", icon: Target, roles: ["admin","teacher","student"] },
-  { to: "/profile", label: "My Profile", icon: UserCircle, roles: ["admin","teacher","student"] },
 ];
 
 const STORAGE_KEY = "mcq_sidebar_collapsed";
@@ -63,15 +62,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
         isCollapsed ? "w-14 items-center" : "w-64",
         solid ? "bg-slate-900 shadow-2xl" : "border-r border-slate-700/50 bg-slate-900/40 backdrop-blur",
       )}>
-        {/* Toggle button: fixed position, never moves between states. */}
+        {/* Toggle button: centered at top, themed for visibility. */}
         <button
           type="button"
           onClick={toggleCollapsed}
-          className="absolute right-2 top-2 z-20 grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition-colors duration-150 hover:bg-ink/10 hover:text-slate-200"
+          className="absolute left-1/2 -translate-x-1/2 top-2 z-20 grid h-8 w-8 place-items-center rounded-lg text-indigo-300 transition-colors duration-150 hover:bg-indigo-500/20 hover:text-indigo-100 bg-indigo-500/10 border border-indigo-500/30"
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
         >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
 
         {/* Logo row */}
@@ -102,14 +101,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
           );
         })}
         <div className={cn("mt-auto space-y-1 border-t border-slate-700/50 pt-4 transition-all duration-300", isCollapsed && "flex flex-col items-center")}>
-          <div className="h-10 flex items-center justify-center w-full">
+          <div className={cn("flex items-center justify-center", isCollapsed ? "w-10 h-10" : "w-full")}>
             <ThemeToggle compact={isCollapsed} />
           </div>
           <Link
             to="/profile"
             onClick={close}
             title={isCollapsed ? (user?.name || "Profile") : undefined}
-            className={cn("flex items-center rounded-xl text-xs text-slate-400 hover:bg-ink/10", isCollapsed ? "justify-center h-10 w-full" : "px-2 py-1.5")}
+            className={cn("flex items-center rounded-xl text-xs text-slate-400 hover:bg-ink/10", isCollapsed ? "justify-center w-10 h-10" : "px-2 py-1.5")}
           >
             {isCollapsed ? (
               <UserCircle size={ICON_SIZE} className="text-slate-400" />
@@ -120,7 +119,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => { logout(); nav("/login"); }}
             title={isCollapsed ? "Logout" : undefined}
-            className={cn("flex w-full items-center rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10 h-10", isCollapsed && "justify-center")}
+            className={cn("flex items-center rounded-xl text-sm text-slate-300 transition-colors duration-150 hover:bg-ink/10", isCollapsed ? "justify-center w-10 h-10" : "w-full gap-3 px-3 py-2 h-9")}
           >
             <LogOut size={ICON_SIZE} className="shrink-0" />
             {!isCollapsed && <span className="truncate">Logout</span>}
