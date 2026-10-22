@@ -67,8 +67,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           type="button"
           onClick={toggleCollapsed}
           className={cn(
-            "absolute top-2 z-20 grid h-8 w-8 place-items-center rounded-lg text-indigo-300 transition-colors duration-150 hover:bg-indigo-500/20 hover:text-indigo-100 bg-indigo-500/10 border border-indigo-500/30",
-            isCollapsed ? "left-1/2 -translate-x-1/2" : "right-2",
+            "absolute top-2 z-20 grid h-8 w-8 place-items-center rounded-lg text-indigo-300 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-indigo-500/20 hover:text-indigo-100 bg-indigo-500/10 border border-indigo-500/30",
+            isCollapsed ? "right-3" : "right-2",
           )}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={isCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
