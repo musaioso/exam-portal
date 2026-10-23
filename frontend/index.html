@@ -23,19 +23,32 @@
       })();
     </script>
     <script>
-      // Bootstrap safety net. If the app fails to boot (a stale cached bundle is
-      // the usual culprit) we show a recoverable panel instead of a blank page.
-      // The reload button busts the cache so the browser fetches a fresh index.
+      // Bootstrap safety net. If the app genuinely fails to boot we show a
+      // recoverable panel instead of a blank page. The panel is removed the
+      // moment the app paints, so a slow mobile connection is never mistaken
+      // for a failure.
       (function () {
-        var shown = false;
+        var panelEl = null;
+        var appMounted = false;
+
+        function rootEl() {
+          return document.getElementById("root");
+        }
         function bust() {
           var u = new URL(window.location.href);
           u.searchParams.set("v", Date.now().toString());
           window.location.replace(u.toString());
         }
+        function dismiss() {
+          if (panelEl && panelEl.parentNode) panelEl.parentNode.removeChild(panelEl);
+          panelEl = null;
+        }
+        function markMounted() {
+          appMounted = true;
+          dismiss();
+        }
         function panel() {
-          if (shown) return;
-          shown = true;
+          if (appMounted || panelEl) return;
           var box = document.createElement("div");
           box.setAttribute("data-mcq-recovery", "1");
           box.style.cssText =
@@ -47,13 +60,14 @@
           inner.innerHTML = [
             '<h2 style="margin:0 0 10px;font-size:20px">অ্যাপটি লোড হয়নি</h2>',
             '<p style="margin:0 0 18px;color:#94a3b8">',
-            "আপনার ব্রাউজারে পুরনো সংস্করণের ফাইল সংরক্ষিত আছে। রিফ্রেশ করলে নতুন সংস্করণ লোড হবে।",
+            "ইন্টারনেট সংযোগ ধীর থাকলে বা সাইটের পুরনো ফাইল সংরক্ষিত থাকলে এমন হতে পারে।",
             "</p>",
             '<button id="mcq-recovery-btn" style="padding:10px 22px;border:0;border-radius:12px;',
             "background:linear-gradient(90deg,#8b5cf6,#22d3ee);color:#fff;font-weight:700;cursor:pointer",
-            '">রিফ্রেশ করুন</button>'
+            '">আবার চেষ্টা করুন</button>'
           ].join("");
           box.appendChild(inner);
+          panelEl = box;
           var mount = function () {
             if (document.body) document.body.appendChild(box);
           };
@@ -62,18 +76,44 @@
           var btn = document.getElementById("mcq-recovery-btn");
           if (btn) btn.onclick = bust;
         }
-        // A crash during boot leaves #root empty. Catch it after a grace period.
+        // Watch #root: as soon as React paints, drop any panel for good.
+        function watch() {
+          var r = rootEl();
+          if (!r) return;
+          if (r.children.length > 0) {
+            markMounted();
+            return;
+          }
+          if (typeof MutationObserver === "function") {
+            var mo = new MutationObserver(function () {
+              if (r.children.length > 0) {
+                markMounted();
+                mo.disconnect();
+              }
+            });
+            mo.observe(r, { childList: true });
+          }
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", watch);
+        } else {
+          watch();
+        }
+        // Generous grace period: slow mobile data can need a while to download
+        // the bundle. Only then is an empty #root treated as a real failure.
         window.setTimeout(function () {
-          var root = document.getElementById("root");
-          if (root && root.children.length === 0) panel();
-        }, 6000);
-        // Uncaught exceptions during render also mean a blank page.
+          var r = rootEl();
+          if (r && r.children.length === 0) panel();
+        }, 15000);
+        // Uncaught exceptions during boot also mean a blank page.
         window.addEventListener(
           "error",
           function (e) {
-            if (e && e.target && e.target !== window) return; // asset load error
-            var root = document.getElementById("root");
-            if (root && root.children.length === 0) panel();
+            // Ignore resource load errors (a failed image or chunk); those are
+            // not fatal and the app can still be working.
+            if (e && e.target && e.target !== window) return;
+            var r = rootEl();
+            if (r && r.children.length === 0) panel();
           },
           true
         );

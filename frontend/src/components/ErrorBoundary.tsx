@@ -33,7 +33,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
         <div className="max-w-md text-center">
           <h1 className="text-xl font-bold">অ্যাপটি লোড হয়নি</h1>
           <p className="mt-3 text-sm text-slate-400">
-            আপনার ব্রাউজারে পুরনো সংস্করণের ফাইল সংরক্ষিত আছে। রিফ্রেশ করলে নতুন সংস্করণ লোড হবে।
+            ইন্টারনেট সংযোগ ধীর থাকলে বা সাইটের পুরনো ফাইল সংরক্ষিত থাকলে এমন হতে পারে।
           </p>
           <pre className="mt-4 overflow-auto rounded-xl bg-slate-900 p-3 text-left text-xs text-rose-300">
             {String(this.state.error?.message || this.state.error)}
@@ -42,7 +42,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
             onClick={this.bust}
             className="mt-5 rounded-xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 px-5 py-2.5 text-sm font-semibold text-white"
           >
-            রিফ্রেশ করুন
+            আবার চেষ্টা করুন
           </button>
         </div>
       </div>
