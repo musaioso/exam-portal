@@ -43,8 +43,43 @@ router.delete("/:id", requireAuth, requireRole("admin"), async (req: Request, re
 // Chapters nested
 router.get("/:subjectId/chapters", async (req, res) => {
   const db = await getDb();
-  const chapters = await all(db, "SELECT * FROM chapters WHERE subject_id=? ORDER BY number", [req.params.subjectId]);
+  const chapters = await all(
+    db,
+    `SELECT c.*, (SELECT COUNT(*) FROM questions q WHERE q.chapter_id = c.id) AS question_count
+     FROM chapters c WHERE c.subject_id=? ORDER BY c.number`,
+    [req.params.subjectId]
+  );
   res.json({ chapters });
+});
+
+// Merge one or more duplicate chapters into a single canonical chapter: move all
+// of their questions to the canonical chapter, then delete the duplicates. Keeps
+// question ids intact so existing exams are unaffected.
+router.post("/:subjectId/chapters/merge", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
+  const { canonical_id, duplicate_ids } = req.body || {};
+  if (!canonical_id || !Array.isArray(duplicate_ids) || duplicate_ids.length === 0) {
+    return res.status(400).json({ error: "canonical_id and duplicate_ids[] required" });
+  }
+  const ids = [...new Set(duplicate_ids.map((x: any) => String(x)).filter((x) => x && x !== canonical_id))];
+  if (ids.length === 0) return res.status(400).json({ error: "No duplicates to merge" });
+
+  const db = await getDb();
+  // Validate ownership: every chapter must belong to this subject.
+  const allIds = [canonical_id, ...ids];
+  const rows = (await all(
+    db,
+    `SELECT id FROM chapters WHERE subject_id=? AND id IN (${allIds.map(() => "?").join(",")})`,
+    [req.params.subjectId, ...allIds]
+  )) as any[];
+  if (rows.length !== allIds.length) return res.status(400).json({ error: "Chapter not found in this subject" });
+
+  // Move questions to the canonical chapter.
+  const placeholders = ids.map(() => "?").join(",");
+  await run(db, `UPDATE questions SET chapter_id=? WHERE chapter_id IN (${placeholders})`, [canonical_id, ...ids]);
+  // Delete the duplicate chapters.
+  await run(db, `DELETE FROM chapters WHERE id IN (${placeholders})`, ids);
+
+  res.json({ ok: true, merged: ids.length, moved_questions: true });
 });
 
 router.post("/:subjectId/chapters", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, currentUser } from "../lib/api";
 import { Card, Button, Input, cn } from "../components/ui";
 import { confirmDialog } from "../components/Dialog";
@@ -12,12 +12,19 @@ function slugify(value: string) {
     .replace(/^-|-$/g, "");
 }
 
+/** Normalise a chapter title so trivial differences don't create "different" chapters. */
+function normaliseTitle(value: string) {
+  return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 export default function Subjects() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [chapters, setChapters] = useState<Record<string, any[]>>({});
   const [newSub, setNewSub] = useState({ name: "", name_bn: "", slug: "", code: "" });
   const [newCh, setNewCh] = useState<Record<string, { number: number; title: string; title_bn: string }>>({});
+  // canonical chapter id chosen for each duplicate group (keyed by normalised title)
+  const [mergeCanonical, setMergeCanonical] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [savingSubject, setSavingSubject] = useState(false);
   const [editingSubject, setEditingSubject] = useState<string | null>(null);
@@ -40,7 +47,26 @@ export default function Subjects() {
 
   const loadChapters = async (sid: string) => {
     const { data } = await api.get(`/subjects/${sid}/chapters`);
-    setChapters(c => ({ ...c, [sid]: data.chapters }));
+    const list = data.chapters || [];
+    setChapters(c => ({ ...c, [sid]: list }));
+    // Pick a sensible default canonical for each duplicate group: the chapter
+    // with the most questions, ties broken by lowest number.
+    const groups = new Map<string, any[]>();
+    for (const ch of list) {
+      const key = normaliseTitle(ch.title);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(ch);
+    }
+    setMergeCanonical((prev) => {
+      const next = { ...prev };
+      for (const [key, arr] of groups) {
+        if (arr.length < 2) continue;
+        if (next[key]) continue;
+        const sorted = [...arr].sort((a, b) => (b.question_count || 0) - (a.question_count || 0) || (a.number || 0) - (b.number || 0));
+        next[key] = sorted[0].id;
+      }
+      return next;
+    });
   };
   const toggle = (sid: string) => {
     if (expanded !== sid) { loadChapters(sid).catch(() => {}); }
@@ -212,6 +238,18 @@ export default function Subjects() {
     }
   };
 
+  const mergeChapters = async (sid: string, canonicalId: string, duplicateIds: string[]) => {
+    setError(null);
+    try {
+      await api.post(`/subjects/${sid}/chapters/merge`, { canonical_id: canonicalId, duplicate_ids: duplicateIds });
+      await loadChapters(sid);
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const message = e?.response?.data?.error || e?.message || "Failed to merge chapters";
+      setError(status ? `${message} (HTTP ${status})` : message);
+    }
+  };
+
   const chNumber = (sid: string) => {
     const n = newCh[sid]?.number;
     return Number.isFinite(n) && n! > 0 ? n : 1;
@@ -300,6 +338,62 @@ export default function Subjects() {
                     </Button>
                   </div>
                 )}
+                {(() => {
+                  const list = chapters[s.id] || [];
+                  const groupsMap = new Map<string, any[]>();
+                  for (const ch of list) {
+                    const key = normaliseTitle(ch.title);
+                    if (!groupsMap.has(key)) groupsMap.set(key, []);
+                    groupsMap.get(key)!.push(ch);
+                  }
+                  const dupGroups = [...groupsMap.entries()].filter(([, arr]) => arr.length > 1);
+                  if (dupGroups.length === 0) return null;
+                  return (
+                    <div className="space-y-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3">
+                      <div className="text-sm font-medium text-amber-200">
+                        Duplicate chapters detected ({dupGroups.length} group{dupGroups.length > 1 ? "s" : ""})
+                      </div>
+                      {dupGroups.map(([key, arr]) => {
+                        const canonical = mergeCanonical[key] || arr[0].id;
+                        const dupIds = arr.map((c: any) => c.id).filter((id: string) => id !== canonical);
+                        return (
+                          <div key={key} className="space-y-2 rounded-xl border border-amber-500/30 bg-slate-900/40 p-3">
+                            <div className="text-xs text-slate-300">
+                              “{arr[0].title}” — {arr.length} entries
+                            </div>
+                            <div className="space-y-1">
+                              {arr.map((ch: any) => (
+                                <div key={ch.id} className="flex items-center justify-between text-xs text-slate-200">
+                                  <span>Ch. {ch.number} — {ch.title} <span className="text-slate-500">({ch.question_count ?? 0} questions)</span></span>
+                                  {ch.id === canonical && <span className="text-emerald-400">canonical</span>}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs text-slate-400">Merge into:</span>
+                              <select
+                                className="rounded-xl bg-slate-900/60 border border-slate-600/70 px-3 py-1.5 text-xs text-slate-100"
+                                value={canonical}
+                                onChange={(e) => setMergeCanonical((m) => ({ ...m, [key]: e.target.value }))}
+                              >
+                                {arr.map((ch: any) => (
+                                  <option key={ch.id} value={ch.id}>Ch. {ch.number} — {ch.title} ({ch.question_count ?? 0} q)</option>
+                                ))}
+                              </select>
+                              <Button
+                                variant="outline"
+                                onClick={() => mergeChapters(s.id, canonical, dupIds)}
+                                disabled={dupIds.length === 0}
+                              >
+                                Merge {dupIds.length} duplicate{dupIds.length === 1 ? "" : "s"}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
                 {(chapters[s.id] || []).map(ch => (
                   <div key={ch.id} className="flex items-center justify-between text-sm py-1 border-b border-slate-700/40">
                     {editingChapter === ch.id ? (
