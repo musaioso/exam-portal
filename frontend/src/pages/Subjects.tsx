@@ -14,7 +14,12 @@ function slugify(value: string) {
 
 /** Normalise a chapter title so trivial differences don't create "different" chapters. */
 function normaliseTitle(value: string) {
-  return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 export default function Subjects() {
@@ -241,7 +246,10 @@ export default function Subjects() {
   const mergeChapters = async (sid: string, canonicalId: string, duplicateIds: string[]) => {
     setError(null);
     try {
-      await api.post(`/subjects/${sid}/chapters/merge`, { canonical_id: canonicalId, duplicate_ids: duplicateIds });
+      const { data } = await api.post(`/subjects/${sid}/chapters/merge`, { canonical_id: canonicalId, duplicate_ids: duplicateIds });
+      if (!data?.ok || (data.deleted ?? 0) < duplicateIds.length) {
+        setError(`Merge incomplete: moved ${data?.moved_questions ?? 0} questions, deleted ${data?.deleted ?? 0}/${duplicateIds.length} chapters.`);
+      }
       await loadChapters(sid);
     } catch (e: any) {
       const status = e?.response?.status;

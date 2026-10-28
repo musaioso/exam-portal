@@ -75,11 +75,25 @@ router.post("/:subjectId/chapters/merge", requireAuth, requireRole("admin", "tea
 
   // Move questions to the canonical chapter.
   const placeholders = ids.map(() => "?").join(",");
+  const before = (await all(
+    db,
+    `SELECT COUNT(*) AS n FROM questions WHERE chapter_id IN (${placeholders})`,
+    ids
+  )) as any[];
+  const movedCount = Number(before?.[0]?.n ?? 0);
   await run(db, `UPDATE questions SET chapter_id=? WHERE chapter_id IN (${placeholders})`, [canonical_id, ...ids]);
   // Delete the duplicate chapters.
   await run(db, `DELETE FROM chapters WHERE id IN (${placeholders})`, ids);
 
-  res.json({ ok: true, merged: ids.length, moved_questions: true });
+  // Confirm the duplicates are actually gone (helps surface FK/permission issues).
+  const remaining = (await all(
+    db,
+    `SELECT COUNT(*) AS n FROM chapters WHERE id IN (${placeholders})`,
+    ids
+  )) as any[];
+  const deleted = ids.length - Number(remaining?.[0]?.n ?? 0);
+
+  res.json({ ok: true, merged: ids.length, moved_questions: movedCount, deleted });
 });
 
 router.post("/:subjectId/chapters", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
