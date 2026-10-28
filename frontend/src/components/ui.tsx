@@ -103,7 +103,7 @@ export function Select({ className, style, children, value, onChange, disabled, 
   const selected = options.find((o) => String(o.value) === String(value));
   const isEmpty = options.some((o) => String(o.value) === "");
   const [open, setOpen] = React.useState(false);
-  const [pos, setPos] = React.useState<{ top: number; left: number; width: number } | null>(null);
+  const [pos, setPos] = React.useState<{ top: number; left: number; width: number; maxW: number } | null>(null);
   const wrapperRef = React.useRef<HTMLDivElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -111,7 +111,11 @@ export function Select({ className, style, children, value, onChange, disabled, 
   const updatePos = React.useCallback(() => {
     if (!buttonRef.current) return;
     const r = buttonRef.current.getBoundingClientRect();
-    setPos({ top: r.bottom + window.scrollY + 6, left: r.left + window.scrollX, width: r.width });
+    // Let the menu grow to fit long option labels (e.g. chapter titles that all
+    // start with "পরিচ্ছেদ …") instead of being locked to the button's width.
+    // Cap it so it never runs off the right edge of the viewport.
+    const maxW = Math.max(r.width, Math.min(560, window.innerWidth - r.left - 8));
+    setPos({ top: r.bottom + window.scrollY + 6, left: r.left + window.scrollX, width: r.width, maxW } as any);
   }, []);
 
   React.useEffect(() => {
@@ -159,7 +163,7 @@ export function Select({ className, style, children, value, onChange, disabled, 
           open && "ring-2 ring-violet-500/70"
         )}
       >
-        <span className={cn("truncate", !selected && "text-slate-500")}>
+        <span className={cn("truncate", !selected && "text-slate-500")} title={selected ? String(selected.label) : undefined}>
           {selected ? selected.label : (placeholder || (isEmpty ? options.find((o) => String(o.value) === "")?.label : "Select"))}
         </span>
         <ChevronDown size={16} className={cn("pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-transform", open && "rotate-180")} />
@@ -168,7 +172,7 @@ export function Select({ className, style, children, value, onChange, disabled, 
         <div
           ref={menuRef}
           role="listbox"
-          style={{ position: "absolute", top: pos.top, left: pos.left, width: pos.width, zIndex: 100001 }}
+          style={{ position: "absolute", top: pos.top, left: pos.left, minWidth: pos.width, maxWidth: pos.maxW, zIndex: 100001 }}
           className="max-h-64 overflow-auto rounded-2xl border border-slate-600/80 bg-slate-900/98 backdrop-blur-xl shadow-2xl py-1"
         >
           {options.map((o, i) => {
@@ -185,7 +189,7 @@ export function Select({ className, style, children, value, onChange, disabled, 
                   active ? "bg-violet-500/25 text-violet-200" : "text-slate-200 hover:bg-ink/10"
                 )}
               >
-                <span className="truncate">{o.label}</span>
+                <span className="whitespace-normal break-words leading-snug" title={String(o.label)}>{o.label}</span>
                 {active && (
               <svg
                 viewBox="0 0 16 16"

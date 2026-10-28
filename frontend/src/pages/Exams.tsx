@@ -100,6 +100,11 @@ export default function Exams() {
   const [qType, setQType] = useState("");
   const [qDifficulty, setQDifficulty] = useState("");
   const [qChapter, setQChapter] = useState("");
+  // Filter the bank by when each question was added, so a chapter that already
+  // holds older questions can be topped up with only the newer ones.
+  const [qDatePreset, setQDatePreset] = useState("all");
+  const [qDateFrom, setQDateFrom] = useState("");
+  const [qDateTo, setQDateTo] = useState("");
   const [autoCount, setAutoCount] = useState(5);
   const [autoMode, setAutoMode] = useState<"random" | "first">("random");
   const [blueprint, setBlueprint] = useState({ mcq: 0, short: 0, long: 0, difficulty: "" as "" | "easy" | "medium" | "hard" });
@@ -170,17 +175,59 @@ export default function Exams() {
     });
   };
 
-  useEffect(() => { setQPage(1); }, [qQuery, qType, qDifficulty, qChapter, subjectKey]);
+  useEffect(() => { setQPage(1); }, [qQuery, qType, qDifficulty, qChapter, qDateFrom, qDateTo, subjectKey]);
+
+  // Date/time helpers for the "added on" filter (local time, not UTC), so
+  // questions created a few minutes apart can be told apart.
+  const toLocalDateTimeStr = (ms: number) => {
+    const d = new Date(ms);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const parseDateTimeMs = (s: string, endOfDay: boolean) => {
+    if (!s) return null;
+    // datetime-local gives "YYYY-MM-DDTHH:MM"; a bare date (no "T") is treated
+    // as the start/end of that whole day.
+    if (s.includes("T")) {
+      const t = new Date(s);
+      return Number.isNaN(t.getTime()) ? null : t.getTime();
+    }
+    const [y, m, d] = s.split("-").map(Number);
+    if (endOfDay) return new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+    return new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+  };
+  const inDateRange = (q: any) => {
+    const from = parseDateTimeMs(qDateFrom, false);
+    const to = parseDateTimeMs(qDateTo, true);
+    if (from != null && !(Number(q.created_at) >= from)) return false;
+    if (to != null && !(Number(q.created_at) <= to)) return false;
+    return true;
+  };
 
   const filteredQs = availableQs.filter((q: any) => {
     if (qType && q.type !== qType) return false;
     if (qDifficulty && (q.difficulty || "medium") !== qDifficulty) return false;
     if (qChapter && q.chapter_id !== qChapter) return false;
+    if (!inDateRange(q)) return false;
     const terms = qQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (!terms.length) return true;
     const hay = `${q.prompt || ""} ${q.type || ""} ${q.difficulty || ""}`.toLowerCase();
     return terms.every((t) => hay.includes(t));
   });
+
+  const applyDatePreset = (value: string) => {
+    setQDatePreset(value);
+    if (value === "all") { setQDateFrom(""); setQDateTo(""); return; }
+    if (value === "custom") return;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - n);
+    from.setHours(0, 0, 0, 0);
+    setQDateFrom(toLocalDateTimeStr(from.getTime()));
+    setQDateTo(toLocalDateTimeStr(to.getTime()));
+  };
 
   const selectFiltered = () => {
     setForm((f) => ({
@@ -210,6 +257,7 @@ export default function Exams() {
       let pool = availableQs.filter((q: any) => q.type === type && !form.question_ids.includes(q.id) && !picked.includes(q.id));
       if (blueprint.difficulty) pool = pool.filter((q: any) => (q.difficulty || "medium") === blueprint.difficulty);
       if (qChapter) pool = pool.filter((q: any) => q.chapter_id === qChapter);
+      pool = pool.filter((q: any) => inDateRange(q));
       picked.push(...shuffleArray(pool).slice(0, want).map((q: any) => q.id));
     }
     setForm((f) => ({ ...f, question_ids: Array.from(new Set([...f.question_ids, ...picked])) }));
@@ -290,6 +338,7 @@ export default function Exams() {
     setBlueprint({ mcq: 0, short: 0, long: 0, difficulty: "" });
     setSubjectTimes({});
     setQQuery(""); setQType(""); setQDifficulty(""); setQChapter("");
+    setQDatePreset("all"); setQDateFrom(""); setQDateTo("");
   };
 
   const startEdit = (e: any) => {
@@ -647,6 +696,46 @@ export default function Exams() {
                 </Field>
               </div>
 
+              {/* Added-on date filter: pick only the questions added in a given
+                  window so a chapter that already holds older questions can be
+                  topped up with the newer ones. */}
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Field label="Added (preset)">
+                  <Select value={qDatePreset} onChange={e => applyDatePreset(e.target.value)}>
+                    <option value="all">All time</option>
+                    <option value="7">Last 7 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="custom">Custom range</option>
+                  </Select>
+                </Field>
+                <Field label="Added from (date & time)">
+                  <Input
+                    type="datetime-local"
+                    value={qDateFrom}
+                    onChange={e => { setQDateFrom(e.target.value); setQDatePreset("custom"); }}
+                  />
+                </Field>
+                <Field label="Added to (date & time)">
+                  <Input
+                    type="datetime-local"
+                    value={qDateTo}
+                    onChange={e => { setQDateTo(e.target.value); setQDatePreset("custom"); }}
+                  />
+                </Field>
+                <div className="flex items-end">
+                  {(qDateFrom || qDateTo) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => { setQDatePreset("all"); setQDateFrom(""); setQDateTo(""); }}
+                    >
+                      Clear dates
+                    </Button>
+                  )}
+                </div>
+              </div>
+
               <div className="mt-4 flex flex-wrap items-end gap-x-4 gap-y-3 rounded-2xl border border-slate-600/40 bg-ink/5 p-3">
                 <Button type="button" variant="outline" onClick={selectFiltered}>Select filtered ({filteredQs.length})</Button>
                 <Button type="button" variant="ghost" onClick={clearSelection} disabled={form.question_ids.length === 0}>Clear selection</Button>
@@ -682,6 +771,10 @@ export default function Exams() {
                               {form.subjectIds.length > 1 ? `${subjectName(ch.subject_id)} · ` : ""}Ch.{ch.number}
                             </span>
                           )}
+                          <span className="shrink-0 text-[11px] text-slate-500" title={`Added ${new Date(q.created_at).toLocaleString()}`}>
+                            {new Date(q.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}{" "}
+                            {new Date(q.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
                           <span className="shrink-0 text-[11px] tabular-nums text-cyan-300">{marks} mark{marks === 1 ? "" : "s"}</span>
                           <Badge className="shrink-0">{q.type}{q.difficulty ? ` · ${q.difficulty}` : ""}</Badge>
                         </label>
