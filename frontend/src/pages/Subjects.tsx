@@ -27,12 +27,21 @@ function normaliseTitle(value: string) {
  * poricched uses that number; when several appear, the last segment carries
  * the identifying number.
  */
+function toAsciiDigits(value: string) {
+  return String(value || "").replace(/[০-৯]/g, (d) => String(d.charCodeAt(0) - "০".charCodeAt(0)));
+}
+
 function chapterKey(value: string) {
   const s = String(value || "").normalize("NFKC");
-  const matches = [...s.matchAll(/পরিচ্ছেদ\s*([০-৯0-9]+)/g)];
-  if (matches.length === 0) return normaliseTitle(s);
-  const last = matches[matches.length - 1];
-  return `পরিচ্ছেদ ${last[1]}`;
+  // A "poricched" token may be a single number or a range (x-y, x ও y). Only
+  // single-number poriccheds participate in duplicate grouping; ranges and
+  // multi-poricched titles stay unique so they are not merged into a single
+  // chapter by accident.
+  const matches = [...s.matchAll(/পরিচ্ছেদ\s*([০-৯0-9]+)(\s*[-–—,]\s*[০-৯0-9]+|\s+(?:ও|এবং|and|to)\s+[০-৯0-9]+)?/g)];
+  if (matches.length === 0) return `title:${normaliseTitle(s)}`;
+  const hasRange = matches.some((m) => !!m[2]);
+  if (matches.length > 1 || hasRange) return `title:${normaliseTitle(s)}`;
+  return `পরিচ্ছেদ ${matches[0][1]}`;
 }
 
 export default function Subjects() {
@@ -91,8 +100,16 @@ export default function Subjects() {
       for (const [key, arr] of groups) {
         if (arr.length < 2) continue;
         if (next[key]) continue;
-        const sorted = [...arr].sort((a, b) => (b.question_count || 0) - (a.question_count || 0) || (a.number || 0) - (b.number || 0));
-        next[key] = sorted[0].id;
+        const m = key.match(/^পরিচ্ছেদ (.+)$/);
+        let canonicalChapter: any = null;
+        if (m) {
+          const targetNum = Number(toAsciiDigits(m[1]));
+          canonicalChapter = arr.find((c: any) => Number(toAsciiDigits(String(c.number))) === targetNum);
+        }
+        if (!canonicalChapter) {
+          canonicalChapter = [...arr].sort((a: any, b: any) => (b.question_count || 0) - (a.question_count || 0) || (a.number || 0) - (b.number || 0))[0];
+        }
+        next[key] = canonicalChapter.id;
       }
       return next;
     });
