@@ -30,6 +30,8 @@ export default function Subjects() {
   const [newCh, setNewCh] = useState<Record<string, { number: number; title: string; title_bn: string }>>({});
   // canonical chapter id chosen for each duplicate group (keyed by normalised title)
   const [mergeCanonical, setMergeCanonical] = useState<Record<string, string>>({});
+  // manual merge selection per subject
+  const [manualMerge, setManualMerge] = useState<Record<string, { from: string; to: string }>>({});
   const [error, setError] = useState<string | null>(null);
   const [savingSubject, setSavingSubject] = useState(false);
   const [editingSubject, setEditingSubject] = useState<string | null>(null);
@@ -433,6 +435,45 @@ export default function Subjects() {
                     )}
                   </div>
                 ))}
+                {(chapters[s.id]?.length || 0) >= 2 && (
+                  <div className="mt-3 rounded-xl border border-slate-600/40 bg-slate-900/40 p-3 space-y-2">
+                    <div className="text-xs font-medium text-slate-300">Merge two chapters manually</div>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <select
+                        className="rounded-xl bg-slate-900/60 border border-slate-600/70 px-3 py-1.5 text-xs text-slate-100"
+                        value={manualMerge[s.id]?.from || ""}
+                        onChange={(e) => setManualMerge((m) => ({ ...m, [s.id]: { from: e.target.value, to: m[s.id]?.to || "" } }))}
+                      >
+                        <option value="">From chapter…</option>
+                        {(chapters[s.id] || []).map((ch: any) => (
+                          <option key={ch.id} value={ch.id}>Ch. {ch.number} — {ch.title}</option>
+                        ))}
+                      </select>
+                      <span className="text-xs text-slate-500">→</span>
+                      <select
+                        className="rounded-xl bg-slate-900/60 border border-slate-600/70 px-3 py-1.5 text-xs text-slate-100"
+                        value={manualMerge[s.id]?.to || ""}
+                        onChange={(e) => setManualMerge((m) => ({ ...m, [s.id]: { from: m[s.id]?.from || "", to: e.target.value } }))}
+                      >
+                        <option value="">Into chapter…</option>
+                        {(chapters[s.id] || []).map((ch: any) => (
+                          <option key={ch.id} value={ch.id}>Ch. {ch.number} — {ch.title}</option>
+                        ))}
+                      </select>
+                      <Button
+                        variant="outline"
+                        disabled={!manualMerge[s.id]?.from || !manualMerge[s.id]?.to || manualMerge[s.id]?.from === manualMerge[s.id]?.to}
+                        onClick={() => {
+                          const sel = manualMerge[s.id];
+                          if (!sel?.from || !sel?.to) return;
+                          mergeChapters(s.id, sel.to, [sel.from]);
+                        }}
+                      >
+                        Merge
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {!(chapters[s.id]?.length) && <div className="text-xs text-slate-500">No chapters yet.</div>}
                 {canManage && (
                   <div className="pt-2">
