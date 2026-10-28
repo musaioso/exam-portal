@@ -3,7 +3,7 @@ import { getDb, run, all, execScript } from "./database";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "9";
+export const SCHEMA_VERSION = "10";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -144,6 +144,17 @@ CREATE TABLE IF NOT EXISTS ai_generations (
   duration_ms INTEGER,
   created_by TEXT,
   created_at INTEGER NOT NULL
+);
+
+-- Undo log for chapter merges. Stores the deleted chapters and the question ids
+-- that were moved, so a merge can be reverted (up to the last few per subject).
+CREATE TABLE IF NOT EXISTS chapter_merge_history (
+  id TEXT PRIMARY KEY,
+  subject_id TEXT NOT NULL,
+  canonical_id TEXT NOT NULL,
+  data TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);

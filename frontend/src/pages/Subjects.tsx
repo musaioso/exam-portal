@@ -22,6 +22,19 @@ function normaliseTitle(value: string) {
     .toLowerCase();
 }
 
+/**
+ * Extract the identifying "পরিচ্ছেদ X" key from a chapter title. A single
+ * poricched uses that number; when several appear, the last segment carries
+ * the identifying number.
+ */
+function chapterKey(value: string) {
+  const s = String(value || "").normalize("NFKC");
+  const matches = [...s.matchAll(/পরিচ্ছেদ\s*([০-৯0-9]+)/g)];
+  if (matches.length === 0) return normaliseTitle(s);
+  const last = matches[matches.length - 1];
+  return `পরিচ্ছেদ ${last[1]}`;
+}
+
 export default function Subjects() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -32,6 +45,8 @@ export default function Subjects() {
   const [mergeCanonical, setMergeCanonical] = useState<Record<string, string>>({});
   // manual merge selection per subject
   const [manualMerge, setManualMerge] = useState<Record<string, { from: string; to: string }>>({});
+  // recent merge history per subject (for undo)
+  const [mergeHistory, setMergeHistory] = useState<Record<string, any[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [savingSubject, setSavingSubject] = useState(false);
   const [editingSubject, setEditingSubject] = useState<string | null>(null);
@@ -56,11 +71,18 @@ export default function Subjects() {
     const { data } = await api.get(`/subjects/${sid}/chapters`);
     const list = data.chapters || [];
     setChapters(c => ({ ...c, [sid]: list }));
+    // Load recent merge history for the undo UI.
+    try {
+      const { data: h } = await api.get(`/subjects/${sid}/chapters/merges`);
+      setMergeHistory((m) => ({ ...m, [sid]: h.merges || [] }));
+    } catch {
+      setMergeHistory((m) => ({ ...m, [sid]: [] }));
+    }
     // Pick a sensible default canonical for each duplicate group: the chapter
     // with the most questions, ties broken by lowest number.
     const groups = new Map<string, any[]>();
     for (const ch of list) {
-      const key = normaliseTitle(ch.title);
+      const key = chapterKey(ch.title);
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(ch);
     }
@@ -260,6 +282,18 @@ export default function Subjects() {
     }
   };
 
+  const undoMerge = async (sid: string, historyId: string) => {
+    setError(null);
+    try {
+      await api.post(`/subjects/${sid}/chapters/merges/${historyId}/undo`);
+      await loadChapters(sid);
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const message = e?.response?.data?.error || e?.message || "Failed to undo merge";
+      setError(status ? `${message} (HTTP ${status})` : message);
+    }
+  };
+
   const chNumber = (sid: string) => {
     const n = newCh[sid]?.number;
     return Number.isFinite(n) && n! > 0 ? n : 1;
@@ -352,7 +386,7 @@ export default function Subjects() {
                   const list = chapters[s.id] || [];
                   const groupsMap = new Map<string, any[]>();
                   for (const ch of list) {
-                    const key = normaliseTitle(ch.title);
+                    const key = chapterKey(ch.title);
                     if (!groupsMap.has(key)) groupsMap.set(key, []);
                     groupsMap.get(key)!.push(ch);
                   }
@@ -472,6 +506,20 @@ export default function Subjects() {
                         Merge
                       </Button>
                     </div>
+                  </div>
+                )}
+                {(mergeHistory[s.id]?.length || 0) > 0 && (
+                  <div className="mt-3 rounded-xl border border-slate-600/40 bg-slate-900/40 p-3 space-y-2">
+                    <div className="text-xs font-medium text-slate-300">Recent merges (undo available)</div>
+                    {(mergeHistory[s.id] || []).slice(0, 5).map((m: any) => (
+                      <div key={m.id} className="flex items-center justify-between text-xs text-slate-200">
+                        <span>
+                          {new Date(m.created_at).toLocaleString()} — merged {m.duplicate_count} chapter{m.duplicate_count === 1 ? "" : "s"}
+                          {m.titles?.length ? ` (${m.titles.join(", ")})` : ""}
+                        </span>
+                        <Button variant="ghost" onClick={() => undoMerge(s.id, m.id)}>Undo</Button>
+                      </div>
+                    ))}
                   </div>
                 )}
                 {!(chapters[s.id]?.length) && <div className="text-xs text-slate-500">No chapters yet.</div>}
