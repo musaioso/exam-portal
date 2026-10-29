@@ -327,6 +327,8 @@ router.get("/attempts/:attemptId/review", requireAuth, async (req: Request, res:
         correct: q.type === "mcq" ? correct : null,
         answer: showKey ? (q.answer ?? null) : null,
         explanation: showKey ? (q.explanation ?? null) : null,
+        page: q.page ?? null,
+        page_number: q.page_number ?? null,
       };
     });
 

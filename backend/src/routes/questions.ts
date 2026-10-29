@@ -218,7 +218,7 @@ router.get("/practice", requireAuth, async (req: Request, res: Response) => {
   const rows = (await all(
     db,
     `SELECT q.id, q.subject_id, q.type, q.difficulty, q.prompt, q.options, q.answer,
-       q.explanation, q.marks, q.chapter_id,
+       q.explanation, q.marks, q.chapter_id, q.page, q.page_number,
        s.name AS subject_name, c.number AS chapter_number, c.title AS chapter_title
      FROM questions q
      LEFT JOIN subjects s ON s.id = q.subject_id
