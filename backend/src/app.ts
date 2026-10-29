@@ -3,6 +3,7 @@ import cors from "cors";
 import authRouter from "./routes/auth";
 import subjectsRouter from "./routes/subjects";
 import questionsRouter from "./routes/questions";
+import challengesRouter from "./routes/challenges";
 import examsRouter from "./routes/exams";
 import usersRouter from "./routes/users";
 import backupRouter from "./routes/backup";
@@ -103,6 +104,7 @@ function createApp() {
   app.use("/api/auth", authRouter);
   app.use("/api/subjects", subjectsRouter);
   app.use("/api/questions", questionsRouter);
+  app.use("/api/challenges", challengesRouter);
   app.use("/api/exams", examsRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/backup", backupRouter);
