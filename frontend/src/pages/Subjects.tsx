@@ -100,12 +100,9 @@ export default function Subjects() {
       for (const [key, arr] of groups) {
         if (arr.length < 2) continue;
         if (next[key]) continue;
-        const m = key.match(/^পরিচ্ছেদ (.+)$/);
-        let canonicalChapter: any = null;
-        if (m) {
-          const targetNum = Number(toAsciiDigits(m[1]));
-          canonicalChapter = arr.find((c: any) => Number(toAsciiDigits(String(c.number))) === targetNum);
-        }
+        // Prefer the entry that carries a "পরিচ্ছেদ …" prefix (the proper
+        // chapter); otherwise the one with the most questions, then lowest number.
+        let canonicalChapter: any = arr.find((c: any) => /^পরিচ্ছেদ/.test(String(c.title || "").trim()));
         if (!canonicalChapter) {
           canonicalChapter = [...arr].sort((a: any, b: any) => (b.question_count || 0) - (a.question_count || 0) || (a.number || 0) - (b.number || 0))[0];
         }
