@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Bump `SCHEMA_VERSION` in `backend/src/db/migrate.ts` from `"9"` to `"10"`.
+- Bump `SCHEMA_VERSION` in `backend/src/db/migrate.ts` to `"11"`.
 - Challenge statuses are exactly `open`, `accepted`, `rejected`; sources are exactly `exam`, `practice`.
 - Challenge messages and staff replies are trimmed and limited to 2,000 characters.
 - `page` wins over `page_number`; show the value verbatim (ranges like `42-43` survive).
@@ -76,12 +76,12 @@ let server: Awaited<ReturnType<typeof startServer>>;
 before(async () => { server = await startServer(); });
 after(async () => { await server.close(); });
 
-test("migrate creates question_challenges and records schema version 10", async () => {
+test("migrate creates question_challenges and records schema version 11", async () => {
   const db = await getDb();
   const table = await get(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='question_challenges'");
   assert.ok(table);
   const meta = await get(db, "SELECT value FROM app_meta WHERE key='schema_version'");
-  assert.equal(meta.value, "10");
+  assert.equal(meta.value, "11");
 });
 ```
 
@@ -198,7 +198,7 @@ Update the `test` script in `backend/package.json` to:
 ```
 
 Run: `cd backend && npm test`
-Expected: FAIL — `question_challenges` is missing and/or the schema version is `9`.
+Expected: FAIL — `question_challenges` is missing and/or the schema version is not `11`.
 
 - [ ] **Step 3: Add the table and bump the version**
 

@@ -147,7 +147,7 @@ CREATE INDEX IF NOT EXISTS idx_challenges_question
   ON question_challenges(question_id);
 ```
 
-Bump `SCHEMA_VERSION` to `"10"`. `migrate()` runs the `CREATE TABLE IF NOT
+Bump `SCHEMA_VERSION` to `"11"`. `migrate()` runs the `CREATE TABLE IF NOT
 EXISTS`, so existing databases gain the table on the next cold start.
 
 `attempt_id` is nullable: standalone-practice challenges have none.
