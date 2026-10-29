@@ -131,6 +131,51 @@ export async function run(db: AnyDb, sql: string, params: any[] = []): Promise<v
   schedulePersist();
 }
 
+/** Like `run`, but says how many rows the statement actually changed. */
+export async function runChanges(db: AnyDb, sql: string, params: any[] = []): Promise<number> {
+  if (isRemote) {
+    const res = await db.execute({ sql, args: normalizeParams(params) });
+    return Number((res as any)?.rowsAffected ?? 0);
+  }
+  db.run(sql, normalizeParams(params));
+  schedulePersist();
+  return Number(db.getRowsModified?.() ?? 0);
+}
+
+/**
+ * Run several statements as one unit. The remote client has an atomic batch;
+ * sql.js gets an explicit transaction so a failure halfway through rolls the
+ * earlier statements back instead of leaving a half-applied change.
+ */
+export async function batch(
+  db: AnyDb,
+  statements: Array<{ sql: string; params?: any[] }>
+): Promise<void> {
+  if (statements.length === 0) return;
+  if (isRemote) {
+    await db.batch(
+      statements.map((s) => ({ sql: s.sql, args: normalizeParams(s.params || []) })),
+      "write"
+    );
+    return;
+  }
+  db.run("BEGIN");
+  try {
+    for (const statement of statements) {
+      db.run(statement.sql, normalizeParams(statement.params || []));
+    }
+    db.run("COMMIT");
+  } catch (err) {
+    try {
+      db.run("ROLLBACK");
+    } catch {
+      /* the rollback is best-effort; the original error is what matters */
+    }
+    throw err;
+  }
+  schedulePersist();
+}
+
 export async function all(db: AnyDb, sql: string, params: any[] = []): Promise<any[]> {
   if (isRemote) {
     const res = await db.execute({ sql, args: normalizeParams(params) });

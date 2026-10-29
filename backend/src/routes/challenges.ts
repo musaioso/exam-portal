@@ -1,11 +1,28 @@
 import { Router, Request, Response } from "express";
 import { randomUUID as uuid } from "node:crypto";
-import { getDb, run, get, all } from "../db/database";
+import { getDb, run, get, all, runChanges } from "../db/database";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 const router = Router();
 
 const MAX_MESSAGE = 2000;
+
+/** The caller's open dispute for this question and attempt (or practice). */
+async function findOpenChallenge(
+  db: any,
+  studentId: string,
+  questionId: string,
+  attemptId: string | null
+) {
+  return (await get(
+    db,
+    `SELECT * FROM question_challenges
+     WHERE student_id=? AND question_id=? AND status='open'
+       AND ${attemptId ? "attempt_id=?" : "attempt_id IS NULL"}
+     ORDER BY created_at DESC LIMIT 1`,
+    attemptId ? [studentId, questionId, attemptId] : [studentId, questionId]
+  )) as any;
+}
 
 /**
  * A student's dispute of one question. Exam and missed-question practice carry
@@ -45,26 +62,31 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     attemptId = attempt.id;
   }
 
-  const existing = (await get(
-    db,
-    `SELECT * FROM question_challenges
-     WHERE student_id=? AND question_id=? AND status='open'
-       AND ${attemptId ? "attempt_id=?" : "attempt_id IS NULL"}
-     ORDER BY created_at DESC LIMIT 1`,
-    attemptId ? [req.user!.id, question_id, attemptId] : [req.user!.id, question_id]
-  )) as any;
+  const existing = await findOpenChallenge(db, req.user!.id, question_id, attemptId);
   if (existing) {
     return res.status(409).json({ error: "already_challenged", challenge: existing });
   }
 
   const id = uuid();
-  await run(
-    db,
-    `INSERT INTO question_challenges
-      (id,question_id,student_id,attempt_id,exam_id,source,message,status,created_at)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
-    [id, question_id, req.user!.id, attemptId, examId, source, text, "open", Date.now()]
-  );
+  try {
+    await run(
+      db,
+      `INSERT INTO question_challenges
+        (id,question_id,student_id,attempt_id,exam_id,source,message,status,created_at)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      [id, question_id, req.user!.id, attemptId, examId, source, text, "open", Date.now()]
+    );
+  } catch (err: any) {
+    // The unique index is the real guard: two simultaneous submissions can
+    // both pass the check above, and the loser lands here.
+    if (/UNIQUE/i.test(String(err?.message || err))) {
+      const conflict = await findOpenChallenge(db, req.user!.id, question_id, attemptId);
+      if (conflict) {
+        return res.status(409).json({ error: "already_challenged", challenge: conflict });
+      }
+    }
+    throw err;
+  }
   const challenge = await get(db, "SELECT * FROM question_challenges WHERE id=?", [id]);
   res.json({ challenge });
 });
@@ -135,17 +157,16 @@ router.put("/:id", requireAuth, requireRole("admin", "teacher"), async (req: Req
   }
 
   const db = await getDb();
-  const existing = (await get(db, "SELECT * FROM question_challenges WHERE id=?", [req.params.id])) as any;
-  if (!existing) return res.status(404).json({ error: "Not found" });
-  if (existing.status !== "open") {
-    return res.status(409).json({ error: "This challenge has already been resolved" });
-  }
-
-  await run(
+  const changed = await runChanges(
     db,
-    "UPDATE question_challenges SET status=?, reply=?, reviewed_by=?, reviewed_at=? WHERE id=?",
+    "UPDATE question_challenges SET status=?, reply=?, reviewed_by=?, reviewed_at=? WHERE id=? AND status='open'",
     [status, text || null, req.user!.id, Date.now(), req.params.id]
   );
+  if (changed === 0) {
+    const existing = await get(db, "SELECT * FROM question_challenges WHERE id=?", [req.params.id]);
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    return res.status(409).json({ error: "This challenge has already been resolved" });
+  }
   const challenge = await get(db, "SELECT * FROM question_challenges WHERE id=?", [req.params.id]);
   res.json({ challenge });
 });

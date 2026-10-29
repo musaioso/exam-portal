@@ -1,7 +1,7 @@
 import "./env";
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
-import { get, getDb } from "../src/db/database";
+import { get, getDb, run, runChanges } from "../src/db/database";
 import { auth, createAttempt, createExam, createQuestion, createUser, startServer } from "./helpers";
 
 let server: Awaited<ReturnType<typeof startServer>>;
@@ -155,4 +155,55 @@ test("staff resolve a challenge once, with a reply", async () => {
   const mine = await (await fetch(`${server.baseUrl}/api/challenges/mine`, { headers: auth(student.token) })).json();
   assert.equal(mine.challenges[0].status, "accepted");
   assert.equal(mine.challenges[0].reply, "You are right; the key is being fixed.");
+});
+
+test("the schema refuses a second open challenge for the same target", async () => {
+  const student = await createUser("student");
+  const q = await createQuestion();
+  const db = await getDb();
+  const insert = (id: string) => run(db, `INSERT INTO question_challenges
+    (id,question_id,student_id,source,message,status,created_at)
+    VALUES (?,?,?,?,?,?,?)`, [id, q.id, student.id, "practice", "Duplicate.", "open", Date.now()]);
+  await insert("open-one");
+  await assert.rejects(insert("open-two"), /UNIQUE/i);
+});
+
+test("two simultaneous submissions create only one open challenge", async () => {
+  const student = await createUser("student");
+  const q = await createQuestion();
+  const [a, b] = await Promise.all([
+    post({ question_id: q.id, message: "First." }, student.token),
+    post({ question_id: q.id, message: "Second." }, student.token),
+  ]);
+  assert.deepEqual([a.status, b.status].sort(), [200, 409]);
+  const db = await getDb();
+  const row = await get(db, "SELECT COUNT(*) AS n FROM question_challenges WHERE student_id=? AND question_id=?",
+    [student.id, q.id]);
+  assert.equal(row.n, 1);
+});
+
+test("two simultaneous resolutions produce one winner", async () => {
+  const student = await createUser("student");
+  const teacher = await createUser("teacher");
+  const q = await createQuestion();
+  const created = await (await post({ question_id: q.id, message: "Race." }, student.token)).json();
+  const id = created.challenge.id;
+  const decide = (status: string) => fetch(`${server.baseUrl}/api/challenges/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...auth(teacher.token) },
+    body: JSON.stringify({ status }),
+  });
+  const [a, b] = await Promise.all([decide("accepted"), decide("rejected")]);
+  assert.deepEqual([a.status, b.status].sort(), [200, 409]);
+});
+
+test("runChanges reports when a guarded update matched nothing", async () => {
+  const student = await createUser("student");
+  const q = await createQuestion();
+  const created = await (await post({ question_id: q.id, message: "Already done." }, student.token)).json();
+  const id = created.challenge.id;
+  const db = await getDb();
+  await run(db, "UPDATE question_challenges SET status='accepted' WHERE id=?", [id]);
+  const n = await runChanges(db, "UPDATE question_challenges SET status='rejected' WHERE id=? AND status='open'", [id]);
+  assert.equal(n, 0);
 });

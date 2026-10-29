@@ -1,7 +1,7 @@
 import "./env";
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
-import { get, getDb } from "../src/db/database";
+import { get, getDb, batch, run } from "../src/db/database";
 import { auth, createAttempt, createExam, createQuestion, createUser, startServer } from "./helpers";
 
 let server: Awaited<ReturnType<typeof startServer>>;
@@ -53,4 +53,25 @@ test("students cannot delete attempts and unknown ids return 404", async () => {
   const attempt = await createAttempt({ examId: exam.id, studentId: student.id, answers: { [q.id]: "A" } });
   assert.equal((await del(attempt.id, student.token)).status, 403);
   assert.equal((await del("missing", teacher.token)).status, 404);
+});
+
+test("a failed batch rolls the whole deletion back", async () => {
+  const student = await createUser("student");
+  const q = await createQuestion();
+  const exam = await createExam({ subjectId: q.subjectId, questionIds: [q.id] });
+  const attempt = await createAttempt({ examId: exam.id, studentId: student.id, answers: { [q.id]: "A" } });
+  const db = await getDb();
+  const challengeId = "rollback-challenge";
+  await run(db, `INSERT INTO question_challenges
+    (id,question_id,student_id,attempt_id,exam_id,source,message,status,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?)`,
+    [challengeId, q.id, student.id, attempt.id, exam.id, "exam", "Rollback.", "open", Date.now()]);
+
+  await assert.rejects(batch(db, [
+    { sql: "UPDATE question_challenges SET attempt_id=NULL WHERE id=?", params: [challengeId] },
+    { sql: "DELETE FROM table_that_does_not_exist WHERE id=?", params: [attempt.id] },
+  ]));
+
+  const kept = await get(db, "SELECT attempt_id FROM question_challenges WHERE id=?", [challengeId]);
+  assert.equal(kept.attempt_id, attempt.id);
 });

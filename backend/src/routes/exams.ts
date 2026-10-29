@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { randomUUID as uuid } from "node:crypto";
-import { getDb, run, get, all } from "../db/database";
+import { getDb, run, get, all, batch } from "../db/database";
 import { requireAuth, requireRole, optionalAuth } from "../middleware/auth";
 import { latestChallengesByQuestion } from "../lib/challenges";
 
@@ -368,10 +368,12 @@ router.delete("/attempts/:attemptId", requireAuth, requireRole("admin", "teacher
   const attempt = await get(db, "SELECT * FROM exam_attempts WHERE id=?", [req.params.attemptId]) as any;
   if (!attempt) return res.status(404).json({ error: "Not found" });
   if (attempt.status === "in_progress") return res.status(409).json({ error: "Attempt is still in progress" });
-  // Keep the challenge (and its exam reference) after the attempt is gone.
-  await run(db, "UPDATE question_challenges SET attempt_id=NULL WHERE attempt_id=?", [req.params.attemptId]);
-  await run(db, "DELETE FROM results WHERE attempt_id=?", [req.params.attemptId]);
-  await run(db, "DELETE FROM exam_attempts WHERE id=?", [req.params.attemptId]);
+  // One atomic unit: detach the challenge, then remove the result and attempt.
+  await batch(db, [
+    { sql: "UPDATE question_challenges SET attempt_id=NULL WHERE attempt_id=?", params: [req.params.attemptId] },
+    { sql: "DELETE FROM results WHERE attempt_id=?", params: [req.params.attemptId] },
+    { sql: "DELETE FROM exam_attempts WHERE id=?", params: [req.params.attemptId] },
+  ]);
   res.json({ ok: true });
 });
 
