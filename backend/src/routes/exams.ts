@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
 import { randomUUID as uuid } from "node:crypto";
-import { getDb, run, get, all } from "../db/database";
+import { getDb, run, get, all, batch } from "../db/database";
 import { requireAuth, requireRole, optionalAuth } from "../middleware/auth";
+import { latestChallengesByQuestion } from "../lib/challenges";
 
 const router = Router();
 
@@ -305,6 +306,7 @@ router.get("/attempts/:attemptId/review", requireAuth, async (req: Request, res:
   const byId = new Map(raw.map((q: any) => [q.id, q]));
   const answers: Record<string, any> = JSON.parse(a.answers || "{}");
   const showKey = isStaff || a.status !== "in_progress";
+  const challengeByQuestion = await latestChallengesByQuestion(db, a.student_id, qids, a.id);
 
   const questions = qids
     .map((id: string) => byId.get(id))
@@ -327,6 +329,9 @@ router.get("/attempts/:attemptId/review", requireAuth, async (req: Request, res:
         correct: q.type === "mcq" ? correct : null,
         answer: showKey ? (q.answer ?? null) : null,
         explanation: showKey ? (q.explanation ?? null) : null,
+        page: q.page ?? null,
+        page_number: q.page_number ?? null,
+        challenge: challengeByQuestion.get(q.id) ?? null,
       };
     });
 
@@ -351,6 +356,25 @@ router.get("/attempts/:attemptId/review", requireAuth, async (req: Request, res:
     questions,
     showKey,
   });
+});
+
+/**
+ * Remove a finished attempt so a mis-taken paper leaves the results and the
+ * leaderboard. An in-progress paper is protected: deleting it mid-exam would
+ * let the student keep answering into a record that no longer exists.
+ */
+router.delete("/attempts/:attemptId", requireAuth, requireRole("admin", "teacher"), async (req, res) => {
+  const db = await getDb();
+  const attempt = await get(db, "SELECT * FROM exam_attempts WHERE id=?", [req.params.attemptId]) as any;
+  if (!attempt) return res.status(404).json({ error: "Not found" });
+  if (attempt.status === "in_progress") return res.status(409).json({ error: "Attempt is still in progress" });
+  // One atomic unit: detach the challenge, then remove the result and attempt.
+  await batch(db, [
+    { sql: "UPDATE question_challenges SET attempt_id=NULL WHERE attempt_id=?", params: [req.params.attemptId] },
+    { sql: "DELETE FROM results WHERE attempt_id=?", params: [req.params.attemptId] },
+    { sql: "DELETE FROM exam_attempts WHERE id=?", params: [req.params.attemptId] },
+  ]);
+  res.json({ ok: true });
 });
 
 // Manual grading (teacher) - override score

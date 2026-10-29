@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
-import { optionLabel } from "../lib/labels";
+import { optionLabel, sourcePage } from "../lib/labels";
+import { useAuth } from "../lib/auth-context";
 import { Button, Card, Skeleton } from "../components/ui";
+import { ChallengeBox } from "../components/ChallengeBox";
 import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, PartyPopper, RotateCcw, Target, XCircle } from "lucide-react";
 
 
@@ -14,6 +16,8 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, PartyPopper, RotateCcw,
  */
 export default function Practice() {
   const { attemptId } = useParams();
+  const { user } = useAuth();
+  const isStudent = user?.role === "student";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [examTitle, setExamTitle] = useState("");
@@ -163,6 +167,10 @@ export default function Practice() {
           <span className="flex-1">{q.prompt}</span>
         </div>
 
+        {sourcePage(q) && (
+          <div className="mb-2 text-[11px] text-cyan-300/80">বইয়ের পৃষ্ঠা {sourcePage(q)}</div>
+        )}
+
         <div className="space-y-1">
           {q.options.map((o: string, i: number) => {
             const isKey = String(o).trim().toLowerCase() === String(q.answer ?? "").trim().toLowerCase();
@@ -236,6 +244,10 @@ export default function Practice() {
                 <Lightbulb size={14} className="mr-1.5 inline -mt-0.5 text-indigo-300" />
                 {q.explanation}
               </div>
+            )}
+
+            {isStudent && (
+              <ChallengeBox questionId={q.id} attemptId={attemptId} existing={q.challenge} />
             )}
 
             <Button onClick={next}>

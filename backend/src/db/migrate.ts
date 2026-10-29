@@ -3,7 +3,7 @@ import { getDb, run, all, execScript } from "./database";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "10";
+export const SCHEMA_VERSION = "12";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -156,6 +156,41 @@ CREATE TABLE IF NOT EXISTS chapter_merge_history (
   created_at INTEGER NOT NULL,
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
+
+-- A student's dispute of a question's answer. Exam challenges carry the attempt
+-- and exam so the inbox can still name the paper after the attempt is removed;
+-- standalone-practice challenges carry neither.
+CREATE TABLE IF NOT EXISTS question_challenges (
+  id TEXT PRIMARY KEY,
+  question_id TEXT NOT NULL,
+  student_id TEXT NOT NULL,
+  attempt_id TEXT,
+  exam_id TEXT,
+  source TEXT NOT NULL CHECK (source IN ('exam','practice')),
+  message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open'
+    CHECK (status IN ('open','accepted','rejected')),
+  reply TEXT,
+  reviewed_by TEXT,
+  reviewed_at INTEGER,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (attempt_id) REFERENCES exam_attempts(id) ON DELETE SET NULL,
+  FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_challenges_status
+  ON question_challenges(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_challenges_student
+  ON question_challenges(student_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_challenges_question
+  ON question_challenges(question_id);
+-- Only one open dispute per student, question and attempt (or standalone
+-- practice, where attempt_id is NULL). Enforced in the database so two
+-- simultaneous submissions cannot both slip past the route's check.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_challenges_open_once
+  ON question_challenges(student_id, question_id, IFNULL(attempt_id, ''))
+  WHERE status='open';
 
 CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);
 CREATE INDEX IF NOT EXISTS idx_questions_chapter ON questions(chapter_id);

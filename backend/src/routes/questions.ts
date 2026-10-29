@@ -3,6 +3,7 @@ import { randomUUID as uuid } from "node:crypto";
 import { getDb, run, get, all } from "../db/database";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { normalizeText } from "../lib/text";
+import { latestChallengesByQuestion } from "../lib/challenges";
 
 const router = Router();
 
@@ -218,7 +219,7 @@ router.get("/practice", requireAuth, async (req: Request, res: Response) => {
   const rows = (await all(
     db,
     `SELECT q.id, q.subject_id, q.type, q.difficulty, q.prompt, q.options, q.answer,
-       q.explanation, q.marks, q.chapter_id,
+       q.explanation, q.marks, q.chapter_id, q.page, q.page_number,
        s.name AS subject_name, c.number AS chapter_number, c.title AS chapter_title
      FROM questions q
      LEFT JOIN subjects s ON s.id = q.subject_id
@@ -228,10 +229,12 @@ router.get("/practice", requireAuth, async (req: Request, res: Response) => {
     [...params, limit]
   )) as any[];
 
+  const challengeByQuestion = await latestChallengesByQuestion(db, req.user!.id, rows.map((q: any) => q.id));
+
   res.json({
     questions: rows.map((q) => {
       const options = optionList(q.options);
-      return { ...q, options, answer_index: answerIndex(options, q.answer) };
+      return { ...q, options, answer_index: answerIndex(options, q.answer), challenge: challengeByQuestion.get(q.id) ?? null };
     }),
     available,
     returned: rows.length,

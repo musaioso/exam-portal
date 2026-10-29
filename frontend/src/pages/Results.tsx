@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
-import { optionLabel } from "../lib/labels";
+import { optionLabel, sourcePage } from "../lib/labels";
 import { useAuth } from "../lib/auth-context";
 import { Card, Button, Input, NumberInput, Field, Badge, Select } from "../components/ui";
-import { CheckCircle2, Eye, Filter, Lightbulb, Save, Target, X, XCircle } from "lucide-react";
+import { ChallengeBox } from "../components/ChallengeBox";
+import { confirmDialog } from "../components/Dialog";
+import { useToast } from "../components/Toast";
+import { CheckCircle2, Eye, Filter, Lightbulb, Save, Target, Trash2, X, XCircle } from "lucide-react";
 
 function statusBadge(status: string) {
   if (status === "graded")
@@ -21,6 +24,7 @@ const EMPTY_FILTERS = { subjectId: "", studentId: "", examId: "", status: "", q:
 export default function Results() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
+  const toast = useToast();
   const isTeacher = user?.role === "admin" || user?.role === "teacher";
 
   const [attempts, setAttempts] = useState<any[]>([]);
@@ -138,6 +142,23 @@ export default function Results() {
       await load();
     } finally {
       setSaving(false);
+    }
+  };
+
+  const removeAttempt = async (a: any) => {
+    if (!(await confirmDialog({
+      title: "Delete this attempt?",
+      message: "The student's score and leaderboard entry for it will be removed. This cannot be undone.",
+      confirmLabel: "Delete",
+      tone: "danger",
+    }))) return;
+    try {
+      await api.delete(`/exams/attempts/${a.id}`);
+      if (detail?.id === a.id) closeDetail();
+      toast.success("Attempt deleted.");
+      await load();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "Could not delete the attempt.");
     }
   };
 
@@ -286,6 +307,10 @@ export default function Results() {
                     )}
                   </div>
 
+                  {sourcePage(q) && (
+                    <div className="text-[11px] text-cyan-300/80">বইয়ের পৃষ্ঠা {sourcePage(q)}</div>
+                  )}
+
                   {/* Option-by-option: what they picked, and where the key sits. */}
                   {Array.isArray(q.options) && q.options.length > 0 ? (
                     <div className="space-y-1">
@@ -343,6 +368,10 @@ export default function Results() {
                       <Lightbulb size={12} className="mr-1 inline -mt-0.5 text-indigo-300" />
                       <span className="font-medium text-indigo-200">ব্যাখ্যা:</span> {q.explanation}
                     </div>
+                  )}
+
+                  {!isTeacher && (
+                    <ChallengeBox questionId={q.id} attemptId={detail.id} existing={q.challenge} />
                   )}
                 </div>
               ))}
@@ -411,6 +440,17 @@ export default function Results() {
                   <Button variant="outline" className="px-2 py-1" onClick={() => openAttempt(a.id)}>
                     <Eye size={14} /> {isTeacher ? "Review" : "View"}
                   </Button>
+                  {isTeacher && a.status !== "in_progress" && (
+                    <Button
+                      variant="ghost"
+                      className="px-2 py-1 text-rose-300"
+                      title="Delete attempt"
+                      aria-label="Delete attempt"
+                      onClick={() => removeAttempt(a)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
