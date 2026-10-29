@@ -78,3 +78,22 @@ test("anonymous challenge submission is rejected", async () => {
   const q = await createQuestion();
   assert.equal((await post({ question_id: q.id, message: "Hello." })).status, 401);
 });
+
+test("review and practice include the student's existing challenge", async () => {
+  const student = await createUser("student");
+  const q = await createQuestion();
+  const exam = await createExam({ subjectId: q.subjectId, questionIds: [q.id] });
+  const attempt = await createAttempt({ examId: exam.id, studentId: student.id, answers: { [q.id]: "A" } });
+  const created = await post({ question_id: q.id, attempt_id: attempt.id, message: "Check this." }, student.token);
+  const { challenge } = await created.json();
+
+  const review = await fetch(`${server.baseUrl}/api/exams/attempts/${attempt.id}/review`, { headers: auth(student.token) });
+  const reviewBody = await review.json();
+  assert.equal(reviewBody.questions[0].challenge.id, challenge.id);
+  assert.equal(reviewBody.questions[0].challenge.status, "open");
+
+  const practice = await fetch(`${server.baseUrl}/api/questions/practice?subject_id=${q.subjectId}&limit=1`,
+    { headers: auth(student.token) });
+  const practiceBody = await practice.json();
+  assert.equal(practiceBody.questions[0].challenge.id, challenge.id);
+});

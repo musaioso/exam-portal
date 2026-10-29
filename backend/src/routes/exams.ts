@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { randomUUID as uuid } from "node:crypto";
 import { getDb, run, get, all } from "../db/database";
 import { requireAuth, requireRole, optionalAuth } from "../middleware/auth";
+import { latestChallengesByQuestion } from "../lib/challenges";
 
 const router = Router();
 
@@ -305,6 +306,7 @@ router.get("/attempts/:attemptId/review", requireAuth, async (req: Request, res:
   const byId = new Map(raw.map((q: any) => [q.id, q]));
   const answers: Record<string, any> = JSON.parse(a.answers || "{}");
   const showKey = isStaff || a.status !== "in_progress";
+  const challengeByQuestion = await latestChallengesByQuestion(db, a.student_id, qids, a.id);
 
   const questions = qids
     .map((id: string) => byId.get(id))
@@ -329,6 +331,7 @@ router.get("/attempts/:attemptId/review", requireAuth, async (req: Request, res:
         explanation: showKey ? (q.explanation ?? null) : null,
         page: q.page ?? null,
         page_number: q.page_number ?? null,
+        challenge: challengeByQuestion.get(q.id) ?? null,
       };
     });
 
