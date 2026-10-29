@@ -23,11 +23,10 @@ export async function startServer() {
   });
 }
 
-export async function createUser(role: Role) {
+export async function createUser(role: Role, name = `Test ${role}`) {
   const db = await getDb();
   const id = randomUUID();
   const email = `${role}-${id}@test.local`;
-  const name = `Test ${role}`;
   await run(db, "INSERT INTO users (id,name,email,password_hash,role,created_at) VALUES (?,?,?,?,?,?)",
     [id, name, email, "x", role, Date.now()]);
   return { id, email, role, name, token: signToken({ id, email, role, name }) };
