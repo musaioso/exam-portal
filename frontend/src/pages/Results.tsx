@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { optionLabel, sourcePage } from "../lib/labels";
 import { useAuth } from "../lib/auth-context";
 import { Card, Button, Input, NumberInput, Field, Badge, Select } from "../components/ui";
+import { ChallengeBox } from "../components/ChallengeBox";
 import { CheckCircle2, Eye, Filter, Lightbulb, Save, Target, X, XCircle } from "lucide-react";
 
 function statusBadge(status: string) {
@@ -347,6 +348,10 @@ export default function Results() {
                       <Lightbulb size={12} className="mr-1 inline -mt-0.5 text-indigo-300" />
                       <span className="font-medium text-indigo-200">ব্যাখ্যা:</span> {q.explanation}
                     </div>
+                  )}
+
+                  {!isTeacher && (
+                    <ChallengeBox questionId={q.id} attemptId={detail.id} existing={q.challenge} />
                   )}
                 </div>
               ))}

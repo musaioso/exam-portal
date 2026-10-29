@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { optionLabel, sourcePage } from "../lib/labels";
+import { useAuth } from "../lib/auth-context";
 import { Button, Card, Skeleton, cn } from "../components/ui";
+import { ChallengeBox, type ChallengeInfo } from "../components/ChallengeBox";
 import {
   ArrowLeft,
   ArrowRight,
@@ -43,6 +45,7 @@ interface PracticeQuestion {
   answer?: string | null;
   page?: string | null;
   page_number?: number | null;
+  challenge?: ChallengeInfo | null;
   /** Index of the key inside `options` (-1 when the key matches no option). */
   answer_index: number;
   explanation?: string | null;
@@ -107,6 +110,8 @@ function Count({ n }: { n: number }) {
  */
 export default function StandalonePractice() {
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const isStudent = user?.role === "student";
 
   const [stage, setStage] = useState<"setup" | "round" | "done">("setup");
   const [booting, setBooting] = useState(true);
@@ -532,6 +537,11 @@ export default function StandalonePractice() {
                         <span>{qq.explanation}</span>
                       </div>
                     )}
+                    {isStudent && (
+                      <div className="mt-2">
+                        <ChallengeBox questionId={qq.id} existing={qq.challenge} />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -669,6 +679,10 @@ export default function StandalonePractice() {
                   <Lightbulb size={14} className="mr-1.5 inline -mt-0.5 text-indigo-300" />
                   {q.explanation}
                 </div>
+              )}
+
+              {isStudent && (
+                <ChallengeBox questionId={q.id} existing={q.challenge} />
               )}
 
               <div className="flex justify-end">

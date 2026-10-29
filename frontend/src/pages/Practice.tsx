@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { optionLabel, sourcePage } from "../lib/labels";
+import { useAuth } from "../lib/auth-context";
 import { Button, Card, Skeleton } from "../components/ui";
+import { ChallengeBox } from "../components/ChallengeBox";
 import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, PartyPopper, RotateCcw, Target, XCircle } from "lucide-react";
 
 
@@ -14,6 +16,8 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, PartyPopper, RotateCcw,
  */
 export default function Practice() {
   const { attemptId } = useParams();
+  const { user } = useAuth();
+  const isStudent = user?.role === "student";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [examTitle, setExamTitle] = useState("");
@@ -240,6 +244,10 @@ export default function Practice() {
                 <Lightbulb size={14} className="mr-1.5 inline -mt-0.5 text-indigo-300" />
                 {q.explanation}
               </div>
+            )}
+
+            {isStudent && (
+              <ChallengeBox questionId={q.id} attemptId={attemptId} existing={q.challenge} />
             )}
 
             <Button onClick={next}>
