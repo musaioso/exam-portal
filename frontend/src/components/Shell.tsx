@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
-import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, FileQuestion, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, FileQuestion, PanelLeftClose, PanelLeftOpen, Flag } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import { StorageWarning } from "./StorageWarning";
@@ -17,6 +17,7 @@ const NAV = [
   { to: "/print", label: "Print Paper", icon: Printer, roles: ["admin","teacher"] },
   { to: "/users", label: "Students", icon: Users, roles: ["admin","teacher"] },
   { to: "/results", label: "Results", icon: GraduationCap, roles: ["admin","teacher","student"] },
+  { to: "/challenges", label: "Challenges", icon: Flag, roles: ["admin","teacher","student"] },
   { to: "/practice/standalone", label: "Standalone Practice", icon: Target, roles: ["admin","teacher","student"] },
 ];
 
