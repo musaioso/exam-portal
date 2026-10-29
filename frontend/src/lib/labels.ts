@@ -16,3 +16,17 @@ export function optionLabel(prompt: string | null | undefined, index: number): s
   const letters = isBangla(prompt) ? BN : EN;
   return letters[index] || String(index + 1);
 }
+
+/**
+ * The book/source page stored with a question. Prefers the free-text form so a
+ * range like "42-43" survives; falls back to the numeric importer value.
+ */
+export function sourcePage(q: { page?: unknown; page_number?: unknown } | null | undefined): string {
+  if (!q) return "";
+  const text = q.page != null && String(q.page).trim() !== ""
+    ? String(q.page)
+    : q.page_number != null
+      ? String(q.page_number)
+      : "";
+  return text.trim();
+}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
-import { optionLabel } from "../lib/labels";
+import { optionLabel, sourcePage } from "../lib/labels";
 import { Button, Card, Skeleton, cn } from "../components/ui";
 import {
   ArrowLeft,
@@ -41,6 +41,8 @@ interface PracticeQuestion {
   prompt: string;
   options: string[];
   answer?: string | null;
+  page?: string | null;
+  page_number?: number | null;
   /** Index of the key inside `options` (-1 when the key matches no option). */
   answer_index: number;
   explanation?: string | null;
@@ -515,6 +517,9 @@ export default function StandalonePractice() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm">{qq.prompt}</div>
+                    {sourcePage(qq) && (
+                      <div className="mt-0.5 text-[11px] text-cyan-300/80">বইয়ের পৃষ্ঠা {sourcePage(qq)}</div>
+                    )}
                     <div className="mt-1 space-y-0.5 text-xs">
                       <div className={ok ? "text-emerald-300" : "text-rose-300"}>
                         আপনার উত্তর: {p != null ? qq.options[p] : "উত্তর দেননি"}
@@ -579,6 +584,7 @@ export default function StandalonePractice() {
                   q.subject_name,
                   q.chapter_title ? `${q.chapter_number ?? ""}. ${q.chapter_title}`.trim() : "",
                   q.difficulty ? DIFF_LABEL[q.difficulty] || q.difficulty : "",
+                  sourcePage(q) ? `বইয়ের পৃষ্ঠা ${sourcePage(q)}` : "",
                   `${marksOf(q)} নম্বর`,
                 ]
                   .filter(Boolean)

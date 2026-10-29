@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
-import { optionLabel } from "../lib/labels";
+import { optionLabel, sourcePage } from "../lib/labels";
 import { Button, Card, Skeleton } from "../components/ui";
 import { ArrowLeft, ArrowRight, CheckCircle2, Lightbulb, PartyPopper, RotateCcw, Target, XCircle } from "lucide-react";
 
@@ -162,6 +162,10 @@ export default function Practice() {
           <span className="shrink-0">{idx + 1}.</span>
           <span className="flex-1">{q.prompt}</span>
         </div>
+
+        {sourcePage(q) && (
+          <div className="mb-2 text-[11px] text-cyan-300/80">বইয়ের পৃষ্ঠা {sourcePage(q)}</div>
+        )}
 
         <div className="space-y-1">
           {q.options.map((o: string, i: number) => {

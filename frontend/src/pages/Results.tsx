@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
-import { optionLabel } from "../lib/labels";
+import { optionLabel, sourcePage } from "../lib/labels";
 import { useAuth } from "../lib/auth-context";
 import { Card, Button, Input, NumberInput, Field, Badge, Select } from "../components/ui";
 import { CheckCircle2, Eye, Filter, Lightbulb, Save, Target, X, XCircle } from "lucide-react";
@@ -285,6 +285,10 @@ export default function Results() {
                       <Badge className="bg-slate-700/40 text-slate-400 border-slate-600">{q.type}</Badge>
                     )}
                   </div>
+
+                  {sourcePage(q) && (
+                    <div className="text-[11px] text-cyan-300/80">বইয়ের পৃষ্ঠা {sourcePage(q)}</div>
+                  )}
 
                   {/* Option-by-option: what they picked, and where the key sits. */}
                   {Array.isArray(q.options) && q.options.length > 0 ? (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { api, currentUser } from "../lib/api";
 import { Card, Button, Input, cn } from "../components/ui";
 import { confirmDialog } from "../components/Dialog";
@@ -27,10 +27,6 @@ function normaliseTitle(value: string) {
  * poricched uses that number; when several appear, the last segment carries
  * the identifying number.
  */
-function toAsciiDigits(value: string) {
-  return String(value || "").replace(/[০-৯]/g, (d) => String(d.charCodeAt(0) - "০".charCodeAt(0)));
-}
-
 function chapterKey(value: string) {
   const s = String(value || "").normalize("NFKC");
   // A "poricched" token may be a single number or a range (x-y, x ও y). Only
