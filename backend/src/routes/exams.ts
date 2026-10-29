@@ -358,6 +358,23 @@ router.get("/attempts/:attemptId/review", requireAuth, async (req: Request, res:
   });
 });
 
+/**
+ * Remove a finished attempt so a mis-taken paper leaves the results and the
+ * leaderboard. An in-progress paper is protected: deleting it mid-exam would
+ * let the student keep answering into a record that no longer exists.
+ */
+router.delete("/attempts/:attemptId", requireAuth, requireRole("admin", "teacher"), async (req, res) => {
+  const db = await getDb();
+  const attempt = await get(db, "SELECT * FROM exam_attempts WHERE id=?", [req.params.attemptId]) as any;
+  if (!attempt) return res.status(404).json({ error: "Not found" });
+  if (attempt.status === "in_progress") return res.status(409).json({ error: "Attempt is still in progress" });
+  // Keep the challenge (and its exam reference) after the attempt is gone.
+  await run(db, "UPDATE question_challenges SET attempt_id=NULL WHERE attempt_id=?", [req.params.attemptId]);
+  await run(db, "DELETE FROM results WHERE attempt_id=?", [req.params.attemptId]);
+  await run(db, "DELETE FROM exam_attempts WHERE id=?", [req.params.attemptId]);
+  res.json({ ok: true });
+});
+
 // Manual grading (teacher) - override score
 router.put("/attempts/:attemptId/grade", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const { score, total } = req.body || {};
