@@ -5,6 +5,10 @@ import { requireAuth, requireRole } from "../middleware/auth";
 
 const router = Router();
 
+function toAsciiDigits(value: string): string {
+  return String(value || "").replace(/[০-৯]/g, (d) => String(d.charCodeAt(0) - "০".charCodeAt(0)));
+}
+
 // Subjects
 router.get("/", async (_req, res) => {
   const db = await getDb();
@@ -131,6 +135,16 @@ router.post("/:subjectId/chapters/merge", requireAuth, requireRole("admin", "tea
     await run(db, `DELETE FROM chapter_merge_history WHERE id IN (${ph})`, toDelete);
   }
 
+  // Renumber the canonical chapter to its poricched number when it is a single poricched.
+  const canonRow = await get(db, "SELECT title FROM chapters WHERE id=?", [canonical_id]);
+  const cm = String(canonRow?.title || "").match(/^পরিচ্ছেদ\s*([০-৯0-9]+)(\s*[-–—,]\s*[০-৯0-9]+|\s+(?:ও|এবং|and|to)\s+[০-৯0-9]+)?/);
+  if (cm && !cm[2]) {
+    const num = Number(toAsciiDigits(cm[1]));
+    if (Number.isFinite(num) && num > 0) {
+      await run(db, "UPDATE chapters SET number=? WHERE id=?", [num, canonical_id]);
+    }
+  }
+
   res.json({ ok: true, merged: ids.length, moved_questions: movedCount, deleted, history_id: historyId });
 });
 
@@ -160,6 +174,24 @@ router.delete("/chapters/:id", requireAuth, requireRole("admin", "teacher"), asy
   // Delete chapter (questions referencing it will have chapter_id set to NULL)
   await run(db, "DELETE FROM chapters WHERE id=?", [req.params.id]);
   res.json({ ok: true });
+});
+
+// Renumber every chapter in a subject to its poricched number (single poricched
+// only). Range/multi-poricched titles keep their existing number.
+router.post("/:subjectId/chapters/renumber", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
+  const db = await getDb();
+  const chapters = (await all(db, "SELECT id, title, number FROM chapters WHERE subject_id=?", [req.params.subjectId])) as any[];
+  let updated = 0;
+  for (const ch of chapters) {
+    const m = String(ch.title || "").match(/^পরিচ্ছেদ\s*([০-৯0-9]+)(\s*[-–—,]\s*[০-৯0-9]+|\s+(?:ও|এবং|and|to)\s+[০-৯0-9]+)?/);
+    if (!m || m[2]) continue; // skip ranges / non-poricched
+    const num = Number(toAsciiDigits(m[1]));
+    if (!Number.isFinite(num) || num <= 0) continue;
+    if (num === Number(ch.number)) continue;
+    await run(db, "UPDATE chapters SET number=? WHERE id=?", [num, ch.id]);
+    updated++;
+  }
+  res.json({ ok: true, updated });
 });
 
 // List recent merge operations for a subject (newest first), for the undo UI.

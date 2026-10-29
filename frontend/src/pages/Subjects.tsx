@@ -483,6 +483,28 @@ export default function Subjects() {
                     )}
                   </div>
                 ))}
+                {canManage && (chapters[s.id]?.length || 0) > 0 && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      onClick={async () => {
+                        setError(null);
+                        try {
+                          const { data } = await api.post(`/subjects/${s.id}/chapters/renumber`);
+                          await loadChapters(s.id);
+                          if ((data?.updated ?? 0) > 0) setError(null);
+                        } catch (e: any) {
+                          const status = e?.response?.status;
+                          const message = e?.response?.data?.error || e?.message || "Failed to renumber chapters";
+                          setError(status ? `${message} (HTTP ${status})` : message);
+                        }
+                      }}
+                    >
+                      Renumber chapters by poricched
+                    </Button>
+                    <span className="text-xs text-slate-500">Sets each chapter's number to its পরিচ্ছেদ number.</span>
+                  </div>
+                )}
                 {(chapters[s.id]?.length || 0) >= 2 && (
                   <div className="mt-3 rounded-xl border border-slate-600/40 bg-slate-900/40 p-3 space-y-2">
                     <div className="text-xs font-medium text-slate-300">Merge two chapters manually</div>
