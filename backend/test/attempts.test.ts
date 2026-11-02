@@ -96,3 +96,36 @@ test("a test student's results stay out of the class leaderboard", async () => {
   const asTester = await (await fetch(`${server.baseUrl}/api/exams/leaderboard`, { headers: auth(tester.token) })).json();
   assert.equal(asTester.me, null, "the test student has no leaderboard entry");
 });
+
+test("a teacher can flag and unflag a test student", async () => {
+  const teacher = await createUser("teacher");
+  const student = await createUser("student", "Feature Tester");
+
+  const created = await fetch(`${server.baseUrl}/api/users/students`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...auth(teacher.token) },
+    body: JSON.stringify({ name: "Brand New Tester", is_test: true }),
+  });
+  assert.equal(created.status, 200);
+  assert.equal((await created.json()).user.is_test, true);
+
+  const patch = (token: string, value: boolean) =>
+    fetch(`${server.baseUrl}/api/users/${student.id}/test`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...auth(token) },
+      body: JSON.stringify({ is_test: value }),
+    });
+
+  const on = await patch(teacher.token, true);
+  assert.equal(on.status, 200);
+  assert.equal((await on.json()).is_test, true);
+
+  const list = await (await fetch(`${server.baseUrl}/api/users`, { headers: auth(teacher.token) })).json();
+  assert.equal(list.users.find((u: any) => u.id === student.id).is_test, true);
+
+  const off = await patch(teacher.token, false);
+  assert.equal((await off.json()).is_test, false);
+
+  const denied = await patch(student.token, true);
+  assert.equal(denied.status, 403);
+});

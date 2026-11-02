@@ -8,7 +8,8 @@ const router = Router();
 
 router.get("/", requireAuth, requireRole("admin", "teacher"), async (_req, res) => {
   const db = await getDb();
-  const users = await all(db, "SELECT id,name,email,role,grade,section,pin,created_at FROM users ORDER BY created_at DESC");
+  const users = (await all(db, "SELECT id,name,email,role,grade,section,pin,is_test,created_at FROM users ORDER BY created_at DESC"))
+    .map((u: any) => ({ ...u, is_test: !!u.is_test }));
   res.json({ users });
 });
 
@@ -46,9 +47,10 @@ async function uniquePin(db: any) {
 
 // teacher adds a student — only a name is really needed
 router.post("/students", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
-  const { name, email, password, grade, section } = req.body || {};
+  const { name, email, password, grade, section, is_test } = req.body || {};
   const cleanName = String(name || "").trim();
   if (!cleanName) return res.status(400).json({ error: "Student name is required" });
+  const testFlag = is_test === true || is_test === 1 || is_test === "1" || is_test === "true" ? 1 : 0;
 
   const db = await getDb();
 
@@ -65,7 +67,7 @@ router.post("/students", requireAuth, requireRole("admin", "teacher"), async (re
   // exist (and be unguessable) — it is never handed out.
   const secret = password && String(password).length >= 4 ? String(password) : randomBytes(18).toString("base64url");
 
-  await run(db, "INSERT INTO users (id,name,email,password_hash,role,grade,section,pin,created_at) VALUES (?,?,?,?,?,?,?,?,?)", [
+  await run(db, "INSERT INTO users (id,name,email,password_hash,role,grade,section,pin,is_test,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)", [
     id,
     cleanName,
     finalEmail,
@@ -74,6 +76,7 @@ router.post("/students", requireAuth, requireRole("admin", "teacher"), async (re
     String(grade || "").trim() || null,
     String(section || "").trim() || null,
     pin,
+    testFlag,
     Date.now(),
   ]);
 
@@ -85,8 +88,25 @@ router.post("/students", requireAuth, requireRole("admin", "teacher"), async (re
     grade: String(grade || "").trim() || null,
     section: String(section || "").trim() || null,
     pin,
+    is_test: !!testFlag,
   };
   res.json({ user });
+});
+
+/**
+ * Mark an existing student as a test account (or clear the mark). Test accounts
+ * keep their own results, but never appear in the class leaderboard or other
+ * cross-student views, so they can be used to try features safely.
+ */
+router.patch("/:id/test", requireAuth, requireRole("admin", "teacher"), async (req, res) => {
+  const db = await getDb();
+  const target = (await get(db, "SELECT id,role FROM users WHERE id=?", [req.params.id])) as any;
+  if (!target) return res.status(404).json({ error: "Not found" });
+  if (target.role !== "student") return res.status(400).json({ error: "Only students can be test accounts" });
+  const raw = (req.body || {}).is_test;
+  const value = raw === true || raw === 1 || raw === "1" || raw === "true" ? 1 : 0;
+  await run(db, "UPDATE users SET is_test=? WHERE id=?", [value, req.params.id]);
+  res.json({ ok: true, is_test: !!value });
 });
 
 // teacher hands out a fresh PIN when a student forgets theirs

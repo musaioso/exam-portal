@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { Badge, Card, Button, Input, Field, cn } from "../components/ui";
 import { confirmDialog } from "../components/Dialog";
+import { useToast } from "../components/Toast";
 import { Check, Copy, Eye, EyeOff, KeyRound, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 export default function Users() {
+  const toast = useToast();
   const [users, setUsers] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: "", grade: "", section: "" });
+  const [form, setForm] = useState({ name: "", grade: "", section: "", is_test: false });
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -36,7 +38,7 @@ export default function Users() {
     try {
       const { data } = await api.post("/users/students", form);
       setFresh({ name: data.user.name, pin: data.user.pin });
-      setForm({ name: "", grade: "", section: "" });
+      setForm({ name: "", grade: "", section: "", is_test: false });
       setShow(false);
       load();
     } catch (x: any) {
@@ -66,6 +68,18 @@ export default function Users() {
       setTimeout(() => setCopied(""), 1500);
     } catch {
       setErr("কপি করা যায়নি — PIN টা হাতে লিখে নিন।");
+    }
+  };
+
+  /** Test accounts stay in the list but never reach the class leaderboard. */
+  const toggleTest = async (id: string, next: boolean) => {
+    setUsers((list) => list.map((u) => (u.id === id ? { ...u, is_test: next } : u)));
+    try {
+      await api.patch(`/users/${id}/test`, { is_test: next });
+      toast.success(next ? "টেস্ট অ্যাকাউন্ট — লিডারবোর্ডে গোনা হবে না" : "টেস্ট ফ্ল্যাগ সরানো হয়েছে");
+    } catch {
+      setUsers((list) => list.map((u) => (u.id === id ? { ...u, is_test: !next } : u)));
+      toast.error("Test ফ্ল্যাগ বদলানো যায়নি। আবার চেষ্টা করুন।");
     }
   };
 
@@ -123,6 +137,17 @@ export default function Users() {
                 <Plus size={16} /> {busy ? "Creating…" : "Create"}
               </Button>
             </div>
+            <label className="flex cursor-pointer items-start gap-2 text-xs text-slate-300 md:col-span-4">
+              <input
+                type="checkbox"
+                checked={form.is_test}
+                onChange={(e) => setForm({ ...form, is_test: e.target.checked })}
+                className="mt-0.5 h-4 w-4 cursor-pointer accent-indigo-500"
+              />
+              <span>
+                <b>Test student</b> — নিজের ফলাফল দেখতে পারবে, কিন্তু লিডারবোর্ডে বা অন্য কারো ফলাফলে গোনা হবে না।
+              </span>
+            </label>
           </form>
           <p className="mt-3 text-xs text-slate-400">
             ইমেইল বা পাসওয়ার্ড লাগবে না — সিস্টেম নিজেই একটা ৪ সংখ্যার PIN বানিয়ে দেবে, ছাত্রকে সেটাই জানাবেন।
@@ -164,6 +189,7 @@ export default function Users() {
                 <th className="text-left">PIN</th>
                 <th className="text-left">Class</th>
                 <th className="text-left">Role</th>
+                <th className="text-left" title="টেস্ট অ্যাকাউন্ট লিডারবোর্ডে গোনা হয় না">Test</th>
                 <th></th>
               </tr>
             </thead>
@@ -210,6 +236,26 @@ export default function Users() {
                   <td>
                     <Badge>{u.role}</Badge>
                   </td>
+                  <td>
+                    {u.role === "student" ? (
+                      <label
+                        className="inline-flex cursor-pointer items-center gap-2"
+                        title="টেস্ট অ্যাকাউন্ট — লিডারবোর্ডে গোনা হবে না"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!!u.is_test}
+                          onChange={(e) => toggleTest(u.id, e.target.checked)}
+                          className="h-4 w-4 cursor-pointer accent-indigo-500"
+                        />
+                        {u.is_test && (
+                          <span className="text-[10px] uppercase tracking-wide text-amber-300">test</span>
+                        )}
+                      </label>
+                    ) : (
+                      <span className="text-slate-500">—</span>
+                    )}
+                  </td>
                   <td className="text-right">
                     {u.role === "student" && (
                       <button
@@ -227,7 +273,7 @@ export default function Users() {
               ))}
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-xs text-slate-400">
+                  <td colSpan={6} className="py-6 text-center text-xs text-slate-400">
                     এখনো কেউ নেই — উপরে Add Student চেপে নাম আর ক্লাস দিয়ে যোগ করুন।
                   </td>
                 </tr>
