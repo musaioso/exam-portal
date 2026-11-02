@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, errorMessage } from "../lib/api";
 import { optionLabel } from "../lib/labels";
 import { seededShuffle, questionSeed } from "../lib/shuffle";
 import { Card, Button, Input, Textarea, cn } from "../components/ui";
@@ -10,7 +10,7 @@ import {
   QuestionPaletteGrid,
   QuestionPaletteSheet,
 } from "../components/QuestionPalette";
-import { CheckCircle2, LayoutGrid, SkipForward } from "lucide-react";
+import { AlertTriangle, CheckCircle2, LayoutGrid, Loader2, SkipForward } from "lucide-react";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const copy = [...arr];
@@ -71,8 +71,86 @@ export default function TakeExam() {
     })();
   }, [attemptId]);
 
+  /* ----------------------------------------------------------------------
+     Saving answers
+     A deploy (or a flaky connection) can make a save fail without the student
+     noticing. Answers therefore wait in a pending map until the server has
+     accepted them; a retry loop and the submit path below drain that map.
+     ---------------------------------------------------------------------- */
+
+  /** Answers the server has not confirmed yet — newest value per question. */
+  const pendingRef = useRef<Map<string, string>>(new Map());
+  const flushingRef = useRef(false);
+  const submittedRef = useRef(false);
+  const autoRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Mirrors the pending keys so the UI can show "Saving…" and a warning. */
+  const [pendingQuestions, setPendingQuestions] = useState<string[]>([]);
+  const [savingFailed, setSavingFailed] = useState(false);
+  const [blockedMessage, setBlockedMessage] = useState("");
+  const [submitError, setSubmitError] = useState("");
+
+  const syncPending = () => setPendingQuestions([...pendingRef.current.keys()]);
+
+  /**
+   * Send every pending answer. Returns how many are still unsaved.
+   *
+   * Network and 5xx failures stay queued for the next attempt. A 4xx means the
+   * server will never accept that answer (locked, already submitted, wrong
+   * owner), so it is dropped and the student is told instead of retrying
+   * forever.
+   */
+  const flushPending = async (): Promise<number> => {
+    if (flushingRef.current) return pendingRef.current.size;
+    flushingRef.current = true;
+    let failed = false;
+    try {
+      for (const [qid, val] of [...pendingRef.current.entries()]) {
+        if (submittedRef.current) break;
+        try {
+          await api.post(`/exams/attempts/${attemptId}/answer`, { question_id: qid, answer: val });
+          // Keep it queued if the student typed something newer meanwhile.
+          if (pendingRef.current.get(qid) === val) pendingRef.current.delete(qid);
+        } catch (e: any) {
+          const status = e?.response?.status;
+          if (status >= 400 && status < 500) {
+            if (pendingRef.current.get(qid) === val) pendingRef.current.delete(qid);
+            setBlockedMessage(errorMessage(e, "An answer could not be saved."));
+          } else {
+            failed = true;
+          }
+        }
+      }
+    } finally {
+      flushingRef.current = false;
+      syncPending();
+      setSavingFailed(pendingRef.current.size > 0 && failed);
+    }
+    return pendingRef.current.size;
+  };
+
+  const saveAnswer = (qid: string, val: string) => {
+    setAnswers(prev => ({ ...prev, [qid]: val }));
+    setBlockedMessage("");
+    pendingRef.current.set(qid, val);
+    syncPending();
+    flushPending();
+  };
+
+  const inFlightSubmit = useRef(false);
+  const handleSubmitRef = useRef<(auto?: boolean) => void>(() => {});
+
+  /** The clock ran out but the network did not: try the whole thing again. */
+  const scheduleAutoRetry = () => {
+    if (autoRetryRef.current || submittedRef.current) return;
+    autoRetryRef.current = setTimeout(() => {
+      autoRetryRef.current = null;
+      handleSubmitRef.current(true);
+    }, 5000);
+  };
+
   const handleSubmit = async (auto = false) => {
-    if (submitting) return;
+    if (inFlightSubmit.current || submittedRef.current) return;
     if (!auto) {
       const missing = questions.filter((q) => !isAnswered(q, answers)).length;
       const ok = await confirmDialog({
@@ -82,19 +160,64 @@ export default function TakeExam() {
       });
       if (!ok) return;
     }
+    inFlightSubmit.current = true;
     setSubmitting(true);
+    setSubmitError("");
     try {
+      // Never submit while answers exist only in this tab.
+      const unsaved = await flushPending();
+      if (unsaved > 0) {
+        setSubmitError(
+          `${unsaved} answer${unsaved > 1 ? "s are" : " is"} not saved yet. Your exam was not submitted — check your connection and press Submit again.`
+        );
+        if (auto) scheduleAutoRetry();
+        return;
+      }
+      submittedRef.current = true;
       const { data } = await api.post(`/exams/attempts/${attemptId}/submit`);
       nav(`/results?attempt=${attemptId}`, { state: data });
+    } catch (e) {
+      submittedRef.current = false;
+      setSubmitError(errorMessage(e, "Could not submit the exam. Check your connection and press Submit again."));
+      if (auto) scheduleAutoRetry();
     } finally {
+      inFlightSubmit.current = false;
       setSubmitting(false);
     }
   };
+  useEffect(() => { handleSubmitRef.current = handleSubmit; });
+
+  // Retry unsaved answers every few seconds and as soon as the network returns.
+  useEffect(() => {
+    const retry = () => {
+      if (submittedRef.current || pendingRef.current.size === 0) return;
+      flushPending();
+    };
+    const t = setInterval(retry, 5000);
+    window.addEventListener("online", retry);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("online", retry);
+      if (autoRetryRef.current) clearTimeout(autoRetryRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attemptId]);
+
+  // Warn before closing/reloading the tab while any answer is still unsaved.
+  useEffect(() => {
+    if (pendingQuestions.length === 0) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [pendingQuestions.length]);
 
   useEffect(() => {
     if (!exam) return;
     const t = setInterval(() => setRemaining(r => {
-      if (r <= 1) { clearInterval(t); handleSubmit(true); return 0; }
+      if (r <= 1) { clearInterval(t); handleSubmitRef.current(true); return 0; }
       return r - 1;
     }), 1000);
     return () => clearInterval(t);
@@ -112,11 +235,6 @@ export default function TakeExam() {
     () => questions.map((q) => ({ id: String(q.id), answered: isAnswered(q, answers) })),
     [questions, answers]
   );
-
-  const saveAnswer = (qid: string, val: string) => {
-    setAnswers(prev => ({ ...prev, [qid]: val }));
-    api.post(`/exams/attempts/${attemptId}/answer`, { question_id: qid, answer: val }).catch(() => {});
-  };
 
   /* ----------------------------------------------------------------------
      Navigation helpers
@@ -200,6 +318,22 @@ export default function TakeExam() {
                 </span>
               </div>
 
+              {savingFailed && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                  <span>
+                    {pendingQuestions.length} answer{pendingQuestions.length === 1 ? "" : "s"} not saved
+                    yet — check your internet connection. Retrying automatically; don't close this tab.
+                  </span>
+                </div>
+              )}
+
+              {blockedMessage && (
+                <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+                  {blockedMessage}
+                </div>
+              )}
+
               {/* `flex-wrap` so very narrow phones drop the second action to
                   its own line instead of squeezing the header. */}
               <div className="flex flex-wrap items-center justify-between gap-2 xl:justify-end">
@@ -231,6 +365,7 @@ export default function TakeExam() {
           {questions.length > 0 && (() => {
             const q = questions[current];
             const answered = isAnswered(q, answers);
+            const isPending = pendingQuestions.includes(String(q.id));
             return (
               <div ref={questionRef}>
                 <Card className={cn(answered && "ring-1 ring-emerald-500/30")}>
@@ -261,9 +396,11 @@ export default function TakeExam() {
                   {q.type === "long" && (
                     <Textarea rows={5} value={answers[q.id] || ""} onChange={e => saveAnswer(q.id, e.target.value)} placeholder="Your answer" />
                   )}
-                  {answered && (
+                  {isPending ? (
+                    <div className="mt-2 text-[11px] text-amber-300 flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> Saving…</div>
+                  ) : answered ? (
                     <div className="mt-2 text-[11px] text-emerald-400 flex items-center gap-1"><CheckCircle2 size={12} /> Saved</div>
-                  )}
+                  ) : null}
                   <div className="mt-4 flex items-center justify-between gap-2">
                     <Button variant="ghost" disabled={current === 0} onClick={() => goTo(Math.max(0, current - 1))}>
                       ← Previous
@@ -277,6 +414,12 @@ export default function TakeExam() {
               </div>
             );
           })()}
+
+          {submitError && (
+            <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+              {submitError}
+            </div>
+          )}
 
           <div className="flex items-center justify-between sticky bottom-0 py-3 bg-slate-950/60 backdrop-blur rounded-xl px-3">
             <span className="text-xs text-slate-400 tabular-nums">{answeredCount}/{questions.length} answered</span>
