@@ -151,7 +151,9 @@ router.post("/:subjectId/chapters", requireAuth, requireRole("admin", "teacher")
   // The number in the title is the book's number and wins over the number the
   // form happened to send; a range heading has no single number, so keep that.
   const explicitNumber = Number.isFinite(Number(number)) && Number(number) > 0 ? Number(number) : 1;
-  const chapterNumber = heading.number ?? headingBn?.number ?? explicitNumber;
+  let chapterNumber = explicitNumber;
+  if (heading.kind === "single" && heading.number != null) chapterNumber = heading.number;
+  else if (heading.kind === "none" && headingBn?.number != null) chapterNumber = headingBn.number;
   const chapterTitle = heading.title;
   const chapterTitleBn = headingBn ? headingBn.title : null;
   const db = await getDb();
@@ -171,6 +173,9 @@ router.put("/chapters/:id", requireAuth, requireRole("admin", "teacher"), async 
   let chapterNumber = Number.isFinite(Number(number)) && Number(number) > 0 ? Number(number) : Number(existing.number);
   let chapterTitle = existing.title;
   let chapterTitleBn = existing.title_bn;
+  // Only a title with no heading of its own may take its number from title_bn;
+  // a range title keeps the number it already has.
+  let titleKind = parseChapterHeading(existing.title).kind;
 
   // Parse the heading(s) being written. The main title wins over title_bn, and
   // either wins over an explicit `number`, so the stored pair cannot drift apart.
@@ -180,6 +185,7 @@ router.put("/chapters/:id", requireAuth, requireRole("admin", "teacher"), async 
     const heading = parseChapterHeading(String(title));
     chapterTitle = heading.title;
     titleNumber = heading.number;
+    titleKind = heading.kind;
   }
   if (title_bn !== undefined) {
     if (title_bn) {
@@ -190,7 +196,7 @@ router.put("/chapters/:id", requireAuth, requireRole("admin", "teacher"), async 
       chapterTitleBn = null;
     }
   }
-  const parsedNumber = titleNumber ?? bnNumber;
+  const parsedNumber = titleNumber ?? (titleKind === "none" ? bnNumber : null);
   if (parsedNumber != null && parsedNumber > 0) chapterNumber = parsedNumber;
 
   await run(db, "UPDATE chapters SET number=?, title=?, title_bn=?, summary=COALESCE(?,summary) WHERE id=?",
@@ -218,7 +224,11 @@ router.post("/:subjectId/chapters/renumber", requireAuth, requireRole("admin", "
   for (const ch of chapters) {
     const fromTitle = parseChapterHeading(ch.title);
     const fromBn = ch.title_bn != null ? parseChapterHeading(ch.title_bn) : null;
-    const number = fromTitle.number ?? fromBn?.number ?? null;
+    const number = fromTitle.kind === "single"
+      ? fromTitle.number
+      : fromTitle.kind === "none"
+        ? (fromBn?.number ?? null)
+        : null;
     const sets: string[] = [];
     const params: any[] = [];
     if (number != null && number !== Number(ch.number)) {
@@ -280,14 +290,26 @@ router.post("/:subjectId/chapters/merges/:historyId/undo", requireAuth, requireR
   const duplicates = Array.isArray(info.duplicates) ? info.duplicates : [];
   const movedByChapter = info.movedByChapter || {};
 
-  // Recreate the deleted chapters (ignore if an id was reused).
+  // Recreate the deleted chapters (ignore if an id was reused). Snapshots taken
+  // before the v14 migration can still carry a heading prefix, so normalise them
+  // on the way back in rather than restoring the old mismatch.
   for (const d of duplicates) {
     const exists = await get(db, "SELECT id FROM chapters WHERE id=?", [d.id]);
     if (exists) continue;
+    const heading = parseChapterHeading(String(d.title || ""));
+    const headingBn = d.title_bn ? parseChapterHeading(String(d.title_bn)) : null;
+    const savedNumber = Number(d.number);
+    const number = heading.kind === "single"
+      ? heading.number
+      : heading.kind === "none" && headingBn?.number != null
+        ? headingBn.number
+        : Number.isFinite(savedNumber) && savedNumber > 0 ? savedNumber : 1;
+    const title = heading.title;
+    const titleBn = d.title_bn ? (headingBn ? headingBn.title : d.title_bn) : null;
     await run(
       db,
       "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,created_at) VALUES (?,?,?,?,?,?,?)",
-      [d.id, req.params.subjectId, d.number || 1, d.title, d.title_bn || null, d.summary || null, d.created_at || Date.now()]
+      [d.id, req.params.subjectId, number, title, titleBn, d.summary || null, d.created_at || Date.now()]
     );
   }
 

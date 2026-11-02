@@ -20,19 +20,19 @@ async function createSubject() {
 
 test("parses an English CH. prefix and zero-padded number", () => {
   assert.deepEqual(parseChapterHeading("CH. 04: The Topography and the Climate of Bangladesh"),
-    { number: 4, title: "The Topography and the Climate of Bangladesh" });
+    { number: 4, title: "The Topography and the Climate of Bangladesh", kind: "single" });
 });
 
 test("parses Chapter and Ch spellings with different separators", () => {
   assert.deepEqual(parseChapterHeading("Chapter 5 - Photosynthesis"),
-    { number: 5, title: "Photosynthesis" });
+    { number: 5, title: "Photosynthesis", kind: "single" });
   assert.deepEqual(parseChapterHeading("Ch 7: The Organs of Government"),
-    { number: 7, title: "The Organs of Government" });
+    { number: 7, title: "The Organs of Government", kind: "single" });
 });
 
 test("parses a Bengali poricched and converts Bengali digits", () => {
   assert.deepEqual(parseChapterHeading("পরিচ্ছেদ ১০: উপসর্গ দিয়ে শব্দ গঠন"),
-    { number: 10, title: "উপসর্গ দিয়ে শব্দ গঠন" });
+    { number: 10, title: "উপসর্গ দিয়ে শব্দ গঠন", kind: "single" });
 });
 
 test("leaves range and multi-poricched titles untouched", () => {
@@ -41,12 +41,29 @@ test("leaves range and multi-poricched titles untouched", () => {
     "পরিচ্ছেদ ১০ ও ১১: উপসর্গ ও প্রত্যয়",
     "পরিচ্ছেদ ১২ ও ১৩: সমাস ও সন্ধি",
   ]) {
-    assert.deepEqual(parseChapterHeading(title), { number: null, title });
+    assert.deepEqual(parseChapterHeading(title), { number: null, title, kind: "range" });
+  }
+});
+
+test("recognises spaced and symbolic range separators", () => {
+  for (const title of [
+    "পরিচ্ছেদ ৩৯ - ৪৩: বাগর্থ, বাগধারা",
+    "Chapter 3 & 4: Composition",
+    "Chapter 3 / 4: Composition",
+    "Ch. 12 – 13: Composition",
+  ]) {
+    assert.deepEqual(parseChapterHeading(title), { number: null, title, kind: "range" });
+  }
+});
+
+test("does not treat an ordinal suffix as a chapter number", () => {
+  for (const title of ["CH. 21st Century Skills", "পরিচ্ছেদ ১ম: প্রথম"]) {
+    assert.deepEqual(parseChapterHeading(title), { number: null, title, kind: "none" });
   }
 });
 
 test("leaves an unprefixed title untouched", () => {
-  assert.deepEqual(parseChapterHeading("প্রত্যুপকার"), { number: null, title: "প্রত্যুপকার" });
+  assert.deepEqual(parseChapterHeading("প্রত্যুপকার"), { number: null, title: "প্রত্যুপকার", kind: "none" });
 });
 
 test("creating a chapter takes its number from the title and strips the prefix", async () => {
@@ -182,4 +199,40 @@ test("renumber endpoint fixes English prefixes and strips them from titles", asy
   const range = await get(db, "SELECT number, title FROM chapters WHERE id=?", [rangeId]);
   assert.equal(range.number, 43);
   assert.equal(range.title, rangeTitle);
+});
+
+test("undoing a legacy merge restores a clean title and number", async () => {
+  const teacher = await createUser("teacher");
+  const subjectId = await createSubject();
+  const db = await getDb();
+  const canonicalId = randomUUID();
+  const restoredId = randomUUID();
+  const historyId = randomUUID();
+  await run(db, "INSERT INTO chapters (id,subject_id,number,title,created_at) VALUES (?,?,?,?,?)",
+    [canonicalId, subjectId, 1, "Canonical chapter", Date.now()]);
+  const snapshot = JSON.stringify({
+    duplicates: [{
+      id: restoredId,
+      subject_id: subjectId,
+      number: 1,
+      title: "CH. 11: The Economic Indicators",
+      title_bn: "CH. 11: The Economic Indicators",
+      summary: null,
+      created_at: Date.now(),
+    }],
+    movedByChapter: {},
+  });
+  await run(db, "INSERT INTO chapter_merge_history (id,subject_id,canonical_id,data,created_at) VALUES (?,?,?,?,?)",
+    [historyId, subjectId, canonicalId, snapshot, Date.now()]);
+
+  const res = await fetch(`${server.baseUrl}/api/subjects/${subjectId}/chapters/merges/${historyId}/undo`, {
+    method: "POST",
+    headers: auth(teacher.token),
+  });
+  assert.equal(res.status, 200);
+
+  const restored = await get(db, "SELECT number, title, title_bn FROM chapters WHERE id=?", [restoredId]);
+  assert.equal(restored.number, 11);
+  assert.equal(restored.title, "The Economic Indicators");
+  assert.equal(restored.title_bn, "The Economic Indicators");
 });

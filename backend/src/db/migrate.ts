@@ -241,7 +241,13 @@ export async function migrate() {
   for (const ch of chapterRows) {
     const fromTitle = parseChapterHeading(ch.title);
     const fromBn = ch.title_bn != null ? parseChapterHeading(ch.title_bn) : null;
-    const number = fromTitle.number ?? fromBn?.number ?? null;
+    // A range heading has no single number, so keep the number already stored
+    // instead of borrowing one from title_bn.
+    const number = fromTitle.kind === "single"
+      ? fromTitle.number
+      : fromTitle.kind === "none"
+        ? (fromBn?.number ?? null)
+        : null;
     const sets: string[] = [];
     const params: any[] = [];
     if (number != null && number !== Number(ch.number)) {

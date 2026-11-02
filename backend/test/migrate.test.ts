@@ -28,8 +28,8 @@ test("migrate aligns chapter numbers with their titles and strips the prefix", a
     [subjectId, "Migrate Subject", `s-${subjectId}`, Date.now()]);
   await run(db, "INSERT INTO chapters (id,subject_id,number,title,title_bn,created_at) VALUES (?,?,?,?,?,?)",
     [singleId, subjectId, 1, "CH. 11: The Economic Indicators", "CH. 11: The Economic Indicators", Date.now()]);
-  await run(db, "INSERT INTO chapters (id,subject_id,number,title,created_at) VALUES (?,?,?,?,?)",
-    [rangeId, subjectId, 42, rangeTitle, Date.now()]);
+  await run(db, "INSERT INTO chapters (id,subject_id,number,title,title_bn,created_at) VALUES (?,?,?,?,?,?)",
+    [rangeId, subjectId, 42, rangeTitle, "Chapter 40: বাগর্থ", Date.now()]);
 
   await migrate();
 
@@ -37,7 +37,9 @@ test("migrate aligns chapter numbers with their titles and strips the prefix", a
   assert.equal(single.number, 11);
   assert.equal(single.title, "The Economic Indicators");
   assert.equal(single.title_bn, "The Economic Indicators");
-  const range = await get(db, "SELECT number, title FROM chapters WHERE id=?", [rangeId]);
+  // A range title keeps its own number even when title_bn happens to name one.
+  const range = await get(db, "SELECT number, title, title_bn FROM chapters WHERE id=?", [rangeId]);
   assert.equal(range.number, 42);
   assert.equal(range.title, rangeTitle);
+  assert.equal(range.title_bn, "বাগর্থ");
 });

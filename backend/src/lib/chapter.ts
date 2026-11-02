@@ -12,18 +12,26 @@ export function toAsciiDigits(value: string): string {
   return String(value ?? "").replace(/[০-৯]/g, (d) => String(d.charCodeAt(0) - BN_ZERO));
 }
 
+export type ChapterHeadingKind = "single" | "range" | "none";
+
 export interface ChapterHeading {
   /** Number found in the heading, or null when the heading is a range/absent. */
   number: number | null;
   /** Heading with its number prefix removed; unchanged when no prefix is read. */
   title: string;
+  /**
+   * `single` is one chapter number, `range` is a composite/multi heading
+   * (৩৯-৪৩, ১০ ও ১১, 3 & 4), and `none` has no heading prefix at all.
+   */
+  kind: ChapterHeadingKind;
 }
 
-// "পরিচ্ছেদ" or English "CH." / "Ch" / "Chapter", then one number, then an
-// optional range/multi suffix (৩৯-৪৩, ১০ ও ১১, 3 & 4, 12 to 13). The trailing
-// separator is part of the prefix so it is stripped with it.
+// "পরিচ্ছেদ" or English "CH." / "Ch" / "Chapter", then one number. A range or
+// multi suffix (৩৯-৪৩, ১০ ও ১১, 3 & 4) is read as one unit, with or without
+// spaces around its separator. The number must end at a word boundary so titles
+// such as "CH. 21st Century" or "পরিচ্ছেদ ১ম" are not mistaken for a heading.
 const PREFIX =
-  /^(?:পরিচ্ছেদ|ch(?:apter)?\.?|chap\.?)\s*([০-৯0-9]+)([-–—,&/]\s*[০-৯0-9]+(?:\s*(?:ও|এবং|and|to)\s*[০-৯0-9]+)*|\s+(?:ও|এবং|and|to)\s+[০-৯0-9]+)?\s*[:：.\-–—|]?\s*/i;
+  /^(?:পরিচ্ছেদ|ch(?:apter)?\.?|chap\.?)\s*([০-৯0-9]+)((?:\s*[-–—,&/]\s*[০-৯0-9]+|\s+(?:ও|এবং|and|to)\s+[০-৯0-9]+)+)?(?![\p{L}\p{N}])\s*[:：.\-–—|]?\s*/iu;
 
 /**
  * Read a chapter heading.
@@ -35,15 +43,15 @@ const PREFIX =
  */
 export function parseChapterHeading(raw: string): ChapterHeading {
   const text = String(raw ?? "");
-  if (!text) return { number: null, title: text };
+  if (!text) return { number: null, title: text, kind: "none" };
   const match = text.match(PREFIX);
-  if (!match) return { number: null, title: text };
-  if (match[2]) return { number: null, title: text };
+  if (!match) return { number: null, title: text, kind: "none" };
+  if (match[2]) return { number: null, title: text, kind: "range" };
 
   const number = Number(toAsciiDigits(match[1]));
-  if (!Number.isFinite(number) || number <= 0) return { number: null, title: text };
+  if (!Number.isFinite(number) || number <= 0) return { number: null, title: text, kind: "none" };
 
   const rest = text.slice(match[0].length).trim();
   // A heading that was only the prefix ("CH. 5") keeps its text as the title.
-  return { number, title: rest || text.trim() };
+  return { number, title: rest || text.trim(), kind: "single" };
 }
