@@ -5,7 +5,7 @@ import fs from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { getDb, all } from "../db/database";
+import { getDb, all, run } from "../db/database";
 import { supportsVision } from "../services/ai/models";
 import { parsePageNumberFromFilename } from "../services/batch/pages";
 import {
@@ -16,6 +16,7 @@ import {
   auditBatch,
   confirmBatchPage,
 } from "../services/batch/store";
+import { runNextPage } from "../services/batch/run";
 
 const router = Router();
 router.use(requireAuth, requireRole("admin", "teacher"));
@@ -45,7 +46,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
   const id = await createBatch({
     ...input,
-    fallback_models: input.fallback_models?.map((m) => `${m.provider}:${m.model}`),
+    fallback_models: input.fallback_models,
     created_by: req.user!.id,
   });
   res.json({ id });
@@ -86,6 +87,24 @@ router.post("/:id/confirm-page", async (req: Request, res: Response) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
   await confirmBatchPage(req.params.id, parsed.data.source_file, parsed.data.resolved_page_number);
   res.json({ ok: true });
+});
+
+router.post("/:id/step", async (req: Request, res: Response) => {
+  const result = await runNextPage(req.params.id);
+  if (result.status === "missing") return res.status(404).json({ error: "Batch not found" });
+  res.json(result);
+});
+
+router.post("/:id/pause", async (req: Request, res: Response) => {
+  const db = await getDb();
+  await run(db, "UPDATE batch_runs SET status='paused' WHERE id=?", [req.params.id]);
+  res.json({ ok: true, status: "paused" });
+});
+
+router.post("/:id/resume", async (req: Request, res: Response) => {
+  const db = await getDb();
+  await run(db, "UPDATE batch_runs SET status='running', consecutive_failures=0 WHERE id=?", [req.params.id]);
+  res.json({ ok: true, status: "running" });
 });
 
 router.get("/:id", async (req: Request, res: Response) => {

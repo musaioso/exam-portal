@@ -7,7 +7,7 @@
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test test/migrate.test.ts test/migrate-integrity.test.ts test/batch-pages.test.ts test/batch-generate.test.ts test/batch-verify.test.ts test/batch-retry.test.ts test/batches-api.test.ts test/review-page.test.ts test/challenges.test.ts test/attempts.test.ts",
+    "test": "node --import tsx --test test/migrate.test.ts test/migrate-integrity.test.ts test/batch-pages.test.ts test/batch-generate.test.ts test/batch-verify.test.ts test/batch-retry.test.ts test/batches-api.test.ts test/batches-step.test.ts test/review-page.test.ts test/challenges.test.ts test/attempts.test.ts",
     "seed": "tsx seed/seed.ts"
   },
   "keywords": [],
