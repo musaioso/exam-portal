@@ -1,6 +1,8 @@
 import "./env";
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { getDb, run } from "../src/db/database";
 import { auth, createChapter, createQuestion, createUser, startServer } from "./helpers";
 
 let server: Awaited<ReturnType<typeof startServer>>;
@@ -45,4 +47,13 @@ test("create batch, upload pages, audit unnumbered, confirm opener", async () =>
   assert.equal(confirm.status, 200);
   const detail = await (await fetch(`${server.baseUrl}/api/batches/${id}`, { headers: auth(teacher.token) })).json();
   assert.equal(detail.pages[0].audit_status, "confirmed");
+
+  const db = await getDb();
+  await run(db, `INSERT INTO batch_items
+    (id,batch_id,page_number,status,reason,question_json,source_quote,source_file,verifier_json,verification_method,prompt_hash,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [randomUUID(), id, 55, "accepted", null, "{}", "quote", "BGS conv 55.png", "{}", "ocr", "hash", Date.now()]);
+  const items = await fetch(`${server.baseUrl}/api/batches/${id}/items`, { headers: auth(teacher.token) });
+  assert.equal(items.status, 200);
+  assert.equal((await items.json()).items.length, 1);
 });

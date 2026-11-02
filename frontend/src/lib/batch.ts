@@ -100,6 +100,11 @@ export async function getBatch(batchId: string) {
   return data as { batch: Batch; pages: BatchPage[] };
 }
 
+export async function getBatchItems(batchId: string) {
+  const { data } = await api.get(`/batches/${batchId}/items`);
+  return data as { items: BatchItem[] };
+}
+
 export async function stepBatch(batchId: string) {
   const { data } = await api.post(`/batches/${batchId}/step`, null, { timeout: 180_000 });
   return data as StepResult;

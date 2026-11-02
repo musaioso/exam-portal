@@ -120,6 +120,16 @@ router.delete("/:id", async (req: Request, res: Response) => {
   res.json(result);
 });
 
+router.get("/:id/items", async (req: Request, res: Response) => {
+  const db = await getDb();
+  const items = await all(
+    db,
+    "SELECT * FROM batch_items WHERE batch_id=? ORDER BY created_at DESC LIMIT 500",
+    [req.params.id]
+  );
+  res.json({ items });
+});
+
 router.get("/:id", async (req: Request, res: Response) => {
   const detail = await getBatch(req.params.id);
   if (!detail) return res.status(404).json({ error: "Batch not found" });
