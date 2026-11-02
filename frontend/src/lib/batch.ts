@@ -134,3 +134,68 @@ export async function listBatches() {
   const { data } = await api.get("/batches");
   return data as { batches: Batch[] };
 }
+
+export interface CorrectionRun {
+  id: string;
+  subject_id: string;
+  chapter_id: string | null;
+  source_batch_id: string | null;
+  status: string;
+  checked: number;
+  ok: number;
+  wrong_page: number;
+  wrong_answer: number;
+  not_found: number;
+  bad_options: number;
+  outside_book: number;
+  applied: number;
+  created_at: number;
+}
+
+export interface CorrectionItem {
+  id: string;
+  run_id: string;
+  question_id: string;
+  verdict: string;
+  current_json: string;
+  proposed_json: string | null;
+  evidence_json: string | null;
+  status: string;
+  created_at: number;
+  usage?: { exams: number; attempts: number };
+}
+
+export async function createCorrection(input: {
+  subject_id: string;
+  chapter_id?: string;
+  source_batch_id: string;
+  question_ids?: string[];
+}): Promise<{ id: string }> {
+  const { data } = await api.post("/corrections", input);
+  return data;
+}
+
+export async function stepCorrection(runId: string) {
+  const { data } = await api.post(`/corrections/${runId}/step`, null, { timeout: 180_000 });
+  return data as { checked: number; items: CorrectionItem[] };
+}
+
+export async function getCorrection(runId: string) {
+  const { data } = await api.get(`/corrections/${runId}`);
+  return data as { run: CorrectionRun; items: CorrectionItem[] };
+}
+
+export async function applyCorrections(runId: string, itemIds: string[]) {
+  const { data } = await api.post(`/corrections/${runId}/apply`, { item_ids: itemIds });
+  return data as { applied: number };
+}
+
+export async function rejectCorrections(runId: string, itemIds: string[]) {
+  const { data } = await api.post(`/corrections/${runId}/reject`, { item_ids: itemIds });
+  return data as { rejected: number };
+}
+
+export async function undoCorrections(runId: string) {
+  const { data } = await api.post(`/corrections/${runId}/undo`);
+  return data as { restored: number };
+}
