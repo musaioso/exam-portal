@@ -1,9 +1,9 @@
 import { Router, Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { getDb, run, get, all } from "../db/database";
+import { getDb, run, get, all, runChanges } from "../db/database";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { runCorrectionStep, usageIndex } from "../services/batch/correct";
+import { runCorrectionStep, usageIndex, applyCorrections, undoCorrections } from "../services/batch/correct";
 
 const router = Router();
 router.use(requireAuth, requireRole("admin", "teacher"));
@@ -54,6 +54,33 @@ router.post("/:id/step", async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(400).json({ error: error?.message || "The correction audit could not continue." });
   }
+});
+
+const idsSchema = z.object({ item_ids: z.array(z.string().min(1)).min(1) });
+
+router.post("/:id/apply", async (req: Request, res: Response) => {
+  const parsed = idsSchema.safeParse(req.body || {});
+  if (!parsed.success) return res.status(400).json({ error: "item_ids[] required" });
+  const result = await applyCorrections(req.params.id, parsed.data.item_ids, req.user!.id);
+  res.json(result);
+});
+
+router.post("/:id/reject", async (req: Request, res: Response) => {
+  const parsed = idsSchema.safeParse(req.body || {});
+  if (!parsed.success) return res.status(400).json({ error: "item_ids[] required" });
+  const db = await getDb();
+  const placeholders = parsed.data.item_ids.map(() => "?").join(",");
+  const rejected = await runChanges(
+    db,
+    `UPDATE correction_items SET status='rejected' WHERE run_id=? AND id IN (${placeholders}) AND status='proposed'`,
+    [req.params.id, ...parsed.data.item_ids]
+  );
+  res.json({ rejected });
+});
+
+router.post("/:id/undo", async (req: Request, res: Response) => {
+  const result = await undoCorrections(req.params.id, req.user!.id);
+  res.json(result);
 });
 
 router.get("/:id", async (req: Request, res: Response) => {

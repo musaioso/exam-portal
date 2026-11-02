@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
-import { getDb, run, get, all } from "../../db/database";
+import { getDb, run, get, all, batch } from "../../db/database";
 import { chatComplete } from "../ai/chat";
 import type { ChatMessage, ProviderConfig } from "../ai/types";
 import { getProviderConfig } from "../ai/providers";
@@ -264,6 +264,118 @@ export async function runCorrectionStep(runId: string): Promise<{ checked: numbe
 
   const items = await all(db, "SELECT * FROM correction_items WHERE run_id=? ORDER BY created_at DESC LIMIT 500", [runId]);
   return { checked: pending.length, items };
+}
+
+const MUTABLE_FIELDS = ["page_number", "page", "answer", "explanation", "source_quote", "source_file"] as const;
+
+function mutablePatch(source: any): Record<string, any> {
+  const patch: Record<string, any> = {};
+  for (const field of MUTABLE_FIELDS) {
+    if (source && source[field] !== undefined) patch[field] = source[field];
+  }
+  return patch;
+}
+
+export async function applyCorrections(
+  runId: string,
+  itemIds: string[],
+  userId: string
+): Promise<{ applied: number }> {
+  if (itemIds.length === 0) return { applied: 0 };
+  const db = await getDb();
+  const placeholders = itemIds.map(() => "?").join(",");
+  const items = await all(
+    db,
+    `SELECT * FROM correction_items WHERE run_id=? AND status='proposed' AND id IN (${placeholders})`,
+    [runId, ...itemIds]
+  );
+  let applied = 0;
+
+  for (const item of items) {
+    const question = await get(db, "SELECT * FROM questions WHERE id=?", [item.question_id]);
+    if (!question) continue;
+    let proposed: any = {};
+    try {
+      proposed = JSON.parse(item.proposed_json || "{}") || {};
+    } catch {
+      proposed = {};
+    }
+    if (proposed.page_number !== undefined && proposed.page === undefined) {
+      proposed.page = String(proposed.page_number);
+    }
+    const patch = mutablePatch(proposed);
+    const fields = Object.keys(patch);
+    if (fields.length === 0) continue;
+
+    const before = { ...question };
+    const after = { ...question, ...patch };
+    const setClause = fields.map((field) => `${field}=?`).join(", ");
+    await batch(db, [
+      {
+        sql: `INSERT INTO question_revisions
+          (id,question_id,run_id,before_json,after_json,reason,created_by,created_at)
+          VALUES (?,?,?,?,?,?,?,?)`,
+        params: [randomUUID(), question.id, runId, JSON.stringify(before), JSON.stringify(after),
+          item.verdict, userId, Date.now()],
+      },
+      {
+        sql: `UPDATE questions SET ${setClause} WHERE id=?`,
+        params: [...fields.map((field) => patch[field]), question.id],
+      },
+      {
+        sql: "UPDATE correction_items SET status='applied' WHERE id=?",
+        params: [item.id],
+      },
+    ]);
+    applied++;
+  }
+
+  if (applied > 0) {
+    await run(db, "UPDATE correction_runs SET applied=applied+? WHERE id=?", [applied, runId]);
+  }
+  return { applied };
+}
+
+export async function undoCorrections(runId: string, _userId: string): Promise<{ restored: number }> {
+  const db = await getDb();
+  const revisions = await all(
+    db,
+    "SELECT * FROM question_revisions WHERE run_id=? AND undone_at IS NULL ORDER BY created_at DESC",
+    [runId]
+  );
+  let restored = 0;
+  for (const revision of revisions) {
+    let before: any = {};
+    try {
+      before = JSON.parse(revision.before_json || "{}") || {};
+    } catch {
+      before = {};
+    }
+    const patch = mutablePatch(before);
+    const fields = Object.keys(patch);
+    if (fields.length === 0) continue;
+    const setClause = fields.map((field) => `${field}=?`).join(", ");
+    await batch(db, [
+      {
+        sql: `UPDATE questions SET ${setClause} WHERE id=?`,
+        params: [...fields.map((field) => patch[field]), revision.question_id],
+      },
+      {
+        sql: "UPDATE question_revisions SET undone_at=? WHERE id=?",
+        params: [Date.now(), revision.id],
+      },
+      {
+        sql: "UPDATE correction_items SET status='rejected' WHERE run_id=? AND question_id=? AND status='applied'",
+        params: [runId, revision.question_id],
+      },
+    ]);
+    restored++;
+  }
+  if (restored > 0) {
+    await run(db, "UPDATE correction_runs SET applied=CASE WHEN applied>=? THEN applied-? ELSE 0 END WHERE id=?",
+      [restored, restored, runId]);
+  }
+  return { restored };
 }
 
 export async function usageIndex(): Promise<{ exams: Map<string, number>; attempts: Map<string, number> }> {
