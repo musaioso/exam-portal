@@ -25,6 +25,9 @@ Demo accounts (after seed):
 - teacher@mcq.local / teacher123
 - student@mcq.local / student123
 
+## Batch Studio
+The strict, evidence-checked batch generator is documented in [docs/batch-studio.md](docs/batch-studio.md). It generates new questions only; existing questions are never updated by a batch.
+
 ## Worktrees (parallel sectors)
 ```
 git worktree list
