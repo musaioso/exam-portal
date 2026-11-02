@@ -13,6 +13,8 @@ test("quote matching tolerates OCR noise", () => {
 test("every numeric token must appear on the page", () => {
   assert.deepEqual(missingNumbers("In 2022 the rate was 7.1 percent.", "What was the rate in 2023?"), ["2023"]);
   assert.deepEqual(missingNumbers("In 2022 the rate was 7.1 percent.", "What was the rate in 2022?"), []);
+  assert.deepEqual(missingNumbers("In 2022 the rate was 7.1 percent.", "Was it 22?"), ["22"]);
+  assert.deepEqual(missingNumbers("In 2022 the rate was 7.1 percent.", "Was it 7.1?"), []);
 });
 
 test("verifyCandidates rejects when the verifier says invalid", async () => {

@@ -8,6 +8,7 @@ import {
   applyCorrections,
   rejectCorrections,
   undoCorrections,
+  listCorrections,
   type Batch,
   type CorrectionItem,
   type CorrectionRun,
@@ -40,10 +41,16 @@ export default function CorrectionPanel() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [recentRuns, setRecentRuns] = useState<CorrectionRun[]>([]);
+
+  const loadRecent = () => {
+    listCorrections().then((r) => setRecentRuns(r.runs.slice(0, 8))).catch(() => setRecentRuns([]));
+  };
 
   useEffect(() => {
     api.get("/subjects").then((r) => setSubjects(r.data.subjects || [])).catch(() => setSubjects([]));
     listBatches().then((r) => setBatches(r.batches)).catch(() => setBatches([]));
+    loadRecent();
   }, []);
 
   useEffect(() => {
@@ -80,20 +87,21 @@ export default function CorrectionPanel() {
   };
 
   const startAudit = async () => {
-    if (!subjectId || !sourceBatchId || busy) return;
+    if (!subjectId || !chapterId || !sourceBatchId || busy) return;
     setBusy(true);
     setError("");
     setSelected(new Set());
     try {
       const created = await createCorrection({
         subject_id: subjectId,
-        chapter_id: chapterId || undefined,
+        chapter_id: chapterId,
         source_batch_id: sourceBatchId,
       });
       await loadCorrection(created.id);
       for (let guard = 0; guard < 300; guard++) {
         await stepCorrection(created.id);
         const data = await loadCorrection(created.id);
+        loadRecent();
         if (data.run.status !== "auditing") break;
       }
     } catch (e: any) {
@@ -188,7 +196,7 @@ export default function CorrectionPanel() {
           <span className="text-slate-300">Chapter</span>
           <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
             value={chapterId} onChange={(e) => setChapterId(e.target.value)} disabled={!subjectId}>
-            <option value="">Whole subject</option>
+            <option value="">Pick a chapter…</option>
             {chapters.map((c: any) => <option key={c.id} value={c.id}>Ch {c.number} — {c.title}</option>)}
           </select>
         </label>
@@ -210,10 +218,28 @@ export default function CorrectionPanel() {
         {sourceBatches.length === 0 && <span className="text-amber-300">Run a Generate batch for this chapter first to store its page images.</span>}
       </div>
 
+      {recentRuns.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Recent correction runs</p>
+          <div className="flex flex-wrap gap-2">
+            {recentRuns.map((recent) => (
+              <button
+                key={recent.id}
+                type="button"
+                onClick={() => { void loadCorrection(recent.id); }}
+                className="rounded-lg border border-slate-700/50 bg-slate-900/40 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800/60"
+              >
+                {recent.id.slice(0, 8)} · {recent.status} · {recent.checked} checked
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>}
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={startAudit} disabled={!subjectId || !sourceBatchId || busy}
+        <button type="button" onClick={startAudit} disabled={!subjectId || !chapterId || !sourceBatchId || busy}
           className="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 disabled:opacity-50">
           {busy && !run ? "Auditing…" : "Start audit"}
         </button>

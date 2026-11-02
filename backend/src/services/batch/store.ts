@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { getDb, run, get, all, batch } from "../../db/database";
+import { pruneQuestionsFromExams } from "../questions/prune";
 import { auditPages } from "./pages";
 
 export async function createBatch(input: {
@@ -11,7 +12,7 @@ export async function createBatch(input: {
   max_per_page: number;
   provider: string;
   model: string;
-  fallback_models?: string[];
+  fallback_models?: Array<{ provider: string; model: string }>;
   allow_vision_fallback?: boolean;
   created_by: string;
 }): Promise<string> {
@@ -74,6 +75,7 @@ export async function auditBatch(
   for (const page of pages) {
     const audit = byFile.get(String(page.source_file));
     if (!audit) continue;
+    if (page.audit_status === "confirmed") continue;
     await run(db, `UPDATE batch_pages SET printed_number=?, audit_status=?, resolved_page_number=? WHERE id=?`,
       [audit.printedNumber, audit.auditStatus,
         audit.auditStatus === "match" ? audit.filenameNumber : null, page.id]);
@@ -99,15 +101,24 @@ export async function confirmBatchPage(
 
 export async function undoBatch(batchId: string): Promise<{ deleted: number }> {
   const db = await getDb();
+  const batchRow = await get(db, "SELECT id,status FROM batch_runs WHERE id=?", [batchId]);
+  if (!batchRow) return { deleted: 0 };
+  if (batchRow.status === "running") return { deleted: 0 };
   const rows = await all(db, "SELECT id FROM questions WHERE batch_id=?", [batchId]);
+  const deletedIds = rows.map((row: any) => String(row.id));
   await batch(db, [
     { sql: "DELETE FROM questions WHERE batch_id=?", params: [batchId] },
     { sql: "DELETE FROM batch_runs WHERE id=?", params: [batchId] },
   ]);
-  try {
-    fs.rmSync(path.resolve(process.cwd(), "data", "batches", batchId), { recursive: true, force: true });
-  } catch {
-    /* the cache is best-effort; the database rows are the record */
+  await pruneQuestionsFromExams(db, deletedIds);
+  const root = path.resolve(process.cwd(), "data", "batches");
+  const dir = path.join(root, path.basename(batchId));
+  if (dir.startsWith(root + path.sep)) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* the cache is best-effort; the database rows are the record */
+    }
   }
   return { deleted: rows.length };
 }

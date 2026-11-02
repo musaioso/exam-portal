@@ -15,6 +15,7 @@ export default function RunPanel({ batchId }: { batchId: string | null }) {
   const [last, setLast] = useState<StepResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [evidenceRevision, setEvidenceRevision] = useState(0);
   const cancelled = useRef(false);
 
   const load = async () => {
@@ -43,6 +44,11 @@ export default function RunPanel({ batchId }: { batchId: string | null }) {
         const result = await stepBatch(batchId);
         setLast(result);
         await load();
+        setEvidenceRevision((value) => value + 1);
+        if (result.status === "blocked" || result.status === "waiting") {
+          setError(result.reason || (result.status === "blocked" ? "Confirm the page audit first." : "A page is already running."));
+          break;
+        }
         if (result.status !== "running") break;
       }
     } catch (e: any) {
@@ -164,7 +170,7 @@ export default function RunPanel({ batchId }: { batchId: string | null }) {
         {running && <p className="text-xs text-slate-500">Keep this tab open while the batch runs. Each page is saved as it passes.</p>}
       </section>
 
-      <EvidenceTable batchId={batchId} />
+      <EvidenceTable key={evidenceRevision} batchId={batchId} />
     </div>
   );
 }

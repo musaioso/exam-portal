@@ -199,3 +199,8 @@ export async function undoCorrections(runId: string) {
   const { data } = await api.post(`/corrections/${runId}/undo`);
   return data as { restored: number };
 }
+
+export async function listCorrections() {
+  const { data } = await api.get("/corrections");
+  return data as { runs: CorrectionRun[] };
+}

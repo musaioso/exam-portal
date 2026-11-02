@@ -48,6 +48,14 @@ test("create batch, upload pages, audit unnumbered, confirm opener", async () =>
   const detail = await (await fetch(`${server.baseUrl}/api/batches/${id}`, { headers: auth(teacher.token) })).json();
   assert.equal(detail.pages[0].audit_status, "confirmed");
 
+  const reaudit = await fetch(`${server.baseUrl}/api/batches/${id}/audit`, {
+    method: "POST", headers: auth(teacher.token),
+  });
+  assert.equal(reaudit.status, 200);
+  const reaudited = await reaudit.json();
+  assert.equal(reaudited.pages[0].audit_status, "confirmed");
+  assert.equal(reaudited.pages[0].resolved_page_number, 55);
+
   const db = await getDb();
   await run(db, `INSERT INTO batch_items
     (id,batch_id,page_number,status,reason,question_json,source_quote,source_file,verifier_json,verification_method,prompt_hash,created_at)
@@ -56,4 +64,11 @@ test("create batch, upload pages, audit unnumbered, confirm opener", async () =>
   const items = await fetch(`${server.baseUrl}/api/batches/${id}/items`, { headers: auth(teacher.token) });
   assert.equal(items.status, 200);
   assert.equal((await items.json()).items.length, 1);
+
+  const badForm = new FormData();
+  badForm.append("pages", new Blob([Buffer.from("png")], { type: "image/png" }), "BGS conv 55.png");
+  const badUpload = await fetch(`${server.baseUrl}/api/batches/not-a-batch/pages`, {
+    method: "POST", headers: auth(teacher.token), body: badForm,
+  });
+  assert.equal(badUpload.status, 404);
 });

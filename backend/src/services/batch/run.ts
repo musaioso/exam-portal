@@ -3,10 +3,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { getDb, run, get, all, runChanges, batch } from "../../db/database";
 import { normalizeText } from "../../lib/text";
 import { getProviderConfig } from "../ai/providers";
+import { AIError, type ProviderConfig } from "../ai/types";
 import { ocrImage } from "../ai/ocr";
 import { generatePage as realGeneratePage, type Candidate } from "./generate";
 import { verifyCandidates as realVerifyCandidates } from "./verify";
-import { withRetry, modelChain } from "./retry";
+import { withRetry, modelChain, isRetryableAIError } from "./retry";
 
 export interface StepResult {
   status: string;
@@ -56,6 +57,22 @@ export async function runNextPage(
     [lease, batchId, now, now]);
 
   if (!changed) {
+    const unresolved = await get(
+      db,
+      "SELECT COUNT(*) AS n FROM batch_pages WHERE batch_id=? AND resolved_page_number IS NULL AND status IN ('pending','running')",
+      [batchId]
+    );
+    if (Number(unresolved?.n ?? 0) > 0) {
+      return { status: "blocked", page: null, imported: 0, rejected: 0, reason: "Confirm the page audit first." };
+    }
+    const live = await get(
+      db,
+      "SELECT COUNT(*) AS n FROM batch_pages WHERE batch_id=? AND status='running' AND lease_until >= ?",
+      [batchId, now]
+    );
+    if (Number(live?.n ?? 0) > 0) {
+      return { status: "waiting", page: null, imported: 0, rejected: 0, reason: "A page is already running; retry shortly." };
+    }
     const pending = await get(db, "SELECT COUNT(*) AS n FROM batch_pages WHERE batch_id=? AND status='pending'", [batchId]);
     if (Number(pending?.n ?? 0) === 0) {
       await run(db, "UPDATE batch_runs SET status='done', completed_at=? WHERE id=? AND status='running'", [Date.now(), batchId]);
@@ -77,6 +94,19 @@ export async function runNextPage(
   } catch {
     image = Buffer.alloc(0);
   }
+
+  if (image.length === 0) {
+    const reason = "Page image is missing or unreadable.";
+    await run(db, "UPDATE batch_pages SET status='failed', last_error=?, lease_until=NULL WHERE id=?",
+      [reason, page.id]);
+    await run(db, "UPDATE batch_runs SET consecutive_failures=consecutive_failures+1 WHERE id=?", [batchId]);
+    const after = await get(db, "SELECT consecutive_failures FROM batch_runs WHERE id=?", [batchId]);
+    const failures = Number(after?.consecutive_failures ?? 0);
+    if (failures >= 3) await run(db, "UPDATE batch_runs SET status='paused' WHERE id=?", [batchId]);
+    return { status: failures >= 3 ? "paused" : "running", page, imported: 0, rejected: 0, reason };
+  }
+
+  const mime = /\.jpe?g$/i.test(String(page.source_file)) ? "image/jpeg" : "image/png";
 
   const chapter = runRow.chapter_id
     ? await get(db, "SELECT title FROM chapters WHERE id=?", [runRow.chapter_id])
@@ -111,7 +141,7 @@ export async function runNextPage(
   const generate = deps.generatePage ?? realGeneratePage;
   const chain = modelChain({ provider: String(runRow.provider), model: String(runRow.model) }, fallbacks);
   let candidates: Candidate[] | null = null;
-  let primaryCfg: Awaited<ReturnType<ConfigFn>> | null = null;
+  let chosen: { cfg: ProviderConfig; provider: string; model: string } | null = null;
   let lastError: unknown = null;
 
   for (const entry of chain) {
@@ -120,12 +150,12 @@ export async function runNextPage(
       lastError = new Error(`Provider ${entry.provider} is not configured.`);
       continue;
     }
-    if (!primaryCfg) primaryCfg = cfg;
     try {
       candidates = await withRetry(
-        () => generate(cfg, entry.model, image, "image/png", meta),
+        () => generate(cfg, entry.model, image, mime, meta),
         deps.retry
       );
+      chosen = { cfg, provider: entry.provider, model: entry.model };
       break;
     } catch (err) {
       lastError = err;
@@ -136,6 +166,11 @@ export async function runNextPage(
     const reason = String((lastError as any)?.message || lastError || "Generation failed");
     await run(db, "UPDATE batch_pages SET status='failed', last_error=?, lease_until=NULL WHERE id=?",
       [reason, page.id]);
+    const terminal = lastError instanceof AIError && !isRetryableAIError(lastError);
+    if (terminal) {
+      await run(db, "UPDATE batch_runs SET status='paused', consecutive_failures=0 WHERE id=?", [batchId]);
+      return { status: "paused", page, imported: 0, rejected: 0, reason };
+    }
     await run(db, "UPDATE batch_runs SET consecutive_failures=consecutive_failures+1 WHERE id=?", [batchId]);
     const after = await get(db, "SELECT consecutive_failures FROM batch_runs WHERE id=?", [batchId]);
     const failures = Number(after?.consecutive_failures ?? 0);
@@ -143,7 +178,7 @@ export async function runNextPage(
     return { status: failures >= 3 ? "paused" : "running", page, imported: 0, rejected: 0, reason };
   }
 
-  if (!primaryCfg) {
+  if (!chosen) {
     const reason = "No provider configuration available for verification.";
     await run(db, "UPDATE batch_pages SET status='failed', last_error=?, lease_until=NULL WHERE id=?",
       [reason, page.id]);
@@ -151,15 +186,32 @@ export async function runNextPage(
   }
 
   const verify = deps.verifyCandidates ?? realVerifyCandidates;
-  const verdicts = await verify({
-    pageText: pageText || null,
-    image,
-    mimeType: "image/png",
-    candidates,
-    cfg: primaryCfg,
-    model: String(runRow.model),
-    allowVisionFallback: !!runRow.allow_vision_fallback,
-  });
+  let verdicts: Awaited<ReturnType<VerifyFn>>;
+  try {
+    verdicts = await verify({
+      pageText: pageText || null,
+      image,
+      mimeType: mime,
+      candidates,
+      cfg: chosen.cfg,
+      model: chosen.model,
+      allowVisionFallback: !!runRow.allow_vision_fallback,
+    });
+  } catch (err) {
+    const reason = String((err as any)?.message || err || "Verification failed");
+    await run(db, "UPDATE batch_pages SET status='failed', last_error=?, lease_until=NULL WHERE id=?",
+      [reason, page.id]);
+    const terminal = err instanceof AIError && !isRetryableAIError(err);
+    if (terminal) {
+      await run(db, "UPDATE batch_runs SET status='paused', consecutive_failures=0 WHERE id=?", [batchId]);
+      return { status: "paused", page, imported: 0, rejected: 0, reason };
+    }
+    await run(db, "UPDATE batch_runs SET consecutive_failures=consecutive_failures+1 WHERE id=?", [batchId]);
+    const after = await get(db, "SELECT consecutive_failures FROM batch_runs WHERE id=?", [batchId]);
+    const failures = Number(after?.consecutive_failures ?? 0);
+    if (failures >= 3) await run(db, "UPDATE batch_runs SET status='paused' WHERE id=?", [batchId]);
+    return { status: failures >= 3 ? "paused" : "running", page, imported: 0, rejected: 0, reason };
+  }
   const verdictByIndex = new Map(verdicts.map((v) => [v.index, v]));
 
   const existingRows = await all(db, "SELECT prompt FROM questions WHERE subject_id=?", [runRow.subject_id]);
@@ -175,6 +227,7 @@ export async function runNextPage(
 
   candidates.forEach((candidate, index) => {
     const verdict = verdictByIndex.get(index);
+    const verificationJson = JSON.stringify({ ...(verdict || {}), provider: chosen.provider, model: chosen.model });
     const valid = verdict?.valid === true;
     if (!valid) {
       rejectedCount++;
@@ -184,7 +237,7 @@ export async function runNextPage(
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
         params: [randomUUID(), batchId, Number(page.resolved_page_number), "rejected",
           verdict?.reason || "rejected", JSON.stringify(candidate), candidate.sourceQuote, page.source_file,
-          JSON.stringify(verdict || null), verdict?.method || "ocr", null, Date.now()],
+          verificationJson, verdict?.method || "ocr", null, Date.now()],
       });
       return;
     }
@@ -200,7 +253,7 @@ export async function runNextPage(
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
         params: [randomUUID(), batchId, Number(page.resolved_page_number), "rejected",
           "duplicate question", JSON.stringify(candidate), candidate.sourceQuote, page.source_file,
-          JSON.stringify(verdict), verdict?.method || "ocr", null, Date.now()],
+          verificationJson, verdict?.method || "ocr", null, Date.now()],
       });
       return;
     }
@@ -215,7 +268,7 @@ export async function runNextPage(
       params: [id, runRow.subject_id, runRow.chapter_id, "mcq", candidate.difficulty, candidate.prompt,
         JSON.stringify(candidate.options), candidate.answer, candidate.explanation, candidate.marks,
         String(page.resolved_page_number), Number(page.resolved_page_number), batchId,
-        candidate.sourceQuote, page.source_file, JSON.stringify(verdict), verdict?.method || "ocr",
+        candidate.sourceQuote, page.source_file, verificationJson, verdict?.method || "ocr",
         runRow.created_by, Date.now()],
     });
     statements.push({
@@ -224,7 +277,7 @@ export async function runNextPage(
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       params: [randomUUID(), batchId, Number(page.resolved_page_number), "accepted", null,
         JSON.stringify(candidate), candidate.sourceQuote, page.source_file,
-        JSON.stringify(verdict), verdict?.method || "ocr", promptHash, Date.now()],
+        verificationJson, verdict?.method || "ocr", promptHash, Date.now()],
     });
     imported++;
   });

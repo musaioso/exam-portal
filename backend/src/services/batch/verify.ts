@@ -68,11 +68,11 @@ export function numericTokens(text: string): string[] {
 }
 
 export function missingNumbers(pageText: string, text: string): string[] {
-  const page = normalizeEvidence(pageText);
+  const pageNumbers = new Set(numericTokens(pageText).map((n) => n.toLowerCase()));
   const missing = new Set<string>();
   for (const token of numericTokens(text)) {
-    const variants = [token, token.replace(/[.,]/g, " "), token.replace(/[.,].*$/, "")];
-    if (!variants.some((v) => page.includes(normalizeEvidence(v)))) missing.add(token);
+    const variants = [token, token.replace(/,/g, "."), token.replace(/[.,].*$/, "")];
+    if (!variants.some((v) => pageNumbers.has(v.toLowerCase()))) missing.add(token);
   }
   return [...missing];
 }

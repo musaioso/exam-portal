@@ -26,6 +26,7 @@ interface CorrectionPage {
   pageNumber: number;
   text: string;
   image: Buffer;
+  mimeType?: string;
 }
 
 function parseOptions(raw: any): string[] {
@@ -83,7 +84,7 @@ export async function auditQuestion(
         `Question: ${question.prompt}\n` +
         `Options: ${JSON.stringify(options)}\n` +
         `Keyed answer: ${answer}`,
-      images: [{ mimeType: "image/png", data: page.image.toString("base64") }],
+      images: [{ mimeType: page.mimeType || "image/png", data: page.image.toString("base64") }],
     },
   ];
 
@@ -117,8 +118,12 @@ export async function auditQuestion(
   if (correct) {
     return {
       verdict: "needs manual edit",
-      proposed: { answer: correct },
-      evidence: { ...evidence, reason: "proposed answer is not one of the existing options" },
+      proposed: null,
+      evidence: {
+        ...evidence,
+        correctAnswer: correct,
+        reason: "proposed answer is not one of the existing options; edit the question manually",
+      },
     };
   }
   return { verdict: "not_found", proposed: null, evidence: { ...evidence, reason: parsed.reason || "not supported by the page" } };
@@ -128,7 +133,7 @@ async function loadPages(batchId: string): Promise<CorrectionPage[]> {
   const db = await getDb();
   const rows = await all(
     db,
-    "SELECT page_number,resolved_page_number,page_text,image_path FROM batch_pages WHERE batch_id=? AND resolved_page_number IS NOT NULL ORDER BY resolved_page_number",
+    "SELECT page_number,resolved_page_number,page_text,image_path,source_file FROM batch_pages WHERE batch_id=? AND resolved_page_number IS NOT NULL ORDER BY resolved_page_number",
     [batchId]
   );
   const pages: CorrectionPage[] = [];
@@ -148,7 +153,12 @@ async function loadPages(batchId: string): Promise<CorrectionPage[]> {
         text = "";
       }
     }
-    pages.push({ pageNumber: Number(row.resolved_page_number), text, image });
+    pages.push({
+      pageNumber: Number(row.resolved_page_number),
+      text,
+      image,
+      mimeType: /\.jpe?g$/i.test(String(row.source_file)) ? "image/jpeg" : "image/png",
+    });
   }
   return pages;
 }
@@ -166,6 +176,18 @@ export async function runCorrectionStep(runId: string): Promise<{ checked: numbe
 
   const pages = await loadPages(String(correctionRun.source_batch_id));
   if (pages.length === 0) throw new Error("The source batch has no confirmed pages");
+
+  const safeAudit = async (question: any, page: CorrectionPage): Promise<CorrectionAudit> => {
+    try {
+      return await auditQuestion(question, page, cfg, String(sourceBatch.model));
+    } catch (error: any) {
+      return {
+        verdict: "not_found",
+        proposed: null,
+        evidence: { reason: `provider error: ${String(error?.message || error)}`, pageNumber: page.pageNumber },
+      };
+    }
+  };
 
   let pending = await all(
     db,
@@ -206,8 +228,19 @@ export async function runCorrectionStep(runId: string): Promise<{ checked: numbe
   for (const item of pending) {
     const question = item;
     const claimedNumber = Number(question.page_number);
-    const claimed = pages.find((p) => p.pageNumber === claimedNumber) || pages[0];
-    let audit = await auditQuestion(question, claimed, cfg, String(sourceBatch.model));
+    const claimed = Number.isFinite(claimedNumber)
+      ? pages.find((p) => p.pageNumber === claimedNumber)
+      : pages[0];
+    if (!claimed) {
+      await run(db, `UPDATE correction_items
+        SET verdict='not_found', current_json=?, proposed_json=NULL, evidence_json=?, status='proposed'
+        WHERE run_id=? AND question_id=?`,
+        [JSON.stringify(question),
+          JSON.stringify({ reason: `claimed page ${question.page_number ?? "—"} is not in the source batch`, pageNumber: question.page_number ?? null }),
+          runId, question.id]);
+      continue;
+    }
+    let audit = await safeAudit(question, claimed);
 
     if ((audit.verdict === "wrong_page" || audit.verdict === "not_found") && pages.length > 1) {
       const others = pages
@@ -215,7 +248,7 @@ export async function runCorrectionStep(runId: string): Promise<{ checked: numbe
         .sort((a, b) => Math.abs(a.pageNumber - claimed.pageNumber) - Math.abs(b.pageNumber - claimed.pageNumber))
         .slice(0, 5);
       for (const page of others) {
-        const second = await auditQuestion(question, page, cfg, String(sourceBatch.model));
+        const second = await safeAudit(question, page);
         if (second.verdict === "ok") {
           audit = {
             verdict: "wrong_page",
@@ -302,6 +335,14 @@ export async function applyCorrections(
     }
     if (proposed.page_number !== undefined && proposed.page === undefined) {
       proposed.page = String(proposed.page_number);
+    }
+    if (proposed.page_number !== undefined) {
+      const page = Number(proposed.page_number);
+      if (!Number.isInteger(page) || page < 1) continue;
+    }
+    if (proposed.answer !== undefined) {
+      const options = parseOptions(question.options);
+      if (options.length !== 4 || !options.includes(String(proposed.answer))) continue;
     }
     const patch = mutablePatch(proposed);
     const fields = Object.keys(patch);

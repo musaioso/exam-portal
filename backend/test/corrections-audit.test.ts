@@ -19,3 +19,20 @@ test("a wrong page is proposed without touching the question", async () => {
   assert.equal(result.proposed, null);
   assert.ok(result.evidence.quote.includes("Padma"));
 });
+
+test("a manual-edit verdict carries no applyable proposal", async () => {
+  const question = {
+    id: "q2", prompt: "What is the main river?", options: JSON.stringify(["Padma", "Jamuna", "Meghna", "Karnaphuli"]),
+    answer: "Padma", page_number: 55, explanation: "x",
+  };
+  const result = await auditQuestion(
+    question,
+    { pageNumber: 55, text: "The page says nothing about the answer.", image: Buffer.from("png") },
+    { id: "fake", label: "Fake", baseURL: "http://fake", chatStyle: "google" },
+    "m",
+    { chat: async () => ({ text: '{"supported":false,"correctAnswer":"Brahmaputra"}' }) }
+  );
+  assert.equal(result.verdict, "needs manual edit");
+  assert.equal(result.proposed, null);
+  assert.equal(result.evidence.correctAnswer, "Brahmaputra");
+});

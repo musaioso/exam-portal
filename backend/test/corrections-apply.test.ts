@@ -31,3 +31,20 @@ test("apply keeps the id, writes a revision, and undo restores the before values
   const restored = await all(db, "SELECT id,page_number FROM questions WHERE id=?", [q.id]);
   assert.deepEqual(restored.map((r: any) => [r.id, r.page_number]), [[q.id, 55]]);
 });
+
+test("apply refuses an answer that is not one of the existing options", async () => {
+  const q = await createQuestion({ pageNumber: 55, answer: "A", options: ["A", "B", "C", "D"] });
+  const db = await getDb();
+  const runId = randomUUID();
+  const itemId = randomUUID();
+  await run(db, "INSERT INTO correction_runs (id,subject_id,status,created_at) VALUES (?,?,?,?)",
+    [runId, q.subjectId, "review", Date.now()]);
+  await run(db, `INSERT INTO correction_items (id,run_id,question_id,verdict,current_json,proposed_json,status,created_at)
+    VALUES (?,?,?,?,?,?,?,?)`,
+    [itemId, runId, q.id, "needs manual edit", JSON.stringify({ answer: "A" }),
+      JSON.stringify({ answer: "Z" }), "proposed", Date.now()]);
+
+  assert.deepEqual(await applyCorrections(runId, [itemId], "teacher"), { applied: 0 });
+  const after = await all(db, "SELECT answer FROM questions WHERE id=?", [q.id]);
+  assert.equal(after[0].answer, "A");
+});

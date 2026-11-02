@@ -31,7 +31,8 @@ Batch Studio builds a large pool of unique, evidence-checked MCQs from scanned t
 - **Retry failed pages** puts failed pages back in the queue.
 - The counters show generated, quote-passed, answer-passed, rejected, and saved.
 - The provider status line shows the last page and the provider error, if any.
-- Keep the tab open while the run is active. Closing it pauses the batch at the server; reopening and resuming continues without duplicating completed pages.
+- Keep the tab open while the run is active. Closing the tab stops the browser loop; reopen the batch from **Recent batches** and click **Resume**. Completed pages are skipped.
+- **Recent batches** lists the last runs so a closed or reloaded tab can reopen, resume, inspect evidence, or undo a batch.
 
 ### Evidence gates
 
@@ -54,9 +55,9 @@ Rejected rows stay in the evidence table with a reason. They never enter the ban
 Gemini Flash can return 503 “high demand”, 429 rate limits, or a timeout. The batch retries a page up to 3 times with backoff, then:
 
 - rate-limit 429s are retried;
-- quota/billing 429s pause the batch instead of looping;
-- after 3 consecutive failed pages the batch pauses;
-- a configured fallback model is tried after the primary's retry budget is exhausted.
+- quota/billing 429s, auth errors, and other terminal provider errors pause the batch immediately instead of looping;
+- after 3 consecutive retryable page failures the batch pauses;
+- a configured fallback model is tried after the primary's retry budget is exhausted, and the successful fallback is also used for verification.
 
 The worst case is a shortfall in the target count. The batch reports it and never invents questions to fill the gap.
 
@@ -86,4 +87,4 @@ Only `page_number`, `page`, `answer`, `explanation`, `source_quote`, and `source
 - PNG/JPEG page images only; PDF input stays in the existing AI Generate page.
 - One page image per generation call.
 - The batch runs in the local backend and the browser drives the step loop; a Vercel serverless function is not used for the long run.
-- Correction of existing questions is the next phase (Batch Studio's **Correct existing** tab); it updates in place and keeps question ids.
+- Correction of existing questions is the **Correct existing** tab; it updates in place and keeps question ids.

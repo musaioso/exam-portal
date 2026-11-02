@@ -10,7 +10,7 @@ router.use(requireAuth, requireRole("admin", "teacher"));
 
 const createSchema = z.object({
   subject_id: z.string().min(1),
-  chapter_id: z.string().optional(),
+  chapter_id: z.string().min(1),
   source_batch_id: z.string().min(1),
   question_ids: z.array(z.string()).optional(),
 });
@@ -25,9 +25,12 @@ router.post("/", async (req: Request, res: Response) => {
   if (String(batch.subject_id) !== input.subject_id) {
     return res.status(400).json({ error: "The source batch belongs to a different subject." });
   }
+  if (batch.chapter_id && String(batch.chapter_id) !== input.chapter_id) {
+    return res.status(400).json({ error: "The source batch belongs to a different chapter." });
+  }
 
   const id = randomUUID();
-  const chapterId = input.chapter_id || batch.chapter_id || null;
+  const chapterId = input.chapter_id;
   await run(db, `INSERT INTO correction_runs
     (id,subject_id,chapter_id,source_batch_id,status,created_by,created_at)
     VALUES (?,?,?,?,?,?,?)`,
@@ -49,7 +52,7 @@ router.post("/", async (req: Request, res: Response) => {
 
 router.post("/:id/step", async (req: Request, res: Response) => {
   try {
-    const result = await runCorrectionStep(req.params.id);
+    const result = await runCorrectionStep(String(req.params.id));
     res.json(result);
   } catch (error: any) {
     res.status(400).json({ error: error?.message || "The correction audit could not continue." });
@@ -61,7 +64,7 @@ const idsSchema = z.object({ item_ids: z.array(z.string().min(1)).min(1) });
 router.post("/:id/apply", async (req: Request, res: Response) => {
   const parsed = idsSchema.safeParse(req.body || {});
   if (!parsed.success) return res.status(400).json({ error: "item_ids[] required" });
-  const result = await applyCorrections(req.params.id, parsed.data.item_ids, req.user!.id);
+  const result = await applyCorrections(String(req.params.id), parsed.data.item_ids, req.user!.id);
   res.json(result);
 });
 
@@ -73,21 +76,21 @@ router.post("/:id/reject", async (req: Request, res: Response) => {
   const rejected = await runChanges(
     db,
     `UPDATE correction_items SET status='rejected' WHERE run_id=? AND id IN (${placeholders}) AND status='proposed'`,
-    [req.params.id, ...parsed.data.item_ids]
+    [String(req.params.id), ...parsed.data.item_ids]
   );
   res.json({ rejected });
 });
 
 router.post("/:id/undo", async (req: Request, res: Response) => {
-  const result = await undoCorrections(req.params.id, req.user!.id);
+  const result = await undoCorrections(String(req.params.id), req.user!.id);
   res.json(result);
 });
 
 router.get("/:id", async (req: Request, res: Response) => {
   const db = await getDb();
-  const correctionRun = await get(db, "SELECT * FROM correction_runs WHERE id=?", [req.params.id]);
+  const correctionRun = await get(db, "SELECT * FROM correction_runs WHERE id=?", [String(req.params.id)]);
   if (!correctionRun) return res.status(404).json({ error: "Correction run not found" });
-  const items = await all(db, "SELECT * FROM correction_items WHERE run_id=? ORDER BY created_at DESC LIMIT 500", [req.params.id]);
+  const items = await all(db, "SELECT * FROM correction_items WHERE run_id=? ORDER BY created_at DESC LIMIT 500", [String(req.params.id)]);
   const usage = await usageIndex();
   res.json({
     run: correctionRun,
