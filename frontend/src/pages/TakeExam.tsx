@@ -83,6 +83,8 @@ export default function TakeExam() {
   const flushingRef = useRef(false);
   const submittedRef = useRef(false);
   const autoRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** True while the visible submit error is just "answers still unsaved". */
+  const unsavedSubmitErrorRef = useRef(false);
 
   /** Mirrors the pending keys so the UI can show "Saving…" and a warning. */
   const [pendingQuestions, setPendingQuestions] = useState<string[]>([]);
@@ -125,6 +127,16 @@ export default function TakeExam() {
       flushingRef.current = false;
       syncPending();
       setSavingFailed(pendingRef.current.size > 0 && failed);
+      // The retry finally caught up: drop the "not saved" submit warning too.
+      if (pendingRef.current.size === 0 && !failed && unsavedSubmitErrorRef.current) {
+        unsavedSubmitErrorRef.current = false;
+        setSubmitError("");
+      }
+      // The student typed something newer while the request was in flight:
+      // send it right away instead of waiting for the next retry tick.
+      if (!failed && !submittedRef.current && pendingRef.current.size > 0) {
+        setTimeout(() => { flushPending(); }, 0);
+      }
     }
     return pendingRef.current.size;
   };
@@ -167,6 +179,7 @@ export default function TakeExam() {
       // Never submit while answers exist only in this tab.
       const unsaved = await flushPending();
       if (unsaved > 0) {
+        unsavedSubmitErrorRef.current = true;
         setSubmitError(
           `${unsaved} answer${unsaved > 1 ? "s are" : " is"} not saved yet. Your exam was not submitted — check your connection and press Submit again.`
         );
