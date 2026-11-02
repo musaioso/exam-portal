@@ -1,9 +1,11 @@
-import { getDb, run, all, execScript } from "./database";
+import path from "node:path";
+import { getDb, run, all, execScript, dbFilePath, storage } from "./database";
+import { backupDatabaseFile } from "./backup";
 
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "12";
+export const SCHEMA_VERSION = "13";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -146,6 +148,73 @@ CREATE TABLE IF NOT EXISTS ai_generations (
   created_at INTEGER NOT NULL
 );
 
+-- Strict batch generation: one run per chapter, one row per source page, and
+-- one row per generated candidate (accepted or rejected). Existing questions
+-- are never modified by a batch; questions.batch_id is a plain column so a
+-- batch delete cannot cascade into the bank.
+CREATE TABLE IF NOT EXISTS batch_runs (
+  id TEXT PRIMARY KEY,
+  subject_id TEXT NOT NULL,
+  chapter_id TEXT,
+  target_count INTEGER NOT NULL DEFAULT 50,
+  max_per_page INTEGER NOT NULL DEFAULT 5,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  fallback_models TEXT,
+  allow_vision_fallback INTEGER NOT NULL DEFAULT 0,
+  save_mode TEXT NOT NULL DEFAULT 'auto',
+  status TEXT NOT NULL DEFAULT 'draft',
+  generated INTEGER NOT NULL DEFAULT 0,
+  quote_ok INTEGER NOT NULL DEFAULT 0,
+  answer_ok INTEGER NOT NULL DEFAULT 0,
+  rejected INTEGER NOT NULL DEFAULT 0,
+  saved INTEGER NOT NULL DEFAULT 0,
+  consecutive_failures INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  completed_at INTEGER,
+  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+  FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS batch_pages (
+  id TEXT PRIMARY KEY,
+  batch_id TEXT NOT NULL,
+  page_number INTEGER,
+  resolved_page_number INTEGER,
+  source_file TEXT NOT NULL,
+  printed_number INTEGER,
+  audit_status TEXT NOT NULL DEFAULT 'unnumbered',
+  status TEXT NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  lease_until INTEGER,
+  last_error TEXT,
+  page_text TEXT,
+  image_path TEXT NOT NULL,
+  image_sha TEXT,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (batch_id) REFERENCES batch_runs(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_batch_pages_batch ON batch_pages(batch_id, status, page_number);
+
+CREATE TABLE IF NOT EXISTS batch_items (
+  id TEXT PRIMARY KEY,
+  batch_id TEXT NOT NULL,
+  page_number INTEGER,
+  status TEXT NOT NULL,
+  reason TEXT,
+  question_json TEXT,
+  source_quote TEXT,
+  source_file TEXT,
+  verifier_json TEXT,
+  verification_method TEXT,
+  prompt_hash TEXT,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (batch_id) REFERENCES batch_runs(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_batch_items_unique
+  ON batch_items(batch_id, page_number, prompt_hash);
+
 -- Undo log for chapter merges. Stores the deleted chapters and the question ids
 -- that were moved, so a merge can be reverted (up to the last few per subject).
 CREATE TABLE IF NOT EXISTS chapter_merge_history (
@@ -206,6 +275,16 @@ async function ensureColumn(db: any, table: string, name: string, definition: st
 
 export async function migrate() {
   const db = await getDb();
+  const versionRows = await all(db, "SELECT value FROM app_meta WHERE key='schema_version'").catch(() => []);
+  const current = versionRows[0]?.value ?? null;
+  if (current !== SCHEMA_VERSION) {
+    if (storage === "file") {
+      const dir = path.resolve(process.cwd(), "data/backups");
+      backupDatabaseFile(dbFilePath, dir, `v${current ?? "new"}`);
+    } else if (storage === "remote") {
+      console.warn("[migrate] remote database: download /api/backup before the first migration");
+    }
+  }
   await execScript(db, SCHEMA);
   // Lightweight migrations for existing databases
   await ensureColumn(db, "users", "pin", "TEXT");
@@ -228,6 +307,12 @@ export async function migrate() {
   await ensureColumn(db, "questions", "page", "TEXT");
   // v9: numeric page number for easier import/export
   await ensureColumn(db, "questions", "page_number", "INTEGER");
+  // v13: evidence fields for strict batch generation and in-place corrections
+  await ensureColumn(db, "questions", "batch_id", "TEXT");
+  await ensureColumn(db, "questions", "source_quote", "TEXT");
+  await ensureColumn(db, "questions", "source_file", "TEXT");
+  await ensureColumn(db, "questions", "verification", "TEXT");
+  await ensureColumn(db, "questions", "verification_method", "TEXT");
   await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('schema_version', ?)", [SCHEMA_VERSION]);
 }
 
