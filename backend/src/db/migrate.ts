@@ -3,7 +3,7 @@ import { getDb, run, all, execScript } from "./database";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "12";
+export const SCHEMA_VERSION = "13";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
   grade TEXT,
   section TEXT,
   pin TEXT,
+  is_test INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
 
@@ -228,6 +229,9 @@ export async function migrate() {
   await ensureColumn(db, "questions", "page", "TEXT");
   // v9: numeric page number for easier import/export
   await ensureColumn(db, "questions", "page_number", "INTEGER");
+  // v13: test accounts used to check the app; their attempts stay out of the
+  // class leaderboard (and other cross-student views).
+  await ensureColumn(db, "users", "is_test", "INTEGER NOT NULL DEFAULT 0");
   await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('schema_version', ?)", [SCHEMA_VERSION]);
 }
 

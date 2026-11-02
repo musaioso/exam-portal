@@ -54,7 +54,7 @@ router.get("/leaderboard", requireAuth, async (req: Request, res: Response) => {
     SELECT u.id, u.name, COUNT(*) as attempts, AVG(r.percentage) as average, MAX(r.percentage) as best
     FROM results r
     JOIN users u ON u.id = r.student_id
-    WHERE u.role = 'student'
+    WHERE u.role = 'student' AND COALESCE(u.is_test, 0) = 0
     GROUP BY u.id
     ORDER BY average DESC, attempts DESC, u.name ASC`);
   const table = (rows as any[]).map((r: any, i: number) => ({

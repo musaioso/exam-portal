@@ -75,3 +75,24 @@ test("a failed batch rolls the whole deletion back", async () => {
   const kept = await get(db, "SELECT attempt_id FROM question_challenges WHERE id=?", [challengeId]);
   assert.equal(kept.attempt_id, attempt.id);
 });
+
+test("a test student's results stay out of the class leaderboard", async () => {
+  const db = await getDb();
+  const real = await createUser("student", "Real Student");
+  const tester = await createUser("student", "TEST");
+  await run(db, "UPDATE users SET is_test=1 WHERE id=?", [tester.id]);
+  const q = await createQuestion();
+  const exam = await createExam({ subjectId: q.subjectId, questionIds: [q.id] });
+  await createAttempt({ examId: exam.id, studentId: real.id, answers: { [q.id]: "A" }, score: 1, total: 1 });
+  await createAttempt({ examId: exam.id, studentId: tester.id, answers: { [q.id]: "A" }, score: 0, total: 1 });
+
+  const res = await fetch(`${server.baseUrl}/api/exams/leaderboard`, { headers: auth(real.token) });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  const names = body.top.map((r: any) => r.name);
+  assert.ok(names.includes("Real Student"), "a real student is ranked");
+  assert.ok(!names.includes("TEST"), "the test student is not ranked");
+
+  const asTester = await (await fetch(`${server.baseUrl}/api/exams/leaderboard`, { headers: auth(tester.token) })).json();
+  assert.equal(asTester.me, null, "the test student has no leaderboard entry");
+});
