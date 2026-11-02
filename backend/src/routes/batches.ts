@@ -17,7 +17,7 @@ import {
   confirmBatchPage,
   undoBatch,
 } from "../services/batch/store";
-import { runNextPage } from "../services/batch/run";
+import { runNextPage, MAX_PAGE_ATTEMPTS } from "../services/batch/run";
 
 const router = Router();
 router.use(requireAuth, requireRole("admin", "teacher"));
@@ -110,6 +110,23 @@ router.post("/:id/resume", async (req: Request, res: Response) => {
   const db = await getDb();
   await run(db, "UPDATE batch_runs SET status='running', consecutive_failures=0 WHERE id=?", [String(req.params.id)]);
   res.json({ ok: true, status: "running" });
+});
+
+router.post("/:id/top-up", async (req: Request, res: Response) => {
+  const db = await getDb();
+  const batchId = String(req.params.id);
+  const batch = await get(db, "SELECT target_count,saved FROM batch_runs WHERE id=?", [batchId]);
+  if (!batch) return res.status(404).json({ error: "Batch not found" });
+  if (Number(batch.saved) >= Number(batch.target_count)) {
+    return res.json({ ok: true, status: "done", reason: "Target already reached." });
+  }
+  await run(
+    db,
+    "UPDATE batch_pages SET status='pending', lease_until=NULL, last_error=NULL WHERE batch_id=? AND status IN ('done','failed') AND attempts < ?",
+    [batchId, MAX_PAGE_ATTEMPTS]
+  );
+  await run(db, "UPDATE batch_runs SET status='running', consecutive_failures=0 WHERE id=?", [batchId]);
+  res.json({ ok: true });
 });
 
 router.post("/:id/retry-failed", async (req: Request, res: Response) => {

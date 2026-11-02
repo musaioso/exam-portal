@@ -34,6 +34,13 @@ Batch Studio builds a large pool of unique, evidence-checked MCQs from scanned t
 - Keep the tab open while the run is active. Closing the tab stops the browser loop; reopen the batch from **Recent batches** and click **Resume**. Completed pages are skipped.
 - **Recent batches** lists the last runs so a closed or reloaded tab can reopen, resume, inspect evidence, or undo a batch.
 
+### Target and top-up
+
+- The **target is exact**: accepted questions are capped at the remaining target, so a page cannot overshoot it.
+- **Max per page** is a cap, not a quota. The model may return fewer if the page does not support that many distinct facts.
+- If the pages finish below the target, click **Generate remaining**. It revisits completed pages (up to 4 attempts each), passes the existing questions as an avoid list, and keeps generating.
+- If the source is genuinely exhausted, the batch stops and shows the shortfall instead of inventing questions.
+
 ### Evidence gates
 
 A question is saved only when:
@@ -41,7 +48,7 @@ A question is saved only when:
 1. It has exactly 4 unique options and the answer is copied from one option.
 2. Its `source_quote` matches the text of the cited page image (OCR, or a flagged vision fallback when enabled).
 3. Every number in the question/options/answer appears on that page.
-4. A second verifier pass says the quote supports the answer and no outside term is used.
+4. A second verifier pass says the quote supports the answer and the question stem / correct answer use no outside term. Distractor options may be plausible alternatives not on the page.
 5. Its normalized prompt is not already in the bank or earlier in the batch.
 
 Rejected rows stay in the evidence table with a reason. They never enter the bank.
@@ -87,4 +94,5 @@ Only `page_number`, `page`, `answer`, `explanation`, `source_quote`, and `source
 - PNG/JPEG page images only; PDF input stays in the existing AI Generate page.
 - One page image per generation call.
 - The batch runs in the local backend and the browser drives the step loop; a Vercel serverless function is not used for the long run.
+- Ollama (local) is supported. A 4B vision model on CPU is slower than a cloud Gemini Flash model; use `gemini-3.5-flash` for production-quality batches if local inference is too slow.
 - Correction of existing questions is the **Correct existing** tab; it updates in place and keeps question ids.

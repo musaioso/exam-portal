@@ -182,6 +182,74 @@ test("a verifier failure marks the page failed instead of aborting the step", as
   assert.match(String(page[0].last_error), /verifier 503/);
 });
 
+test("tops up completed pages until the target is reached", async () => {
+  const db = await getDb();
+  const subjectId = randomUUID();
+  const batchId = randomUUID();
+  await run(db, "INSERT INTO subjects (id,name,slug,created_at) VALUES (?,?,?,?)", [subjectId, "S", `s-${subjectId}`, Date.now()]);
+  await run(db, `INSERT INTO batch_runs (id,subject_id,provider,model,target_count,max_per_page,status,created_by,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?)`, [batchId, subjectId, "google", "m", 2, 1, "running", "t", Date.now()]);
+  await run(db, `INSERT INTO batch_pages (id,batch_id,page_number,resolved_page_number,source_file,audit_status,status,image_path,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?)`,
+    [randomUUID(), batchId, 55, 55, "BGS conv 55.png", "confirmed", "pending", testImage, Date.now()]);
+
+  let calls = 0;
+  const cfg = { id: "fake", label: "Fake", baseURL: "http://fake", chatStyle: "google" as const };
+  const deps = {
+    ocrPage: async () => "The Padma is the main river of Bangladesh.",
+    getProviderConfig: async () => cfg,
+    retry: { attempts: 1, sleep: async () => {} },
+    generatePage: async () => {
+      calls++;
+      return [{ type: "mcq" as const, difficulty: "easy" as const, prompt: `Question ${calls}?`, options: ["Padma", "Jamuna", "Meghna", "Karnaphuli"], answer: "Padma", explanation: "x", sourceQuote: "The Padma is the main river of Bangladesh.", marks: 1 }];
+    },
+    verifyCandidates: async () => [{ index: 0, valid: true }],
+  };
+
+  await runNextPage(batchId, deps);
+  await runNextPage(batchId, deps);
+  await runNextPage(batchId, deps);
+
+  const runRow = await all(db, "SELECT saved,status FROM batch_runs WHERE id=?", [batchId]);
+  assert.equal(runRow[0].saved, 2);
+  assert.equal(runRow[0].status, "done");
+  const pages = await all(db, "SELECT attempts,status FROM batch_pages WHERE batch_id=?", [batchId]);
+  assert.equal(pages[0].attempts, 2);
+  assert.equal(pages[0].status, "done");
+});
+
+test("caps a page at the remaining target", async () => {
+  const db = await getDb();
+  const subjectId = randomUUID();
+  const batchId = randomUUID();
+  await run(db, "INSERT INTO subjects (id,name,slug,created_at) VALUES (?,?,?,?)", [subjectId, "S", `s-${subjectId}`, Date.now()]);
+  await run(db, `INSERT INTO batch_runs (id,subject_id,provider,model,target_count,max_per_page,status,created_by,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?)`, [batchId, subjectId, "google", "m", 2, 5, "running", "t", Date.now()]);
+  await run(db, `INSERT INTO batch_pages (id,batch_id,page_number,resolved_page_number,source_file,audit_status,status,image_path,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?)`,
+    [randomUUID(), batchId, 55, 55, "BGS conv 55.png", "confirmed", "pending", testImage, Date.now()]);
+
+  const cfg = { id: "fake", label: "Fake", baseURL: "http://fake", chatStyle: "google" as const };
+  const result = await runNextPage(batchId, {
+    ocrPage: async () => "The Padma is the main river of Bangladesh.",
+    getProviderConfig: async () => cfg,
+    retry: { attempts: 1, sleep: async () => {} },
+    generatePage: async () => [1, 2, 3].map((n) => ({
+      type: "mcq" as const, difficulty: "easy" as const, prompt: `Question ${n}?`,
+      options: ["Padma", "Jamuna", "Meghna", "Karnaphuli"], answer: "Padma", explanation: "x",
+      sourceQuote: "The Padma is the main river of Bangladesh.", marks: 1,
+    })),
+    verifyCandidates: async () => [{ index: 0, valid: true }, { index: 1, valid: true }, { index: 2, valid: true }],
+  });
+
+  assert.equal(result.imported, 2);
+  const rows = await all(db, "SELECT id FROM questions WHERE batch_id=?", [batchId]);
+  assert.equal(rows.length, 2);
+  const runRow = await all(db, "SELECT saved,status FROM batch_runs WHERE id=?", [batchId]);
+  assert.equal(runRow[0].saved, 2);
+  assert.equal(runRow[0].status, "done");
+});
+
 test("a live lease returns waiting, not done", async () => {
   const db = await getDb();
   const subjectId = randomUUID();

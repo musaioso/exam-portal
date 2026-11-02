@@ -5,6 +5,7 @@ import {
   pauseBatch,
   resumeBatch,
   retryFailed,
+  topUpBatch,
   type Batch,
   type StepResult,
 } from "../../lib/batch";
@@ -76,6 +77,13 @@ export default function RunPanel({ batchId }: { batchId: string | null }) {
   const retry = async () => {
     if (!batchId) return;
     await retryFailed(batchId);
+    await load();
+    await run();
+  };
+
+  const topUp = async () => {
+    if (!batchId) return;
+    await topUpBatch(batchId);
     await load();
     await run();
   };
@@ -165,7 +173,19 @@ export default function RunPanel({ batchId }: { batchId: string | null }) {
             className="rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800/60 disabled:opacity-50">
             Retry failed pages
           </button>
+          {status === "done" && saved < target && (
+            <button type="button" onClick={topUp} disabled={busy}
+              className="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+              Generate remaining ({target - saved})
+            </button>
+          )}
         </div>
+
+        {status === "done" && saved < target && (
+          <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            Short of target: {saved} of {target} saved. Generate remaining will revisit the pages with the existing questions as an avoid list.
+          </p>
+        )}
 
         {running && <p className="text-xs text-slate-500">Keep this tab open while the batch runs. Each page is saved as it passes.</p>}
       </section>

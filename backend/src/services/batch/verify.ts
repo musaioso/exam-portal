@@ -124,7 +124,7 @@ export async function verifyCandidates(args: {
         rejected.push({ index, valid: false, reason: "quote not found on page", method: "ocr" });
         return;
       }
-      if (missingNumbers(pageText, [candidate.prompt, ...candidate.options, candidate.answer].join(" ")).length > 0) {
+      if (missingNumbers(pageText, [candidate.prompt, candidate.answer].join(" ")).length > 0) {
         rejected.push({ index, valid: false, reason: "number not found on page", method: "ocr" });
         return;
       }
@@ -147,8 +147,10 @@ export async function verifyCandidates(args: {
       role: "system",
       content:
         "Use only the attached textbook page. For each item return a JSON array of " +
-        '{"index":number,"valid":boolean,"reason":"..."}. Valid only if the quote is on the page, ' +
-        "supports the answer, and no term or number in the question, options, or answer is absent from the page.",
+        '{"index":number,"valid":boolean,"reason":"..."}. Valid only if the quote is on the page and ' +
+        "supports the answer. The question stem and correct answer must not use a term, classification, " +
+        "or number absent from the page. Distractor options MAY be plausible alternatives not on the page; " +
+        "do not reject solely because a distractor is absent.",
     },
     {
       role: "user",
@@ -158,7 +160,7 @@ export async function verifyCandidates(args: {
   ];
 
   const chat = args.deps?.chat ?? chatComplete;
-  const result = await chat(cfg, model, messages);
+  const result = await chat(cfg, model, messages, { maxTokens: 600 });
   const verdicts = extractVerdicts(result.text);
   const byIndex = new Map<number, any>();
   for (const v of verdicts) {

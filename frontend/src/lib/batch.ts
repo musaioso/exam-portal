@@ -125,6 +125,11 @@ export async function retryFailed(batchId: string) {
   return data;
 }
 
+export async function topUpBatch(batchId: string) {
+  const { data } = await api.post(`/batches/${batchId}/top-up`);
+  return data;
+}
+
 export async function undoBatch(batchId: string) {
   const { data } = await api.delete(`/batches/${batchId}`);
   return data as { deleted: number };

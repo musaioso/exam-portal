@@ -74,7 +74,8 @@ export async function auditQuestion(
     {
       role: "system",
       content:
-        "Use only the attached textbook page. Check the question and keyed answer against that page. " +
+        "Use only the attached textbook page. Check the question stem and keyed answer against that page. " +
+        "Distractor options may be plausible alternatives not on the page; do not reject solely because a distractor is absent. " +
         'Return JSON only: {"supported":boolean,"quote":"verbatim sentence from the page",' +
         '"correctAnswer":"optional exact option text","outsideTerm":"optional term not on the page","reason":"optional"}',
     },
@@ -131,6 +132,9 @@ export async function auditQuestion(
 
 async function loadPages(batchId: string): Promise<CorrectionPage[]> {
   const db = await getDb();
+  const batch = await get(db, "SELECT subject_id FROM batch_runs WHERE id=?", [batchId]);
+  const subject = batch ? await get(db, "SELECT slug FROM subjects WHERE id=?", [batch.subject_id]) : null;
+  const ocrLangs = String(subject?.slug || "").startsWith("bangla") ? ["ben", "eng"] : ["eng"];
   const rows = await all(
     db,
     "SELECT page_number,resolved_page_number,page_text,image_path,source_file FROM batch_pages WHERE batch_id=? AND resolved_page_number IS NOT NULL ORDER BY resolved_page_number",
@@ -147,7 +151,7 @@ async function loadPages(batchId: string): Promise<CorrectionPage[]> {
     }
     if (!text && image.length) {
       try {
-        text = await ocrImage(image, ["eng", "ben"]);
+        text = await ocrImage(image, ocrLangs);
         if (text) await run(db, "UPDATE batch_pages SET page_text=? WHERE batch_id=? AND resolved_page_number=?", [text, batchId, row.resolved_page_number]);
       } catch {
         text = "";

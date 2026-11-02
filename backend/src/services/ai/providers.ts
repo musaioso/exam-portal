@@ -35,6 +35,9 @@ const env = (...names: string[]): string | undefined => {
   return undefined;
 };
 
+const ollamaRoot = () => (env("OLLAMA_HOST") || "http://127.0.0.1:11434").replace(/\/$/, "").replace(/\/v1$/, "");
+const ollamaBase = () => `${ollamaRoot()}/v1`;
+
 const json = async (url: string, headers: Record<string, string> = {}, timeoutMs = 15_000): Promise<any> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -170,8 +173,7 @@ async function fetchOpenRouterModels(_key?: string): Promise<ModelInfo[]> {
 }
 
 async function fetchOllamaModels(_key?: string): Promise<ModelInfo[]> {
-  const host = env("OLLAMA_HOST")!;
-  const data = await json(`${host.replace(/\/$/, "")}/api/tags`);
+  const data = await json(`${ollamaRoot()}/api/tags`);
   return (data?.models || []).map((m: any) => ({ id: String(m.name || "") })).filter((m: ModelInfo) => m.id);
 }
 
@@ -310,7 +312,7 @@ const PROVIDERS: ProviderDef[] = [
     label: "Ollama (local)",
     keyEnv: [],
     extraEnableEnv: ["OLLAMA_HOST"],
-    baseURL: env("OLLAMA_HOST")?.replace(/\/$/, "") || "http://127.0.0.1:11434/v1",
+    baseURL: ollamaBase(),
     chatStyle: "openai",
     fetchModels: fetchOllamaModels,
   },

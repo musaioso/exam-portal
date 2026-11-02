@@ -6,6 +6,8 @@ export interface GenerationMeta {
   pageNumber: number;
   chapterTitle: string;
   maxQuestions: number;
+  /** Questions already in the bank; the model must not repeat them. */
+  avoidPrompts?: string[];
 }
 
 export interface Candidate {
@@ -29,11 +31,15 @@ Rules:
 - sourceQuote must be an exact sentence from the page that supports the answer.
 - Do not return a page number; the system assigns it.
 - Never write "according to page", "on page", "as stated in", "according to the textbook/Table/Figure", or an exercise reference.
-- Write at most the requested number of questions. Fewer is fine; never invent to fill the count.`;
+- Write up to the requested number of distinct questions. If the page supports that many different facts, produce that many. Never repeat an existing question and never invent facts to fill the count.`;
 
 const BANNED = /according to page|on page \d|as stated in|according to the textbook|according to table|according to figure|পাঠ্যবই অনুযায়ী/i;
 
 export function buildStrictMessages(meta: GenerationMeta): ChatMessage[] {
+  const avoid = (meta.avoidPrompts || [])
+    .slice(0, 300)
+    .map((prompt) => `- ${String(prompt).slice(0, 200)}`)
+    .join("\n");
   return [
     { role: "system", content: SYSTEM_PROMPT },
     {
@@ -41,7 +47,8 @@ export function buildStrictMessages(meta: GenerationMeta): ChatMessage[] {
       content:
         `Chapter: ${meta.chapterTitle}\n` +
         `Book page: ${meta.pageNumber}\n` +
-        `Write at most ${meta.maxQuestions} questions from the attached page image.`,
+        `Write up to ${meta.maxQuestions} distinct questions from the attached page image.` +
+        (avoid ? `\n\nDo not repeat or rephrase any of these existing questions:\n${avoid}` : ""),
     },
   ];
 }
@@ -119,7 +126,7 @@ export async function generatePage(
   const user = messages.find((m) => m.role === "user");
   if (user) user.images = [{ mimeType, data: image.toString("base64") }];
   const chat = deps.chat ?? chatComplete;
-  const result = await chat(cfg, model, messages);
+  const result = await chat(cfg, model, messages, { maxTokens: 1200 });
   const items = parseStrictReply(result.text);
   if (items.length === 0) {
     throw new Error("The model returned no valid questions for this page.");

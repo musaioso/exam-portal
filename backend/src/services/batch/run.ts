@@ -17,6 +17,9 @@ export interface StepResult {
   reason?: string;
 }
 
+/** How many times one page may be revisited to top up the target. */
+export const MAX_PAGE_ATTEMPTS = 4;
+
 type GenerateFn = typeof realGeneratePage;
 type VerifyFn = typeof realVerifyCandidates;
 type ConfigFn = typeof getProviderConfig;
@@ -73,6 +76,29 @@ export async function runNextPage(
     if (Number(live?.n ?? 0) > 0) {
       return { status: "waiting", page: null, imported: 0, rejected: 0, reason: "A page is already running; retry shortly." };
     }
+    const target = Number(runRow.target_count) || 0;
+    const saved = Number(runRow.saved) || 0;
+    if (saved < target) {
+      const resettable = await get(
+        db,
+        "SELECT COUNT(*) AS n FROM batch_pages WHERE batch_id=? AND status='done' AND attempts < ?",
+        [batchId, MAX_PAGE_ATTEMPTS]
+      );
+      if (Number(resettable?.n ?? 0) > 0) {
+        await run(
+          db,
+          "UPDATE batch_pages SET status='pending', lease_until=NULL, last_error=NULL WHERE batch_id=? AND status='done' AND attempts < ?",
+          [batchId, MAX_PAGE_ATTEMPTS]
+        );
+        return {
+          status: "running",
+          page: null,
+          imported: 0,
+          rejected: 0,
+          reason: `Top-up pass: ${saved} of ${target} saved`,
+        };
+      }
+    }
     const pending = await get(db, "SELECT COUNT(*) AS n FROM batch_pages WHERE batch_id=? AND status='pending'", [batchId]);
     if (Number(pending?.n ?? 0) === 0) {
       await run(db, "UPDATE batch_runs SET status='done', completed_at=? WHERE id=? AND status='running'", [Date.now(), batchId]);
@@ -115,7 +141,9 @@ export async function runNextPage(
   let pageText = String(page.page_text || "");
   if (!pageText) {
     try {
-      const read = deps.ocrPage ?? ((b: Buffer) => ocrImage(b, ["eng", "ben"]));
+      const subject = await get(db, "SELECT slug FROM subjects WHERE id=?", [runRow.subject_id]);
+      const ocrLangs = String(subject?.slug || "").startsWith("bangla") ? ["ben", "eng"] : ["eng"];
+      const read = deps.ocrPage ?? ((b: Buffer) => ocrImage(b, ocrLangs));
       pageText = await read(image);
     } catch {
       pageText = "";
@@ -123,10 +151,16 @@ export async function runNextPage(
     if (pageText) await run(db, "UPDATE batch_pages SET page_text=? WHERE id=?", [pageText, page.id]);
   }
 
+  const bankPrompts = await all(
+    db,
+    "SELECT prompt FROM questions WHERE subject_id=? ORDER BY created_at DESC LIMIT 300",
+    [runRow.subject_id]
+  );
   const meta = {
     pageNumber: Number(page.resolved_page_number),
     chapterTitle: String(chapter?.title || ""),
     maxQuestions: Number(runRow.max_per_page) || 5,
+    avoidPrompts: bankPrompts.map((row: any) => String(row.prompt)).filter(Boolean),
   };
 
   let fallbacks: Array<{ provider: string; model: string }> = [];
@@ -218,6 +252,9 @@ export async function runNextPage(
   const existing = new Set(existingRows.map((r: any) => normalizeText(String(r.prompt))));
   const itemRows = await all(db, "SELECT prompt_hash FROM batch_items WHERE batch_id=?", [batchId]);
   const seenHashes = new Set(itemRows.map((r: any) => r.prompt_hash).filter(Boolean) as string[]);
+  const target = Number(runRow.target_count) || 0;
+  const savedBefore = Number(runRow.saved) || 0;
+  const remaining = Math.max(0, target - savedBefore);
 
   const statements: Array<{ sql: string; params: any[] }> = [];
   let imported = 0;
@@ -226,6 +263,7 @@ export async function runNextPage(
   let answerOk = 0;
 
   candidates.forEach((candidate, index) => {
+    if (imported >= remaining) return;
     const verdict = verdictByIndex.get(index);
     const verificationJson = JSON.stringify({ ...(verdict || {}), provider: chosen.provider, model: chosen.model });
     const valid = verdict?.valid === true;
@@ -295,13 +333,26 @@ export async function runNextPage(
   await batch(db, statements);
 
   const after = await get(db, "SELECT saved,target_count FROM batch_runs WHERE id=?", [batchId]);
+  const saved = Number(after?.saved ?? 0);
+  const targetCount = Number(after?.target_count ?? 0);
   const pending = await get(
     db,
     "SELECT COUNT(*) AS n FROM batch_pages WHERE batch_id=? AND status IN ('pending','running')",
     [batchId]
   );
+  let shouldFinish = saved >= targetCount || Number(pending?.n ?? 0) === 0;
+  if (!shouldFinish) {
+    // A pending page remains; keep running.
+  } else if (saved < targetCount && Number(pending?.n ?? 0) === 0) {
+    const resettable = await get(
+      db,
+      "SELECT COUNT(*) AS n FROM batch_pages WHERE batch_id=? AND status='done' AND attempts < ?",
+      [batchId, MAX_PAGE_ATTEMPTS]
+    );
+    shouldFinish = Number(resettable?.n ?? 0) === 0;
+  }
   let status = "running";
-  if (Number(after?.saved ?? 0) >= Number(after?.target_count ?? 0) || Number(pending?.n ?? 0) === 0) {
+  if (shouldFinish) {
     await run(db, "UPDATE batch_runs SET status='done', completed_at=? WHERE id=?", [Date.now(), batchId]);
     status = "done";
   }

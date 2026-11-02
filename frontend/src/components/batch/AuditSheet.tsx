@@ -41,6 +41,24 @@ function PageRow({ page, onConfirm }: { page: BatchPage; onConfirm: (file: strin
             >
               Use printed {page.printed_number}
             </button>
+            <span className="flex items-center gap-1">
+              <input
+                type="number"
+                min={1}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="w-16 rounded-lg border border-slate-700/60 bg-slate-900/60 px-2 py-1 text-xs"
+                aria-label="Enter the correct printed page number"
+              />
+              <button
+                type="button"
+                disabled={!value}
+                className="rounded-lg bg-indigo-500 px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
+                onClick={() => onConfirm(page.source_file, Number(value))}
+              >
+                Use entered
+              </button>
+            </span>
           </div>
         ) : (
           <div className="flex items-center gap-1">
