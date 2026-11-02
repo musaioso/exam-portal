@@ -1,9 +1,10 @@
 import { getDb, run, all, execScript } from "./database";
+import { parseChapterHeading } from "../lib/chapter";
 
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "13";
+export const SCHEMA_VERSION = "14";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -232,6 +233,34 @@ export async function migrate() {
   // v13: test accounts used to check the app; their attempts stay out of the
   // class leaderboard (and other cross-student views).
   await ensureColumn(db, "users", "is_test", "INTEGER NOT NULL DEFAULT 0");
+  // v14: chapter numbers must match the number written in the title, and that
+  // prefix no longer belongs in the stored title (the UI prints "Ch. N — title",
+  // which produced "Ch. 1 — CH. 11: …"). Range/multi-chapter headings keep both
+  // their number and their title. Idempotent: clean titles parse to no prefix.
+  const chapterRows = (await all(db, "SELECT id, number, title, title_bn FROM chapters")) as any[];
+  for (const ch of chapterRows) {
+    const fromTitle = parseChapterHeading(ch.title);
+    const fromBn = ch.title_bn != null ? parseChapterHeading(ch.title_bn) : null;
+    const number = fromTitle.number ?? fromBn?.number ?? null;
+    const sets: string[] = [];
+    const params: any[] = [];
+    if (number != null && number !== Number(ch.number)) {
+      sets.push("number=?");
+      params.push(number);
+    }
+    if (fromTitle.title !== ch.title) {
+      sets.push("title=?");
+      params.push(fromTitle.title);
+    }
+    if (fromBn && fromBn.title !== ch.title_bn) {
+      sets.push("title_bn=?");
+      params.push(fromBn.title);
+    }
+    if (sets.length > 0) {
+      params.push(ch.id);
+      await run(db, `UPDATE chapters SET ${sets.join(", ")} WHERE id=?`, params);
+    }
+  }
   await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('schema_version', ?)", [SCHEMA_VERSION]);
 }
 

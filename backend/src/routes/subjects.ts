@@ -2,12 +2,9 @@ import { Router, Request, Response } from "express";
 import { randomUUID as uuid } from "node:crypto";
 import { getDb, run, get, all } from "../db/database";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { parseChapterHeading } from "../lib/chapter";
 
 const router = Router();
-
-function toAsciiDigits(value: string): string {
-  return String(value || "").replace(/[০-৯]/g, (d) => String(d.charCodeAt(0) - "০".charCodeAt(0)));
-}
 
 // Subjects
 router.get("/", async (_req, res) => {
@@ -135,14 +132,12 @@ router.post("/:subjectId/chapters/merge", requireAuth, requireRole("admin", "tea
     await run(db, `DELETE FROM chapter_merge_history WHERE id IN (${ph})`, toDelete);
   }
 
-  // Renumber the canonical chapter to its poricched number when it is a single poricched.
+  // Renumber the canonical chapter to its heading number when it has a single
+  // one; range/multi-chapter headings keep their existing number.
   const canonRow = await get(db, "SELECT title FROM chapters WHERE id=?", [canonical_id]);
-  const cm = String(canonRow?.title || "").match(/^পরিচ্ছেদ\s*([০-৯0-9]+)(\s*[-–—,]\s*[০-৯0-9]+|\s+(?:ও|এবং|and|to)\s+[০-৯0-9]+)?/);
-  if (cm && !cm[2]) {
-    const num = Number(toAsciiDigits(cm[1]));
-    if (Number.isFinite(num) && num > 0) {
-      await run(db, "UPDATE chapters SET number=? WHERE id=?", [num, canonical_id]);
-    }
+  const canonNumber = parseChapterHeading(String(canonRow?.title || "")).number;
+  if (canonNumber != null && canonNumber > 0) {
+    await run(db, "UPDATE chapters SET number=? WHERE id=?", [canonNumber, canonical_id]);
   }
 
   res.json({ ok: true, merged: ids.length, moved_questions: movedCount, deleted, history_id: historyId });
@@ -150,20 +145,57 @@ router.post("/:subjectId/chapters/merge", requireAuth, requireRole("admin", "tea
 
 router.post("/:subjectId/chapters", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const { number, title, title_bn, summary } = req.body || {};
-  if (!title) return res.status(400).json({ error: "Missing title" });
+  if (!title || !String(title).trim()) return res.status(400).json({ error: "Missing title" });
+  const heading = parseChapterHeading(String(title));
+  const headingBn = title_bn ? parseChapterHeading(String(title_bn)) : null;
+  // The number in the title is the book's number and wins over the number the
+  // form happened to send; a range heading has no single number, so keep that.
+  const explicitNumber = Number.isFinite(Number(number)) && Number(number) > 0 ? Number(number) : 1;
+  const chapterNumber = heading.number ?? headingBn?.number ?? explicitNumber;
+  const chapterTitle = heading.title;
+  const chapterTitleBn = headingBn ? headingBn.title : null;
   const db = await getDb();
   const id = uuid();
   await run(db, "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,created_at) VALUES (?,?,?,?,?,?,?)",
-    [id, req.params.subjectId, number || 1, title, title_bn || null, summary || null, Date.now()]);
-  res.json({ chapter: { id, title } });
+    [id, req.params.subjectId, chapterNumber, chapterTitle, chapterTitleBn, summary || null, Date.now()]);
+  res.json({ chapter: { id, number: chapterNumber, title: chapterTitle } });
 });
 
 router.put("/chapters/:id", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const { number, title, title_bn, summary } = req.body || {};
+  if (title !== undefined && !String(title).trim()) return res.status(400).json({ error: "Missing title" });
   const db = await getDb();
-  await run(db, "UPDATE chapters SET number=COALESCE(?,number), title=COALESCE(?,title), title_bn=COALESCE(?,title_bn), summary=COALESCE(?,summary) WHERE id=?",
-    [number, title, title_bn, summary, req.params.id]);
-  res.json({ ok: true });
+  const existing = await get(db, "SELECT number, title, title_bn FROM chapters WHERE id=?", [req.params.id]);
+  if (!existing) return res.status(404).json({ error: "Chapter not found" });
+
+  let chapterNumber = Number.isFinite(Number(number)) && Number(number) > 0 ? Number(number) : Number(existing.number);
+  let chapterTitle = existing.title;
+  let chapterTitleBn = existing.title_bn;
+
+  // Parse the heading(s) being written. The main title wins over title_bn, and
+  // either wins over an explicit `number`, so the stored pair cannot drift apart.
+  let titleNumber: number | null = null;
+  let bnNumber: number | null = null;
+  if (title !== undefined) {
+    const heading = parseChapterHeading(String(title));
+    chapterTitle = heading.title;
+    titleNumber = heading.number;
+  }
+  if (title_bn !== undefined) {
+    if (title_bn) {
+      const headingBn = parseChapterHeading(String(title_bn));
+      chapterTitleBn = headingBn.title;
+      bnNumber = headingBn.number;
+    } else {
+      chapterTitleBn = null;
+    }
+  }
+  const parsedNumber = titleNumber ?? bnNumber;
+  if (parsedNumber != null && parsedNumber > 0) chapterNumber = parsedNumber;
+
+  await run(db, "UPDATE chapters SET number=?, title=?, title_bn=?, summary=COALESCE(?,summary) WHERE id=?",
+    [chapterNumber, chapterTitle, chapterTitleBn, summary, req.params.id]);
+  res.json({ ok: true, chapter: { number: chapterNumber, title: chapterTitle } });
 });
 
 router.delete("/chapters/:id", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
@@ -176,19 +208,34 @@ router.delete("/chapters/:id", requireAuth, requireRole("admin", "teacher"), asy
   res.json({ ok: true });
 });
 
-// Renumber every chapter in a subject to its poricched number (single poricched
-// only). Range/multi-poricched titles keep their existing number.
+// Renumber every chapter in a subject from its heading and remove the number
+// prefix from the stored title. Range/multi-chapter titles keep their existing
+// number and stay untouched.
 router.post("/:subjectId/chapters/renumber", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const db = await getDb();
-  const chapters = (await all(db, "SELECT id, title, number FROM chapters WHERE subject_id=?", [req.params.subjectId])) as any[];
+  const chapters = (await all(db, "SELECT id, title, title_bn, number FROM chapters WHERE subject_id=?", [req.params.subjectId])) as any[];
   let updated = 0;
   for (const ch of chapters) {
-    const m = String(ch.title || "").match(/^পরিচ্ছেদ\s*([০-৯0-9]+)(\s*[-–—,]\s*[০-৯0-9]+|\s+(?:ও|এবং|and|to)\s+[০-৯0-9]+)?/);
-    if (!m || m[2]) continue; // skip ranges / non-poricched
-    const num = Number(toAsciiDigits(m[1]));
-    if (!Number.isFinite(num) || num <= 0) continue;
-    if (num === Number(ch.number)) continue;
-    await run(db, "UPDATE chapters SET number=? WHERE id=?", [num, ch.id]);
+    const fromTitle = parseChapterHeading(ch.title);
+    const fromBn = ch.title_bn != null ? parseChapterHeading(ch.title_bn) : null;
+    const number = fromTitle.number ?? fromBn?.number ?? null;
+    const sets: string[] = [];
+    const params: any[] = [];
+    if (number != null && number !== Number(ch.number)) {
+      sets.push("number=?");
+      params.push(number);
+    }
+    if (fromTitle.title !== ch.title) {
+      sets.push("title=?");
+      params.push(fromTitle.title);
+    }
+    if (fromBn && fromBn.title !== ch.title_bn) {
+      sets.push("title_bn=?");
+      params.push(fromBn.title);
+    }
+    if (sets.length === 0) continue;
+    params.push(ch.id);
+    await run(db, `UPDATE chapters SET ${sets.join(", ")} WHERE id=?`, params);
     updated++;
   }
   res.json({ ok: true, updated });

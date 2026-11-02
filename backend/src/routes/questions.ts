@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from "../middleware/auth";
 import { normalizeText } from "../lib/text";
 import { latestChallengesByQuestion } from "../lib/challenges";
 import { parseSourcePage } from "../lib/page";
+import { parseChapterHeading, toAsciiDigits } from "../lib/chapter";
 
 const router = Router();
 
@@ -392,8 +393,10 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
     return null;
   };
 
-  // Resolve a chapter: by id, by number, or by title (case-insensitive). If a
-  // title is given but no such chapter exists yet, create it as the next number.
+  // Resolve a chapter: by id, by heading/title, or by number. The number written
+  // in the title ("CH. 04: …") is the book's number and wins over the separate
+  // `chapter_number` field, so an import cannot recreate the old mismatch. If a
+  // title is given but no such chapter exists yet, create it with that number.
   const resolveChapterId = async (
     subjectId: string,
     o: { chapter_id?: any; chapter_number?: any; chapter_title?: string }
@@ -402,22 +405,39 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
       const c = await get(db, "SELECT id FROM chapters WHERE id=? AND subject_id=?", [o.chapter_id, subjectId]) as any;
       if (c) return c.id;
     }
+    const rawTitle = String(o.chapter_title || "").trim();
+    const heading = rawTitle ? parseChapterHeading(rawTitle) : null;
+    const title = heading ? heading.title : "";
+    let explicitNumber: number | null = null;
     if (o.chapter_number != null && o.chapter_number !== "") {
-      const c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND number=?", [subjectId, Number(o.chapter_number)]) as any;
-      if (c) return c.id;
+      const parsed = Number(toAsciiDigits(String(o.chapter_number)));
+      if (Number.isFinite(parsed) && parsed > 0) explicitNumber = parsed;
     }
-    const title = (o.chapter_title || "").trim();
+    const number = heading?.number ?? explicitNumber;
+
     if (title) {
+      // Prefer the identity the title names; legacy rows may still hold the
+      // un-stripped heading, so try that spelling before falling back to number.
       let c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND (title=? COLLATE NOCASE OR title_bn=? COLLATE NOCASE)", [subjectId, title, title]) as any;
+      if (!c && rawTitle !== title) {
+        c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND (title=? COLLATE NOCASE OR title_bn=? COLLATE NOCASE)", [subjectId, rawTitle, rawTitle]) as any;
+      }
+      if (!c && number != null) {
+        c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND number=?", [subjectId, number]) as any;
+      }
       if (!c) {
         const mx = await get(db, "SELECT MAX(number) as m FROM chapters WHERE subject_id=?", [subjectId]) as any;
-        const number = (mx && mx.m ? Number(mx.m) : 0) + 1;
+        const nextNumber = number ?? ((mx && mx.m ? Number(mx.m) : 0) + 1);
         const cid = uuid();
         await run(db, "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,created_at) VALUES (?,?,?,?,?,?,?)",
-          [cid, subjectId, number, title, title, null, Date.now()]);
+          [cid, subjectId, nextNumber, title, title, null, Date.now()]);
         c = { id: cid };
       }
       return c.id;
+    }
+    if (number != null) {
+      const c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND number=?", [subjectId, number]) as any;
+      if (c) return c.id;
     }
     return null;
   };

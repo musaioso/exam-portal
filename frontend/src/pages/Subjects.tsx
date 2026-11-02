@@ -496,9 +496,9 @@ export default function Subjects() {
                         }
                       }}
                     >
-                      Renumber chapters by poricched
+                      Fix chapter numbers &amp; titles
                     </Button>
-                    <span className="text-xs text-slate-500">Sets each chapter's number to its পরিচ্ছেদ number.</span>
+                    <span className="text-xs text-slate-500">Uses the number in each title, updates the chapter number and removes the prefix. Range chapters are left unchanged.</span>
                   </div>
                 )}
                 {(chapters[s.id]?.length || 0) >= 2 && (
