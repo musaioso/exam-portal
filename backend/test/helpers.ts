@@ -94,6 +94,14 @@ export async function createAttempt(opts: {
   return { id };
 }
 
+export async function createChapter(subjectId: string, number = 4, title = "Test Chapter") {
+  const db = await getDb();
+  const id = randomUUID();
+  await run(db, "INSERT INTO chapters (id,subject_id,number,title,created_at) VALUES (?,?,?,?,?)",
+    [id, subjectId, number, title, Date.now()]);
+  return { id, subjectId, number, title };
+}
+
 export function auth(token: string) {
   return { Authorization: `Bearer ${token}` };
 }

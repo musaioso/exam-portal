@@ -9,6 +9,7 @@ import usersRouter from "./routes/users";
 import backupRouter from "./routes/backup";
 import aiRouter from "./routes/ai";
 import documentsRouter from "./routes/documents";
+import batchesRouter from "./routes/batches";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
 import { storage, isPersistent, dbLabel, getDb, get } from "./db/database";
@@ -113,6 +114,7 @@ function createApp() {
   // PDF/text sources for the generator; the router serves at "/" so the mount
   // point is the whole /api/documents surface.
   app.use("/api/documents", documentsRouter);
+  app.use("/api/batches", batchesRouter);
 
   // Me endpoint — this is the profile card a student sees. It deliberately
   // includes their own PIN: they sign in with name + PIN and must be able to
