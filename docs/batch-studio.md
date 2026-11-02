@@ -60,6 +60,27 @@ Gemini Flash can return 503 “high demand”, 429 rate limits, or a timeout. Th
 
 The worst case is a shortfall in the target count. The batch reports it and never invents questions to fill the gap.
 
+## Correct existing tab
+
+This audits the existing bank against the same page images. It never deletes a question, and it never changes a question id.
+
+1. Pick the subject and chapter.
+2. Pick the **page-image batch** that holds that chapter's confirmed pages. If the list is empty, run a Generate batch for the chapter first.
+3. Click **Start audit**. It processes the questions in batches of 10 and fills the proposal table.
+4. Verdicts:
+   - **ok** — the keyed answer is supported on the claimed page.
+   - **wrong_page** — the supporting quote is on another page; the proposed page is shown.
+   - **wrong_answer** — the verifier found a different option that the page supports.
+   - **not_found** — no supporting quote was found.
+   - **bad_options** — the row is not a valid 4-option MCQ.
+   - **outside_book** — the verifier found a term that is not on the page.
+5. Select proposals and click **Apply selected**. Each approved change updates the question in place by id and writes a before/after `question_revisions` row first.
+6. The **Usage** column shows how many exams and attempts reference the question. A change does not rewrite historical attempts; it affects future papers.
+7. **Reject selected** closes a proposal without changing the question.
+8. **Undo run** restores every applied change from its `before_json` snapshot. The question ids stay the same.
+
+Only `page_number`, `page`, `answer`, `explanation`, `source_quote`, and `source_file` are mutable through this tab. A proposed answer is accepted only when it is already one of the existing options; otherwise the proposal is `needs manual edit` and the teacher edits the row in the normal question form.
+
 ## Limits in v1
 
 - PNG/JPEG page images only; PDF input stays in the existing AI Generate page.
