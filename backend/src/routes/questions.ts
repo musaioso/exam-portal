@@ -4,6 +4,7 @@ import { getDb, run, get, all } from "../db/database";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { normalizeText } from "../lib/text";
 import { latestChallengesByQuestion } from "../lib/challenges";
+import { parseSourcePage } from "../lib/page";
 
 const router = Router();
 
@@ -330,14 +331,7 @@ router.post("/", requireAuth, requireRole("admin", "teacher"), async (req: Reque
     }
   }
   const pageRaw = (req.body as any)?.page ?? (req.body as any)?.page_number ?? (req.body as any)?.book_page ?? (req.body as any)?.pageNo ?? (req.body as any)?.page_no ?? null;
-  let pageVal: string | null = null;
-  let pageNum: number | null = null;
-  if (pageRaw !== null && pageRaw !== undefined) {
-    const s = String(pageRaw).trim();
-    pageVal = s === "" ? null : s;
-    const n = Number(pageRaw);
-    if (Number.isFinite(n) && n > 0) pageNum = Math.floor(n);
-  }
+  const { page: pageVal, page_number: pageNum } = parseSourcePage(pageRaw);
   const id = uuid();
   await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,created_by,created_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -485,16 +479,10 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
       }
       const difficulty = VALID_DIFF.has(row.difficulty) ? row.difficulty : "medium";
       const marks = row.marks != null && Number.isFinite(Number(row.marks)) && Number(row.marks) > 0 ? Number(row.marks) : 1;
-      // Book/source page ref — keep both numeric and text forms
+      // Book/source page ref — keep both numeric and text forms. A scanned-page
+      // filename in this field becomes its page number (see lib/page.ts).
       const pageRaw = row.page ?? row.page_number ?? row.book_page ?? row.pageNo ?? row.page_no ?? null;
-      let pageVal: string | null = null;
-      let pageNum: number | null = null;
-      if (pageRaw !== null && pageRaw !== undefined) {
-        const s = String(pageRaw).trim();
-        pageVal = s === "" ? null : s;
-        const n = Number(pageRaw);
-        if (Number.isFinite(n) && n > 0) pageNum = Math.floor(n);
-      }
+      const { page: pageVal, page_number: pageNum } = parseSourcePage(pageRaw);
       const id = uuid();
       await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,created_by,created_at)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -528,14 +516,7 @@ router.put("/:id", requireAuth, requireRole("admin", "teacher"), async (req: Req
   // it. Must be decided before `??` coerces absent keys to null.
   const hasPage = ["page", "page_number", "book_page", "pageNo", "page_no"].some((k) => k in body);
   const pageRaw = hasPage ? (body.page ?? body.page_number ?? body.book_page ?? body.pageNo ?? body.page_no ?? null) : null;
-  let pageVal: string | null = null;
-  let pageNum: number | null = null;
-  if (pageRaw !== null && pageRaw !== undefined) {
-    const s = String(pageRaw).trim();
-    pageVal = s === "" ? null : s;
-    const n = Number(pageRaw);
-    if (Number.isFinite(n) && n > 0) pageNum = Math.floor(n);
-  }
+  const { page: pageVal, page_number: pageNum } = parseSourcePage(pageRaw);
   const db = await getDb();
   if (hasPage) {
     await run(db, `UPDATE questions SET

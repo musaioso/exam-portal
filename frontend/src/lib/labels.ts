@@ -20,7 +20,14 @@ export function optionLabel(prompt: string | null | undefined, index: number): s
 /**
  * The book/source page stored with a question. Prefers the free-text form so a
  * range like "42-43" survives; falls back to the numeric importer value.
+ *
+ * Older imports sometimes stored the scanned-page filename ("BGS conv 55.png")
+ * instead of a page. Showing that to a student is meaningless, so the trailing
+ * number in the name is used (or nothing when the name has no number).
  */
+const FILE_EXT = /\.(?:png|jpe?g|webp|gif|bmp|tiff?|pdf)$/i;
+const TRAILING_RANGE = /(\d+)(?:\s*[-\u2013\u2014]\s*(\d+))?\s*$/;
+
 export function sourcePage(q: { page?: unknown; page_number?: unknown } | null | undefined): string {
   if (!q) return "";
   const text = q.page != null && String(q.page).trim() !== ""
@@ -28,5 +35,10 @@ export function sourcePage(q: { page?: unknown; page_number?: unknown } | null |
     : q.page_number != null
       ? String(q.page_number)
       : "";
-  return text.trim();
+  const trimmed = text.trim();
+  if (FILE_EXT.test(trimmed)) {
+    const m = trimmed.replace(FILE_EXT, "").match(TRAILING_RANGE);
+    return m ? (m[2] ? `${m[1]}-${m[2]}` : m[1]) : "";
+  }
+  return trimmed;
 }
