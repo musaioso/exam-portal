@@ -15,6 +15,7 @@ import {
   listBatchPages,
   auditBatch,
   confirmBatchPage,
+  undoBatch,
 } from "../services/batch/store";
 import { runNextPage } from "../services/batch/run";
 
@@ -105,6 +106,18 @@ router.post("/:id/resume", async (req: Request, res: Response) => {
   const db = await getDb();
   await run(db, "UPDATE batch_runs SET status='running', consecutive_failures=0 WHERE id=?", [req.params.id]);
   res.json({ ok: true, status: "running" });
+});
+
+router.post("/:id/retry-failed", async (req: Request, res: Response) => {
+  const db = await getDb();
+  await run(db, "UPDATE batch_pages SET status='pending', last_error=NULL, lease_until=NULL WHERE batch_id=? AND status='failed'", [req.params.id]);
+  await run(db, "UPDATE batch_runs SET status='running', consecutive_failures=0 WHERE id=?", [req.params.id]);
+  res.json({ ok: true });
+});
+
+router.delete("/:id", async (req: Request, res: Response) => {
+  const result = await undoBatch(req.params.id);
+  res.json(result);
 });
 
 router.get("/:id", async (req: Request, res: Response) => {

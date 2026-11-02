@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
-import { getDb, run, get, all } from "../../db/database";
+import path from "node:path";
+import { getDb, run, get, all, batch } from "../../db/database";
 import { auditPages } from "./pages";
 
 export async function createBatch(input: {
@@ -94,4 +95,19 @@ export async function confirmBatchPage(
     SET audit_status='confirmed', resolved_page_number=?, page_number=COALESCE(page_number, ?)
     WHERE batch_id=? AND source_file=?`,
     [resolvedPageNumber, resolvedPageNumber, batchId, sourceFile]);
+}
+
+export async function undoBatch(batchId: string): Promise<{ deleted: number }> {
+  const db = await getDb();
+  const rows = await all(db, "SELECT id FROM questions WHERE batch_id=?", [batchId]);
+  await batch(db, [
+    { sql: "DELETE FROM questions WHERE batch_id=?", params: [batchId] },
+    { sql: "DELETE FROM batch_runs WHERE id=?", params: [batchId] },
+  ]);
+  try {
+    fs.rmSync(path.resolve(process.cwd(), "data", "batches", batchId), { recursive: true, force: true });
+  } catch {
+    /* the cache is best-effort; the database rows are the record */
+  }
+  return { deleted: rows.length };
 }
