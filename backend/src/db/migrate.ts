@@ -5,7 +5,7 @@ import { backupDatabaseFile } from "./backup";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "13";
+export const SCHEMA_VERSION = "14";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -214,6 +214,57 @@ CREATE TABLE IF NOT EXISTS batch_items (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_batch_items_unique
   ON batch_items(batch_id, page_number, prompt_hash);
+
+-- Existing-question correction: proposals, the before/after revision log, and
+-- one run per audit. Applying a correction updates the question in place by id.
+CREATE TABLE IF NOT EXISTS correction_runs (
+  id TEXT PRIMARY KEY,
+  subject_id TEXT NOT NULL,
+  chapter_id TEXT,
+  source_batch_id TEXT,
+  status TEXT NOT NULL DEFAULT 'draft',
+  checked INTEGER NOT NULL DEFAULT 0,
+  ok INTEGER NOT NULL DEFAULT 0,
+  wrong_page INTEGER NOT NULL DEFAULT 0,
+  wrong_answer INTEGER NOT NULL DEFAULT 0,
+  not_found INTEGER NOT NULL DEFAULT 0,
+  bad_options INTEGER NOT NULL DEFAULT 0,
+  outside_book INTEGER NOT NULL DEFAULT 0,
+  applied INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  completed_at INTEGER,
+  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+  FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS correction_items (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  question_id TEXT NOT NULL,
+  verdict TEXT NOT NULL,
+  current_json TEXT NOT NULL,
+  proposed_json TEXT,
+  evidence_json TEXT,
+  status TEXT NOT NULL DEFAULT 'proposed',
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (run_id) REFERENCES correction_runs(id) ON DELETE CASCADE,
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS question_revisions (
+  id TEXT PRIMARY KEY,
+  question_id TEXT NOT NULL,
+  run_id TEXT,
+  before_json TEXT NOT NULL,
+  after_json TEXT NOT NULL,
+  reason TEXT,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  undone_at INTEGER,
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_revisions_run ON question_revisions(run_id);
 
 -- Undo log for chapter merges. Stores the deleted chapters and the question ids
 -- that were moved, so a merge can be reverted (up to the last few per subject).

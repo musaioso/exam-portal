@@ -30,6 +30,10 @@ test("migrate keeps existing question ids and count", async () => {
   for (const col of ["batch_id", "source_quote", "source_file", "verification", "verification_method"]) {
     assert.ok(cols.includes(col), `missing column ${col}`);
   }
+  for (const table of ["correction_runs", "correction_items", "question_revisions"]) {
+    const rows = await all(db, "SELECT name FROM sqlite_master WHERE type='table' AND name=?", [table]);
+    assert.equal(rows.length, 1, `missing table ${table}`);
+  }
 });
 
 test("backupDatabaseFile copies the file", async () => {
