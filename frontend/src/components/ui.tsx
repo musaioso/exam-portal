@@ -91,7 +91,7 @@ export function NumberInput({ className, value, onChange, min, max, step, disabl
   );
 }
 
-export function Select({ className, style, children, value, onChange, disabled, required, placeholder, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { placeholder?: string }) {
+export function Select({ className, style, children, value, onChange, disabled, required, placeholder, compact = false, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { placeholder?: string; compact?: boolean }) {
   const options = React.useMemo(() => {
     return React.Children.toArray(children)
       .filter((c): c is React.ReactElement<any> => React.isValidElement(c))
@@ -158,7 +158,8 @@ export function Select({ className, style, children, value, onChange, disabled, 
         aria-haspopup="listbox"
         aria-expanded={open}
         className={cn(
-          "w-full flex items-center justify-between gap-2 bg-slate-900/60 border border-slate-600/70 rounded-2xl px-4 py-2.5 pr-9 text-sm text-slate-100 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/70 focus:border-violet-400/60",
+          "w-full flex items-center justify-between gap-2 bg-slate-900/60 border border-slate-600/70 text-slate-100 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/70 focus:border-violet-400/60",
+          compact ? "rounded-xl px-3 py-1.5 pr-8 text-xs" : "rounded-2xl px-4 py-2.5 pr-9 text-sm",
           disabled && "opacity-50 cursor-not-allowed",
           open && "ring-2 ring-violet-500/70"
         )}
@@ -166,7 +167,7 @@ export function Select({ className, style, children, value, onChange, disabled, 
         <span className={cn("truncate", !selected && "text-slate-500")} title={selected ? String(selected.label) : undefined}>
           {selected ? selected.label : (placeholder || (isEmpty ? options.find((o) => String(o.value) === "")?.label : "Select"))}
         </span>
-        <ChevronDown size={16} className={cn("pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-transform", open && "rotate-180")} />
+        <ChevronDown size={compact ? 14 : 16} className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400 transition-transform", compact ? "right-2.5" : "right-3", open && "rotate-180")} />
       </button>
       {open && pos && createPortal(
         <div

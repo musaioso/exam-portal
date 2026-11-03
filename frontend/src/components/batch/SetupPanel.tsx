@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "../../lib/api";
 import { createBatch, uploadPages, auditBatch } from "../../lib/batch";
+import { Select } from "../ui";
 
 export default function SetupPanel({ onCreated }: { onCreated: (batchId: string) => void }) {
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -85,27 +86,25 @@ export default function SetupPanel({ onCreated }: { onCreated: (batchId: string)
       <div className="grid gap-4 md:grid-cols-2">
         <label className="space-y-1 text-sm">
           <span className="text-slate-300">Subject</span>
-          <select
-            className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+          <Select
             value={subjectId}
             onChange={(e) => setSubjectId(e.target.value)}
           >
             <option value="">Pick a subject…</option>
             {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          </Select>
         </label>
 
         <label className="space-y-1 text-sm">
           <span className="text-slate-300">Chapter</span>
-          <select
-            className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+          <Select
             value={chapterId}
             onChange={(e) => setChapterId(e.target.value)}
             disabled={!subjectId}
           >
             <option value="">Pick a chapter…</option>
             {chapters.map((c: any) => <option key={c.id} value={c.id}>Ch {c.number} — {c.title}</option>)}
-          </select>
+          </Select>
         </label>
 
         <label className="space-y-1 text-sm md:col-span-2">
@@ -142,20 +141,18 @@ export default function SetupPanel({ onCreated }: { onCreated: (batchId: string)
 
         <label className="space-y-1 text-sm">
           <span className="text-slate-300">Provider</span>
-          <select
-            className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+          <Select
             value={providerId}
             onChange={(e) => setProviderId(e.target.value)}
           >
             <option value="">Pick a provider…</option>
             {providers.map((p: any) => <option key={p.id} value={p.id}>{p.label}</option>)}
-          </select>
+          </Select>
         </label>
 
         <label className="space-y-1 text-sm">
           <span className="text-slate-300">Model</span>
-          <select
-            className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+          <Select
             value={modelId}
             onChange={(e) => setModelId(e.target.value)}
             disabled={!currentProvider}
@@ -164,7 +161,7 @@ export default function SetupPanel({ onCreated }: { onCreated: (batchId: string)
             {(currentProvider?.models || []).map((m: any) => (
               <option key={m.id} value={m.id}>{m.name || m.id}{m.appOnly ? " (app only)" : ""}</option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className="flex items-center gap-2 text-sm md:col-span-2">

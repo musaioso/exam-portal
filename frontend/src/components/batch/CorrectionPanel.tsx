@@ -15,6 +15,7 @@ import {
   type CorrectionRun,
 } from "../../lib/batch";
 import { confirmDialog } from "../Dialog";
+import { Select } from "../ui";
 
 function parseJson(value: string | null | undefined): any {
   if (!value) return {};
@@ -234,40 +235,40 @@ export default function CorrectionPanel() {
       <div className="grid gap-4 md:grid-cols-4">
         <label className="space-y-1 text-sm">
           <span className="text-slate-300">Subject</span>
-          <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+          <Select
             value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
             <option value="">Pick a subject…</option>
             {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          </Select>
         </label>
 
         <label className="space-y-1 text-sm">
           <span className="text-slate-300">Chapter</span>
-          <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+          <Select
             value={chapterId} onChange={(e) => setChapterId(e.target.value)} disabled={!subjectId}>
             <option value="">Pick a chapter…</option>
             {chapters.map((c: any) => <option key={c.id} value={c.id}>Ch {c.number} — {c.title}</option>)}
-          </select>
+          </Select>
         </label>
 
         <label className="space-y-1 text-sm">
           <span className="text-slate-300">Page-image batch</span>
-          <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+          <Select
             value={sourceBatchId} onChange={(e) => setSourceBatchId(e.target.value)} disabled={!subjectId}>
             <option value="">Pick the source batch…</option>
             {sourceBatches.map((b) => (
               <option key={b.id} value={b.id}>{b.id.slice(0, 8)} · {b.status} · {b.saved} saved</option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className="space-y-1 text-sm">
           <span className="text-slate-300">Audit scope</span>
-          <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+          <Select
             value={searchScope} onChange={(e) => setSearchScope(e.target.value as "nearby" | "chapter")}>
             <option value="nearby">Cited page + nearby</option>
             <option value="chapter">Search whole chapter</option>
-          </select>
+          </Select>
         </label>
       </div>
 
