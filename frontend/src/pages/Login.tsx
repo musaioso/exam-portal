@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
-import { api } from "../lib/api";
+import { api, errorMessage } from "../lib/api";
 import { Button, Input, Skeleton, cn } from "../components/ui";
 import { AuthField, AuthShell } from "../components/AuthShell";
 import {
@@ -157,7 +157,7 @@ function StudentSignIn() {
       nav("/dashboard");
       return;
     } catch (x: any) {
-      setErr(x?.response?.data?.error || "PIN মেলেনি। আবার চেষ্টা করুন।");
+      setErr(errorMessage(x, "PIN মেলেনি। আবার চেষ্টা করুন।"));
       setPinValue("");
     }
     setBusy(false);
@@ -359,7 +359,7 @@ function StaffSignIn() {
       nav("/dashboard");
       return;
     } catch (x: any) {
-      setErr(x?.response?.data?.error || "Sign in failed. Please check your email and password.");
+      setErr(errorMessage(x, "Sign in failed. Please check your email and password."));
     }
     setBusy(null);
   };

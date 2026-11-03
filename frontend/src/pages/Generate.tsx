@@ -4,6 +4,7 @@ import { api, errorMessage } from "../lib/api";
 import { optionLabel } from "../lib/labels";
 import { useToast } from "../components/Toast";
 import { Card, Button, FileInput, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
+import { errorText } from "../lib/error-text";
 import { alertDialog, confirmDialog } from "../components/Dialog";
 import {
   Sparkles, Upload, FileText, RefreshCw, Trash2, Wand2,
@@ -405,7 +406,7 @@ export default function Generate() {
       if (e?.response?.status === 409 && e.response.data?.needsConfirm) {
         const ok = await confirmDialog({
           title: "The vendor rejected this key",
-          message: `${e.response.data.error}\n\nSave it anyway? (Use this when your account really has access but the vendor's model-list check disagrees.)`,
+          message: `${errorMessage(e, "The vendor rejected this key.")}\n\nSave it anyway? (Use this when your account really has access but the vendor's model-list check disagrees.)`,
           confirmLabel: "Save anyway",
         });
         if (ok) { setSavingKey(null); return saveKey(providerIdToSave, true); }
@@ -967,7 +968,7 @@ export default function Generate() {
                 )}
                 {currentProvider?.error && (
                   <p className="mt-1.5 text-xs text-rose-400">
-                    Could not load {currentProvider.label}’s models: {currentProvider.error}
+                    Could not load {currentProvider.label}’s models: {errorText(currentProvider.error) || "unknown error"}
                   </p>
                 )}
                 {currentProvider && currentModel?.appOnly && (

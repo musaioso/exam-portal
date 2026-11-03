@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { errorMessage } from "../../lib/api";
 import { getBatchItems, undoBatch, type BatchItem } from "../../lib/batch";
 import { confirmDialog } from "../Dialog";
 import { Button } from "../ui";
@@ -60,7 +61,7 @@ export default function EvidenceTable({ batchId }: { batchId: string }) {
       await undoBatch(batchId);
       nav("/questions");
     } catch (e: any) {
-      setError(e?.response?.data?.error || "The batch could not be undone.");
+      setError(errorMessage(e, "The batch could not be undone."));
     } finally {
       setBusy(false);
     }

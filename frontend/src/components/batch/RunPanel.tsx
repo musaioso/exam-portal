@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { errorMessage } from "../../lib/api";
 import {
   getBatch,
   stepBatch,
@@ -54,7 +55,7 @@ export default function RunPanel({ batchId }: { batchId: string | null }) {
         if (result.status !== "running") break;
       }
     } catch (e: any) {
-      setError(e?.response?.data?.error || e?.message || "The batch could not continue.");
+      setError(errorMessage(e, "The batch could not continue."));
     } finally {
       setBusy(false);
     }

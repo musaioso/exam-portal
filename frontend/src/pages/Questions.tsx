@@ -79,7 +79,7 @@ export default function Questions() {
         } catch (e: any) {
           // A whole batch failed (e.g. bad subject slug) — record and continue.
           failed += (batch.questions || []).length;
-          allErrors.push({ index: bi, error: e?.response?.data?.error || e?.message || "batch failed" });
+          allErrors.push({ index: bi, error: errorMessage(e, "batch failed") });
         }
       }
       const failed2 = failed;

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { errorMessageFrom } from "./error-text";
 
 // In dev, "/api" is proxied by Vite to localhost:4000.
 // In production (Vercel), set VITE_API_URL to your deployed backend, e.g.
@@ -47,13 +48,7 @@ api.interceptors.response.use(undefined, async (error) => {
 
 /** A message worth showing a user for any failed request. */
 export function errorMessage(e: any, fallback: string): string {
-  const status = e?.response?.status;
-  if (e?.response?.data?.error) return e.response.data.error;
-  if (RETRYABLE_STATUS.includes(status)) {
-    return `The server was briefly unavailable (${status}). Please try again in a moment.`;
-  }
-  if (!e?.response && e?.code === "ERR_NETWORK") return "No connection to the server. Please check your network and try again.";
-  return e?.message || fallback;
+  return errorMessageFrom(e, fallback);
 }
 
 export interface User { id: string; name: string; email: string; role: "admin"|"teacher"|"student"; }

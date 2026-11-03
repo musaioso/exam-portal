@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
 import { cn } from "./ui";
+import { errorText } from "../lib/error-text";
 
 type ToastKind = "success" | "error" | "info";
 type ToastItem = { id: number; kind: ToastKind; message: string; action?: { label: string; onClick: () => void } };
@@ -25,7 +26,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const push = useCallback((kind: ToastKind, message: string, opts?: { action?: { label: string; onClick: () => void }; duration?: number }) => {
     const id = Date.now() + Math.random();
-    setItems((prev) => [...prev, { id, kind, message, action: opts?.action }]);
+    setItems((prev) => [...prev, { id, kind, message: errorText(message) || String(message ?? ""), action: opts?.action }]);
     window.setTimeout(() => setItems((prev) => prev.filter((t) => t.id !== id)), opts?.duration ?? 3500);
   }, []);
 
@@ -47,7 +48,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               )}
             >
               <Icon size={16} className="mt-0.5 shrink-0" />
-              <div className="flex-1 break-words">{t.message}</div>
+              <div className="flex-1 break-words">{errorText(t.message) || ""}</div>
               {t.action && (
                 <button
                   onClick={() => { t.action!.onClick(); remove(t.id); }}

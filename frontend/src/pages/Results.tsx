@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, errorMessage } from "../lib/api";
 import { optionLabel, sourcePage } from "../lib/labels";
 import { useAuth } from "../lib/auth-context";
 import { Card, Button, Input, NumberInput, Field, Badge, Select } from "../components/ui";
@@ -158,7 +158,7 @@ export default function Results() {
       toast.success("Attempt deleted.");
       await load();
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Could not delete the attempt.");
+      toast.error(errorMessage(err, "Could not delete the attempt."));
     }
   };
 

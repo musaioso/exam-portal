@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { api, errorMessage } from "../lib/api";
 import { Badge, Card, Button, Input, Field, cn } from "../components/ui";
 import { confirmDialog } from "../components/Dialog";
 import { useToast } from "../components/Toast";
@@ -42,7 +42,7 @@ export default function Users() {
       setShow(false);
       load();
     } catch (x: any) {
-      setErr(x?.response?.data?.error || "ছাত্র তৈরি করা যায়নি। আবার চেষ্টা করুন।");
+      setErr(errorMessage(x, "ছাত্র তৈরি করা যায়নি। আবার চেষ্টা করুন।"));
     }
     setBusy(false);
   };
