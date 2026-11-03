@@ -1,10 +1,12 @@
-import { getDb, run, all, execScript } from "./database";
+import path from "node:path";
+import { getDb, run, all, execScript, dbFilePath, storage } from "./database";
 import { parseChapterHeading } from "../lib/chapter";
+import { backupDatabaseFile } from "./backup";
 
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "14";
+export const SCHEMA_VERSION = "16";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -61,6 +63,8 @@ CREATE TABLE IF NOT EXISTS questions (
   page TEXT,
   -- numeric form used by the importer and print answer key
   page_number INTEGER,
+  -- visible section heading on the cited page
+  section TEXT,
   created_by TEXT,
   created_at INTEGER NOT NULL,
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
@@ -148,6 +152,127 @@ CREATE TABLE IF NOT EXISTS ai_generations (
   created_at INTEGER NOT NULL
 );
 
+-- Strict batch generation: one run per chapter, one row per source page, and
+-- one row per generated candidate (accepted or rejected). Existing questions
+-- are never modified by a batch; questions.batch_id is a plain column so a
+-- batch delete cannot cascade into the bank.
+CREATE TABLE IF NOT EXISTS batch_runs (
+  id TEXT PRIMARY KEY,
+  subject_id TEXT NOT NULL,
+  chapter_id TEXT,
+  target_count INTEGER NOT NULL DEFAULT 50,
+  max_per_page INTEGER NOT NULL DEFAULT 5,
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  fallback_models TEXT,
+  allow_vision_fallback INTEGER NOT NULL DEFAULT 0,
+  save_mode TEXT NOT NULL DEFAULT 'auto',
+  status TEXT NOT NULL DEFAULT 'draft',
+  generated INTEGER NOT NULL DEFAULT 0,
+  quote_ok INTEGER NOT NULL DEFAULT 0,
+  answer_ok INTEGER NOT NULL DEFAULT 0,
+  rejected INTEGER NOT NULL DEFAULT 0,
+  saved INTEGER NOT NULL DEFAULT 0,
+  consecutive_failures INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  completed_at INTEGER,
+  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+  FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS batch_pages (
+  id TEXT PRIMARY KEY,
+  batch_id TEXT NOT NULL,
+  page_number INTEGER,
+  resolved_page_number INTEGER,
+  source_file TEXT NOT NULL,
+  printed_number INTEGER,
+  audit_status TEXT NOT NULL DEFAULT 'unnumbered',
+  status TEXT NOT NULL DEFAULT 'pending',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  lease_until INTEGER,
+  last_error TEXT,
+  page_text TEXT,
+  image_path TEXT NOT NULL,
+  image_sha TEXT,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (batch_id) REFERENCES batch_runs(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_batch_pages_batch ON batch_pages(batch_id, status, page_number);
+
+CREATE TABLE IF NOT EXISTS batch_items (
+  id TEXT PRIMARY KEY,
+  batch_id TEXT NOT NULL,
+  page_number INTEGER,
+  status TEXT NOT NULL,
+  reason TEXT,
+  question_json TEXT,
+  source_quote TEXT,
+  source_file TEXT,
+  verifier_json TEXT,
+  verification_method TEXT,
+  prompt_hash TEXT,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (batch_id) REFERENCES batch_runs(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_batch_items_unique
+  ON batch_items(batch_id, page_number, prompt_hash);
+
+-- Existing-question correction: proposals, the before/after revision log, and
+-- one run per audit. Applying a correction updates the question in place by id.
+CREATE TABLE IF NOT EXISTS correction_runs (
+  id TEXT PRIMARY KEY,
+  subject_id TEXT NOT NULL,
+  chapter_id TEXT,
+  source_batch_id TEXT,
+  -- "nearby" checks the claimed page and its neighbours; "chapter" searches
+  -- the whole chapter, which is required for imports without page numbers.
+  search_scope TEXT NOT NULL DEFAULT 'nearby',
+  status TEXT NOT NULL DEFAULT 'draft',
+  checked INTEGER NOT NULL DEFAULT 0,
+  ok INTEGER NOT NULL DEFAULT 0,
+  wrong_page INTEGER NOT NULL DEFAULT 0,
+  wrong_answer INTEGER NOT NULL DEFAULT 0,
+  not_found INTEGER NOT NULL DEFAULT 0,
+  bad_options INTEGER NOT NULL DEFAULT 0,
+  outside_book INTEGER NOT NULL DEFAULT 0,
+  applied INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  completed_at INTEGER,
+  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+  FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS correction_items (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  question_id TEXT NOT NULL,
+  verdict TEXT NOT NULL,
+  current_json TEXT NOT NULL,
+  proposed_json TEXT,
+  evidence_json TEXT,
+  status TEXT NOT NULL DEFAULT 'proposed',
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (run_id) REFERENCES correction_runs(id) ON DELETE CASCADE,
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS question_revisions (
+  id TEXT PRIMARY KEY,
+  question_id TEXT NOT NULL,
+  run_id TEXT,
+  before_json TEXT NOT NULL,
+  after_json TEXT NOT NULL,
+  reason TEXT,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  undone_at INTEGER,
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_revisions_run ON question_revisions(run_id);
+
 -- Undo log for chapter merges. Stores the deleted chapters and the question ids
 -- that were moved, so a merge can be reverted (up to the last few per subject).
 CREATE TABLE IF NOT EXISTS chapter_merge_history (
@@ -208,6 +333,16 @@ async function ensureColumn(db: any, table: string, name: string, definition: st
 
 export async function migrate() {
   const db = await getDb();
+  const versionRows = await all(db, "SELECT value FROM app_meta WHERE key='schema_version'").catch(() => []);
+  const current = versionRows[0]?.value ?? null;
+  if (current !== SCHEMA_VERSION) {
+    if (storage === "file") {
+      const dir = path.resolve(process.cwd(), "data/backups");
+      backupDatabaseFile(dbFilePath, dir, `v${current ?? "new"}`);
+    } else if (storage === "remote") {
+      console.warn("[migrate] remote database: download /api/backup before the first migration");
+    }
+  }
   await execScript(db, SCHEMA);
   // Lightweight migrations for existing databases
   await ensureColumn(db, "users", "pin", "TEXT");
@@ -230,6 +365,15 @@ export async function migrate() {
   await ensureColumn(db, "questions", "page", "TEXT");
   // v9: numeric page number for easier import/export
   await ensureColumn(db, "questions", "page_number", "INTEGER");
+  // v13: evidence fields for strict batch generation and in-place corrections
+  await ensureColumn(db, "questions", "batch_id", "TEXT");
+  await ensureColumn(db, "questions", "source_quote", "TEXT");
+  await ensureColumn(db, "questions", "source_file", "TEXT");
+  await ensureColumn(db, "questions", "verification", "TEXT");
+  await ensureColumn(db, "questions", "verification_method", "TEXT");
+  await ensureColumn(db, "questions", "section", "TEXT");
+  // v16: correction audits can search the whole chapter, not just the cited page.
+  await ensureColumn(db, "correction_runs", "search_scope", "TEXT NOT NULL DEFAULT 'nearby'");
   // v13: test accounts used to check the app; their attempts stay out of the
   // class leaderboard (and other cross-student views).
   await ensureColumn(db, "users", "is_test", "INTEGER NOT NULL DEFAULT 0");

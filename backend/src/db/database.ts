@@ -16,6 +16,7 @@ import path from "path";
 //    configured, on serverless (in-memory, i.e. ephemeral) so the app still
 //    runs.
 const DB_PATH = path.resolve(process.cwd(), process.env.DB_PATH || "data/mcq.db");
+export const dbFilePath = DB_PATH;
 // Which database we talk to. `MCQ_DATABASE_URL`/`MCQ_AUTH_TOKEN` win on purpose:
 // Vercel's Turso integration injects a *deployment-scoped* TURSO_DATABASE_URL
 // (a brand-new, empty database per deployment), which silently wiped all data

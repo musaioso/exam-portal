@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth-context";
-import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, FileQuestion, PanelLeftClose, PanelLeftOpen, Flag } from "lucide-react";
+import { LayoutDashboard, BookOpen, ClipboardList, Users, Printer, LogOut, GraduationCap, UserCircle, Menu, Sparkles, Target, SpellCheck, FileQuestion, PanelLeftClose, PanelLeftOpen, Flag, Layers } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { Logo } from "./Logo";
 import { StorageWarning } from "./StorageWarning";
@@ -12,6 +12,7 @@ const NAV = [
   { to: "/subjects", label: "Subjects & Chapters", icon: BookOpen, roles: ["admin","teacher"] },
   { to: "/questions", label: "Question Bank", icon: FileQuestion, roles: ["admin","teacher"] },
   { to: "/generate", label: "AI Generate", icon: Sparkles, roles: ["admin","teacher"] },
+  { to: "/batch", label: "Batch Studio", icon: Layers, roles: ["admin","teacher"] },
   { to: "/spelling", label: "Spelling MCQs", icon: SpellCheck, roles: ["admin","teacher"] },
   { to: "/exams", label: "Exams", icon: ClipboardList, roles: ["admin","teacher","student"] },
   { to: "/print", label: "Print Paper", icon: Printer, roles: ["admin","teacher"] },

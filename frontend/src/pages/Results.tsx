@@ -311,6 +311,13 @@ export default function Results() {
                     <div className="text-[11px] text-cyan-300/80">বইয়ের পৃষ্ঠা {sourcePage(q)}</div>
                   )}
 
+                  {(!q.correct || !q.answered) && (q.section || q.source_quote) && (
+                    <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-[11px] text-slate-300">
+                      {q.section && <div className="font-semibold text-slate-200">Section: {q.section}</div>}
+                      {q.source_quote && <div className="mt-1 italic">“{q.source_quote}”</div>}
+                    </div>
+                  )}
+
                   {/* Option-by-option: what they picked, and where the key sits. */}
                   {Array.isArray(q.options) && q.options.length > 0 ? (
                     <div className="space-y-1">

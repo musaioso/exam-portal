@@ -455,6 +455,11 @@ export default function Questions() {
           <input ref={importRef} type="file" accept="application/json,.json" className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = ""; }} />
           <Button variant="ghost" onClick={() => importRef.current?.click()}><Upload size={16}/> Import JSON</Button>
+          <a href="/notebooklm-import-template.json" download
+            title="Use this shape for Gemini Notebook / NotebookLM exports. Page numbers are optional."
+            className="inline-flex items-center rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/60">
+            NotebookLM template
+          </a>
           {lastBatchId && <Button variant="ghost" onClick={undoImport}>Undo Last Import</Button>}
           <Button
             variant="ghost"

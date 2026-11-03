@@ -331,6 +331,8 @@ router.get("/attempts/:attemptId/review", requireAuth, async (req: Request, res:
         explanation: showKey ? (q.explanation ?? null) : null,
         page: q.page ?? null,
         page_number: q.page_number ?? null,
+        section: q.section ?? null,
+        source_quote: q.source_quote ?? null,
         challenge: challengeByQuestion.get(q.id) ?? null,
       };
     });

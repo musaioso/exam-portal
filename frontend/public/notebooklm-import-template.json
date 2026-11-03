@@ -1,0 +1,22 @@
+{
+  "_instructions": "Gemini Notebook / NotebookLM can export questions in this shape. Replace the example values. format must stay notebooklm-mcq-v1. subject_code is the short code shown in your subjects (BGS, B1, B2, ICT...). chapter_number or chapter_title picks the chapter. page_number, section and source_quote are optional; the whole-chapter audit can find the page later. answer may be the exact option text or A/B/C/D. derivation is only for a real one-step calculation from numbers the page states; leave it empty otherwise.",
+  "format": "notebooklm-mcq-v1",
+  "subject_code": "BGS",
+  "chapter_number": 1,
+  "chapter_title": "The Political Movement in East Bengal and the Rise of Nationalism (1947-1970)",
+  "skip_duplicates": true,
+  "questions": [
+    {
+      "prompt": "On which date did Pakistan become independent in 1947?",
+      "options": ["14 August", "15 August", "26 March", "16 December"],
+      "answer": "14 August",
+      "explanation": "The book states that Pakistan became independent on 14 August 1947.",
+      "page_number": 1,
+      "section": "The Political Movement in East Bengal",
+      "source_quote": "On the 14th of August, Pakistan became independent and on the 15th of August of the same year, India also became independent.",
+      "difficulty": "easy",
+      "marks": 1,
+      "derivation": ""
+    }
+  ]
+}

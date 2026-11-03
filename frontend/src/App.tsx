@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Subjects from "./pages/Subjects";
 import Questions from "./pages/Questions";
 import Generate from "./pages/Generate";
+import Batch from "./pages/Batch";
 import Spelling from "./pages/Spelling";
 import Proofreading from "./pages/Proofreading";
 import Exams from "./pages/Exams";
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="/subjects" element={<Private roles={["admin","teacher"]}><Subjects /></Private>} />
             <Route path="/questions" element={<Private roles={["admin","teacher"]}><Questions /></Private>} />
             <Route path="/generate" element={<Private roles={["admin","teacher"]}><Generate /></Private>} />
+            <Route path="/batch" element={<Private roles={["admin","teacher"]}><Batch /></Private>} />
 <Route path="/spelling" element={<Private roles={["admin","teacher"]}><Spelling /></Private>} />
 <Route path="/proofreading" element={<Private><Proofreading /></Private>} />
             <Route path="/exams" element={<Private><Exams /></Private>} />
