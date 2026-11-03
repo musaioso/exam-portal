@@ -6,6 +6,7 @@ import type { ChatMessage, ProviderConfig } from "../ai/types";
 import { getProviderConfig } from "../ai/providers";
 import { ocrImage } from "../ai/ocr";
 import { isQuoteOnPage } from "./verify";
+import { withRetry } from "./retry";
 
 export type CorrectionVerdict =
   | "ok"
@@ -109,6 +110,16 @@ export async function auditQuestion(
   }
 
   const correct = String(parsed.correctAnswer || "").trim();
+  // The verifier sometimes echoes the keyed answer back as a "correction".
+  // That is not a change; treating it as wrong_answer would make Apply a no-op
+  // while pretending the question was fixed.
+  if (correct && correct.toLowerCase() === answer.toLowerCase()) {
+    return {
+      verdict: "not_found",
+      proposed: null,
+      evidence: { ...evidence, reason: "verifier proposed the keyed answer; no supported change" },
+    };
+  }
   if (correct && options.includes(correct)) {
     return {
       verdict: "wrong_answer",
@@ -130,7 +141,7 @@ export async function auditQuestion(
   return { verdict: "not_found", proposed: null, evidence: { ...evidence, reason: parsed.reason || "not supported by the page" } };
 }
 
-async function loadPages(batchId: string): Promise<CorrectionPage[]> {
+export async function loadPages(batchId: string): Promise<CorrectionPage[]> {
   const db = await getDb();
   const batch = await get(db, "SELECT subject_id FROM batch_runs WHERE id=?", [batchId]);
   const subject = batch ? await get(db, "SELECT slug FROM subjects WHERE id=?", [batch.subject_id]) : null;
@@ -182,15 +193,19 @@ export async function runCorrectionStep(runId: string): Promise<{ checked: numbe
   if (pages.length === 0) throw new Error("The source batch has no confirmed pages");
 
   const safeAudit = async (question: any, page: CorrectionPage): Promise<CorrectionAudit> => {
-    try {
-      return await auditQuestion(question, page, cfg, String(sourceBatch.model));
-    } catch (error: any) {
-      return {
-        verdict: "not_found",
-        proposed: null,
-        evidence: { reason: `provider error: ${String(error?.message || error)}`, pageNumber: page.pageNumber },
-      };
-    }
+    // A provider outage is not a question verdict. Retry transient failures and
+    // let a persistent failure stop the step; the item stays pending so the
+    // next step can retry it instead of silently marking it "not found".
+    return withRetry(
+      () => auditQuestion(question, page, cfg, String(sourceBatch.model)),
+      {
+        attempts: 3,
+        delaysMs: [2000, 8000, 20000],
+        onRetry: (attempt, error: any) => {
+          console.warn(`[corrections] retry ${attempt} page ${page.pageNumber}: ${String(error?.message || error)}`);
+        },
+      }
+    );
   };
 
   let pending = await all(
@@ -303,7 +318,18 @@ export async function runCorrectionStep(runId: string): Promise<{ checked: numbe
   return { checked: pending.length, items };
 }
 
-const MUTABLE_FIELDS = ["page_number", "page", "answer", "explanation", "source_quote", "source_file"] as const;
+const MUTABLE_FIELDS = [
+  "prompt",
+  "options",
+  "answer",
+  "difficulty",
+  "explanation",
+  "page_number",
+  "page",
+  "section",
+  "source_quote",
+  "source_file",
+] as const;
 
 function mutablePatch(source: any): Record<string, any> {
   const patch: Record<string, any> = {};
@@ -337,16 +363,31 @@ export async function applyCorrections(
     } catch {
       proposed = {};
     }
-    if (proposed.page_number !== undefined && proposed.page === undefined) {
-      proposed.page = String(proposed.page_number);
-    }
     if (proposed.page_number !== undefined) {
       const page = Number(proposed.page_number);
       if (!Number.isInteger(page) || page < 1) continue;
+      proposed.page = String(page);
+      proposed.page_number = page;
+    }
+    if (proposed.options !== undefined) {
+      const options = parseOptions(proposed.options);
+      if (options.length !== 4 || new Set(options).size !== 4) continue;
+      // The column stores JSON text, not a JS array.
+      proposed.options = JSON.stringify(options);
     }
     if (proposed.answer !== undefined) {
-      const options = parseOptions(question.options);
+      const options = proposed.options !== undefined
+        ? parseOptions(proposed.options)
+        : parseOptions(question.options);
       if (options.length !== 4 || !options.includes(String(proposed.answer))) continue;
+    }
+    if (proposed.prompt !== undefined) {
+      const prompt = String(proposed.prompt).trim();
+      if (!prompt) continue;
+      proposed.prompt = prompt;
+    }
+    if (proposed.difficulty !== undefined && !["easy", "medium", "hard"].includes(String(proposed.difficulty))) {
+      continue;
     }
     const patch = mutablePatch(proposed);
     const fields = Object.keys(patch);

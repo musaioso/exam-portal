@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb, run, get, all, runChanges } from "../db/database";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { runCorrectionStep, usageIndex, applyCorrections, undoCorrections } from "../services/batch/correct";
+import { replaceItems } from "../services/batch/replace";
 
 const router = Router();
 router.use(requireAuth, requireRole("admin", "teacher"));
@@ -60,6 +61,24 @@ router.post("/:id/step", async (req: Request, res: Response) => {
 });
 
 const idsSchema = z.object({ item_ids: z.array(z.string().min(1)).min(1) });
+
+const replaceSchema = z.object({
+  item_ids: z.array(z.string().min(1)).min(1),
+  max_pages: z.coerce.number().int().min(1).max(5).optional(),
+});
+
+router.post("/:id/replace", async (req: Request, res: Response) => {
+  const parsed = replaceSchema.safeParse(req.body || {});
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid request" });
+  try {
+    const result = await replaceItems(String(req.params.id), parsed.data.item_ids, {
+      maxPages: parsed.data.max_pages,
+    });
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error?.message || "The replacements could not be generated." });
+  }
+});
 
 router.post("/:id/apply", async (req: Request, res: Response) => {
   const parsed = idsSchema.safeParse(req.body || {});

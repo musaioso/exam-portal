@@ -5,6 +5,7 @@ import {
   createCorrection,
   stepCorrection,
   getCorrection,
+  replaceCorrections,
   applyCorrections,
   rejectCorrections,
   undoCorrections,
@@ -41,6 +42,7 @@ export default function CorrectionPanel() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [recentRuns, setRecentRuns] = useState<CorrectionRun[]>([]);
 
   const loadRecent = () => {
@@ -119,6 +121,47 @@ export default function CorrectionPanel() {
     });
   };
 
+  const selectFlagged = () => {
+    const flagged = items.filter(
+      (item) => item.status === "proposed" && ["outside_book", "not_found", "bad_options"].includes(item.verdict)
+    );
+    setSelected(new Set(flagged.map((item) => item.id)));
+    setNotice(flagged.length === 0 ? "No outside/not-found rows in this run." : `Selected ${flagged.length} flagged row${flagged.length === 1 ? "" : "s"}.`);
+  };
+
+  const replaceSelected = async () => {
+    if (!run || selected.size === 0 || busy) return;
+    const ids = items
+      .filter((item) => selected.has(item.id) && item.status === "proposed" &&
+        ["outside_book", "not_found", "bad_options"].includes(item.verdict))
+      .map((item) => item.id);
+    if (ids.length === 0) {
+      setNotice("Select outside/not-found rows first.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    let replaced = 0;
+    let failed = 0;
+    try {
+      // Generate a few at a time so a long chapter reports progress and does
+      // not sit behind one enormous request.
+      for (let i = 0; i < ids.length; i += 5) {
+        const result = await replaceCorrections(run.id, ids.slice(i, i + 5));
+        replaced += result.replaced;
+        failed += result.failed;
+        setNotice(`Generating replacements… ${Math.min(i + 5, ids.length)}/${ids.length}`);
+        await loadCorrection(run.id);
+      }
+      setNotice(`Replacements ready: ${replaced}. Failed: ${failed}. Review the Proposed column, then Apply selected.`);
+    } catch (e: any) {
+      setError(errorMessage(e, "The replacements could not be generated."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const applySelected = async () => {
     if (!run || selected.size === 0 || busy) return;
     setBusy(true);
@@ -171,6 +214,10 @@ export default function CorrectionPanel() {
   };
 
   const selectedProposed = items.filter((i) => selected.has(i.id) && i.status === "proposed").length;
+  const selectedReplaceable = items.filter(
+    (i) => selected.has(i.id) && i.status === "proposed" &&
+      ["outside_book", "not_found", "bad_options"].includes(i.verdict)
+  ).length;
 
   return (
     <section className="glass p-5 space-y-4">
@@ -237,11 +284,20 @@ export default function CorrectionPanel() {
       )}
 
       {error && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>}
+      {notice && <p className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-sm text-indigo-200">{notice}</p>}
 
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={startAudit} disabled={!subjectId || !chapterId || !sourceBatchId || busy}
           className="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 disabled:opacity-50">
           {busy && !run ? "Auditing…" : "Start audit"}
+        </button>
+        <button type="button" onClick={selectFlagged} disabled={!run || items.length === 0 || busy}
+          className="rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-200 disabled:opacity-50">
+          Select flagged
+        </button>
+        <button type="button" onClick={replaceSelected} disabled={selectedReplaceable === 0 || busy}
+          className="rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-200 disabled:opacity-50">
+          Replace from page ({selectedReplaceable})
         </button>
         <button type="button" onClick={applySelected} disabled={selectedProposed === 0 || busy}
           className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-50">
@@ -310,13 +366,21 @@ export default function CorrectionPanel() {
                         {item.verdict}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-300">
+                    <td className="max-w-[320px] px-3 py-2 text-xs text-slate-300">
+                      {proposed.replace && <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-violet-300">new question</div>}
+                      {proposed.prompt && <div className="mb-1 font-semibold text-slate-100">{proposed.prompt}</div>}
+                      {Array.isArray(proposed.options) && (
+                        <div className="mb-1 text-[10px] text-slate-500">{proposed.options.join(" · ")}</div>
+                      )}
                       {proposed.page_number != null && <div>page {proposed.page_number}</div>}
                       {proposed.answer != null && <div>answer {proposed.answer}</div>}
-                      {proposed.page_number == null && proposed.answer == null && "—"}
+                      {proposed.source_quote && <div className="mt-1 text-[10px] italic text-slate-500">“{proposed.source_quote}”</div>}
+                      {!proposed.replace && proposed.page_number == null && proposed.answer == null && "—"}
                     </td>
                     <td className="max-w-[300px] px-3 py-2 text-xs italic text-slate-400">
-                      {evidence.quote || evidence.reason || "—"}
+                      {evidence.replaceError
+                        ? <span className="not-italic text-rose-300">No replacement: {evidence.replaceError}</span>
+                        : evidence.quote || evidence.reason || "—"}
                     </td>
                     <td className="px-3 py-2 text-[11px] text-slate-400">
                       {usage.exams > 0 || usage.attempts > 0

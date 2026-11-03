@@ -8,6 +8,8 @@ export interface GenerationMeta {
   maxQuestions: number;
   /** Questions already in the bank; the model must not repeat them. */
   avoidPrompts?: string[];
+  /** Old question being replaced; prefer the same topic when the page supports it. */
+  topicHint?: string;
 }
 
 export interface Candidate {
@@ -50,6 +52,11 @@ export function buildStrictMessages(meta: GenerationMeta): ChatMessage[] {
         `Chapter: ${meta.chapterTitle}\n` +
         `Book page: ${meta.pageNumber}\n` +
         `Write up to ${meta.maxQuestions} distinct questions from the attached page image.` +
+        (meta.topicHint
+          ? `\n\nThe question being replaced covered: "${String(meta.topicHint).slice(0, 300)}". ` +
+            "Prefer a question about the same topic if the page clearly supports it; otherwise use another clear fact from the page. " +
+            "Do not use the old question's answer unless the page states it."
+          : "") +
         (avoid ? `\n\nDo not repeat or rephrase any of these existing questions:\n${avoid}` : ""),
     },
   ];

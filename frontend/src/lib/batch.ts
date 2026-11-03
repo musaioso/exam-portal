@@ -190,6 +190,15 @@ export async function getCorrection(runId: string) {
   return data as { run: CorrectionRun; items: CorrectionItem[] };
 }
 
+export async function replaceCorrections(runId: string, itemIds: string[], maxPages = 2) {
+  const { data } = await api.post(
+    `/corrections/${runId}/replace`,
+    { item_ids: itemIds, max_pages: maxPages },
+    { timeout: 900_000 }
+  );
+  return data as { replaced: number; failed: number; items: CorrectionItem[] };
+}
+
 export async function applyCorrections(runId: string, itemIds: string[]) {
   const { data } = await api.post(`/corrections/${runId}/apply`, { item_ids: itemIds });
   return data as { applied: number };
