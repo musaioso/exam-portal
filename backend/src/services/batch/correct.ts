@@ -7,6 +7,7 @@ import { getProviderConfig } from "../ai/providers";
 import { ocrImage } from "../ai/ocr";
 import { isQuoteOnPage } from "./verify";
 import { withRetry } from "./retry";
+import { pickPages } from "./page-search";
 
 export type CorrectionVerdict =
   | "ok"
@@ -198,7 +199,10 @@ export async function loadPages(batchId: string): Promise<CorrectionPage[]> {
   return pages;
 }
 
-export async function runCorrectionStep(runId: string): Promise<{ checked: number; items: any[] }> {
+export async function runCorrectionStep(
+  runId: string,
+  deps: { auditQuestion?: typeof auditQuestion } = {}
+): Promise<{ checked: number; items: any[] }> {
   const db = await getDb();
   const correctionRun = await get(db, "SELECT * FROM correction_runs WHERE id=?", [runId]);
   if (!correctionRun) throw new Error("Correction run not found");
@@ -212,12 +216,13 @@ export async function runCorrectionStep(runId: string): Promise<{ checked: numbe
   const pages = await loadPages(String(correctionRun.source_batch_id));
   if (pages.length === 0) throw new Error("The source batch has no confirmed pages");
 
+  const auditFn = deps.auditQuestion ?? auditQuestion;
   const safeAudit = async (question: any, page: CorrectionPage): Promise<CorrectionAudit> => {
     // A provider outage is not a question verdict. Retry transient failures and
     // let a persistent failure stop the step; the item stays pending so the
     // next step can retry it instead of silently marking it "not found".
     return withRetry(
-      () => auditQuestion(question, page, cfg, String(sourceBatch.model)),
+      () => auditFn(question, page, cfg, String(sourceBatch.model)),
       {
         attempts: 3,
         delaysMs: [2000, 8000, 20000],
@@ -269,34 +274,85 @@ export async function runCorrectionStep(runId: string): Promise<{ checked: numbe
     const claimedNumber = Number(question.page_number);
     const claimed = Number.isFinite(claimedNumber)
       ? pages.find((p) => p.pageNumber === claimedNumber)
-      : pages[0];
-    if (!claimed) {
+      : undefined;
+
+    const chapterScope = String(correctionRun.search_scope || "nearby") === "chapter";
+    let candidates: typeof pages;
+    if (chapterScope) {
+      // Imported questions often have no page number, or the wrong one. Rank
+      // the whole chapter and verify the best matches, not just page 1.
+      candidates = pickPages(question, pages, {
+        claimedPage: claimed?.pageNumber ?? null,
+        maxPages: 6,
+        includeFirstWhenEmpty: true,
+      });
+    } else if (claimed) {
+      candidates = [
+        claimed,
+        ...pages
+          .filter((p) => p.pageNumber !== claimed.pageNumber)
+          .sort((a, b) => Math.abs(a.pageNumber - claimed.pageNumber) - Math.abs(b.pageNumber - claimed.pageNumber))
+          .slice(0, 5),
+      ];
+    } else {
+      candidates = pages.slice(0, 1);
+    }
+
+    if (candidates.length === 0) {
       await run(db, `UPDATE correction_items
         SET verdict='not_found', current_json=?, proposed_json=NULL, evidence_json=?, status='proposed'
         WHERE run_id=? AND question_id=?`,
         [JSON.stringify(question),
-          JSON.stringify({ reason: `claimed page ${question.page_number ?? "—"} is not in the source batch`, pageNumber: question.page_number ?? null }),
+          JSON.stringify({
+            reason: claimed
+              ? `claimed page ${question.page_number} is not in the source batch`
+              : "no chapter pages are available",
+            pageNumber: question.page_number ?? null,
+          }),
           runId, question.id]);
       continue;
     }
-    let audit = await safeAudit(question, claimed);
 
-    if ((audit.verdict === "wrong_page" || audit.verdict === "not_found") && pages.length > 1) {
-      const others = pages
-        .filter((p) => p.pageNumber !== claimed.pageNumber)
-        .sort((a, b) => Math.abs(a.pageNumber - claimed.pageNumber) - Math.abs(b.pageNumber - claimed.pageNumber))
-        .slice(0, 5);
-      for (const page of others) {
-        const second = await safeAudit(question, page);
-        if (second.verdict === "ok") {
-          audit = {
-            verdict: "wrong_page",
-            proposed: { page_number: page.pageNumber },
-            evidence: { ...second.evidence, correctedFrom: claimed.pageNumber },
-          };
-          break;
-        }
+    let audit: CorrectionAudit | null = null;
+    let auditedPage = candidates[0];
+    for (const page of candidates) {
+      const result = await safeAudit(question, page);
+      if (result.verdict === "ok" || result.verdict === "wrong_answer" || result.verdict === "bad_options") {
+        audit = result;
+        auditedPage = page;
+        break;
       }
+      if (!audit) {
+        audit = result;
+        auditedPage = page;
+      }
+    }
+    if (!audit) {
+      await run(db, `UPDATE correction_items
+        SET verdict='not_found', current_json=?, proposed_json=NULL, evidence_json=?, status='proposed'
+        WHERE run_id=? AND question_id=?`,
+        [JSON.stringify(question),
+          JSON.stringify({ reason: "the provider returned no verdict", pageNumber: question.page_number ?? null }),
+          runId, question.id]);
+      continue;
+    }
+
+    const checkedPages = candidates.map((p) => p.pageNumber);
+    if (audit.verdict === "ok" && auditedPage.pageNumber !== claimed?.pageNumber) {
+      audit = {
+        verdict: "wrong_page",
+        proposed: { page_number: auditedPage.pageNumber },
+        evidence: {
+          ...audit.evidence,
+          correctedFrom: claimed?.pageNumber ?? null,
+          checkedPages,
+        },
+      };
+    } else {
+      audit = {
+        ...audit,
+        evidence: { ...audit.evidence, checkedPages },
+      };
     }
 
     await run(db, `UPDATE correction_items

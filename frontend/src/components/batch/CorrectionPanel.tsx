@@ -36,6 +36,7 @@ export default function CorrectionPanel() {
   const [subjectId, setSubjectId] = useState("");
   const [chapterId, setChapterId] = useState("");
   const [sourceBatchId, setSourceBatchId] = useState("");
+  const [searchScope, setSearchScope] = useState<"nearby" | "chapter">("nearby");
   const [questionCount, setQuestionCount] = useState<number | null>(null);
   const [run, setRun] = useState<CorrectionRun | null>(null);
   const [items, setItems] = useState<CorrectionItem[]>([]);
@@ -98,6 +99,7 @@ export default function CorrectionPanel() {
         subject_id: subjectId,
         chapter_id: chapterId,
         source_batch_id: sourceBatchId,
+        search_scope: searchScope,
       });
       await loadCorrection(created.id);
       for (let guard = 0; guard < 300; guard++) {
@@ -229,7 +231,7 @@ export default function CorrectionPanel() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <label className="space-y-1 text-sm">
           <span className="text-slate-300">Subject</span>
           <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
@@ -258,11 +260,23 @@ export default function CorrectionPanel() {
             ))}
           </select>
         </label>
+
+        <label className="space-y-1 text-sm">
+          <span className="text-slate-300">Audit scope</span>
+          <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+            value={searchScope} onChange={(e) => setSearchScope(e.target.value as "nearby" | "chapter")}>
+            <option value="nearby">Cited page + nearby</option>
+            <option value="chapter">Search whole chapter</option>
+          </select>
+        </label>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
         {questionCount != null && <span>{questionCount} existing question{questionCount === 1 ? "" : "s"} in scope</span>}
         {sourceBatches.length === 0 && <span className="text-amber-300">Run a Generate batch for this chapter first to store its page images.</span>}
+        {searchScope === "chapter" && (
+          <span className="text-cyan-300">Whole-chapter search is slower, but it finds the right page for questions without a page number.</span>
+        )}
       </div>
 
       {recentRuns.length > 0 && (

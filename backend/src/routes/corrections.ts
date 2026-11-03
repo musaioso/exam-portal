@@ -14,6 +14,7 @@ const createSchema = z.object({
   chapter_id: z.string().min(1),
   source_batch_id: z.string().min(1),
   question_ids: z.array(z.string()).optional(),
+  search_scope: z.enum(["nearby", "chapter"]).optional(),
 });
 
 router.post("/", async (req: Request, res: Response) => {
@@ -33,9 +34,10 @@ router.post("/", async (req: Request, res: Response) => {
   const id = randomUUID();
   const chapterId = input.chapter_id;
   await run(db, `INSERT INTO correction_runs
-    (id,subject_id,chapter_id,source_batch_id,status,created_by,created_at)
-    VALUES (?,?,?,?,?,?,?)`,
-    [id, input.subject_id, chapterId, input.source_batch_id, "draft", req.user!.id, Date.now()]);
+    (id,subject_id,chapter_id,source_batch_id,search_scope,status,created_by,created_at)
+    VALUES (?,?,?,?,?,?,?,?)`,
+    [id, input.subject_id, chapterId, input.source_batch_id, input.search_scope || "nearby",
+      "draft", req.user!.id, Date.now()]);
 
   if (input.question_ids?.length) {
     for (const questionId of input.question_ids) {

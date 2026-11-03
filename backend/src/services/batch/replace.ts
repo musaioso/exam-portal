@@ -4,6 +4,7 @@ import { generatePage as realGeneratePage } from "./generate";
 import { verifyCandidates as realVerifyCandidates, normalizeEvidence, numericTokens } from "./verify";
 import { withRetry } from "./retry";
 import { loadPages } from "./correct";
+import { pickPages, norm, toks } from "./page-search";
 import type { Candidate } from "./generate";
 
 type Page = Awaited<ReturnType<typeof loadPages>>[number];
@@ -17,18 +18,6 @@ export interface ReplaceResult {
   replaced: number;
   failed: number;
   items: any[];
-}
-
-const STOP = new Set(
-  "the a an of in on at to for from by with and or is are was were be been being this that these those which what who whom whose when where why how did does do has have had as it its into than then there their they them we our you your he she his her not no if about approximately".split(" ")
-);
-
-function norm(s: string): string {
-  return String(s || "").toLowerCase().replace(/[^\p{L}\p{N}%]+/gu, " ").replace(/\s+/g, " ").trim();
-}
-
-function toks(s: string): string[] {
-  return norm(s).split(" ").filter((t) => t.length > 2 && !STOP.has(t));
 }
 
 const MONTHS = [
@@ -48,50 +37,6 @@ function jaccard(a: string, b: string): number {
   let intersection = 0;
   for (const token of left) if (right.has(token)) intersection++;
   return intersection / (left.size + right.size - intersection);
-}
-
-function scorePage(page: Page, question: any): number {
-  const text = norm(page.text);
-  if (!text) return 0;
-  const answer = norm(question.answer);
-  const answerTokens = toks(question.answer);
-  const numbers = [...String(question.answer || "").matchAll(/\d+(?:[.,]\d+)?/g)]
-    .map((m) => m[0].replace(",", ""));
-  const promptTokens = toks(question.prompt).filter((t) => t.length > 3);
-
-  let score = 0;
-  if (answer && text.includes(answer)) score += 100;
-  for (const token of answerTokens) if (text.includes(token)) score += 8;
-  for (const number of numbers) if (text.includes(number)) score += 15;
-  for (const token of promptTokens) if (text.includes(token)) score += 1;
-  return score;
-}
-
-function pickPages(
-  question: any,
-  proposed: any,
-  pages: Page[],
-  maxPages: number
-): Page[] {
-  const byNumber = new Map(pages.map((page) => [page.pageNumber, page]));
-  const chosen: Page[] = [];
-  const add = (page: Page | undefined) => {
-    if (page && !chosen.some((p) => p.pageNumber === page.pageNumber)) chosen.push(page);
-  };
-
-  if (proposed?.page_number != null) add(byNumber.get(Number(proposed.page_number)));
-  add(byNumber.get(Number(question.page_number)));
-
-  const scored = pages
-    .map((page) => ({ page, score: scorePage(page, question) }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score);
-
-  for (const entry of scored) {
-    if (chosen.length >= maxPages) break;
-    add(entry.page);
-  }
-  return chosen;
 }
 
 function sectionOnPage(section: string | null | undefined, pageText: string): string | null {
@@ -159,7 +104,11 @@ export async function replaceItems(
 
     let proposed: any = {};
     try { proposed = JSON.parse(item.proposed_json || "{}") || {}; } catch { proposed = {}; }
-    const candidatesPages = pickPages(question, proposed, pages, maxPages);
+    const candidatesPages = pickPages(question, pages, {
+      proposedPage: proposed?.page_number,
+      claimedPage: question.page_number,
+      maxPages,
+    });
     if (candidatesPages.length === 0) {
       await recordFailure(db, item, "No chapter page could be anchored to this question.");
       failed++;

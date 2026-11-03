@@ -34,6 +34,8 @@ test("migrate keeps existing question ids and count", async () => {
     const rows = await all(db, "SELECT name FROM sqlite_master WHERE type='table' AND name=?", [table]);
     assert.equal(rows.length, 1, `missing table ${table}`);
   }
+  const correctionCols = (await all(db, "PRAGMA table_info(correction_runs)")).map((r: any) => r.name);
+  assert.ok(correctionCols.includes("search_scope"), "missing correction_runs.search_scope");
 });
 
 test("backupDatabaseFile copies the file", async () => {

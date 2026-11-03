@@ -145,6 +145,7 @@ export interface CorrectionRun {
   subject_id: string;
   chapter_id: string | null;
   source_batch_id: string | null;
+  search_scope?: string | null;
   status: string;
   checked: number;
   ok: number;
@@ -175,6 +176,7 @@ export async function createCorrection(input: {
   chapter_id?: string;
   source_batch_id: string;
   question_ids?: string[];
+  search_scope?: "nearby" | "chapter";
 }): Promise<{ id: string }> {
   const { data } = await api.post("/corrections", input);
   return data;

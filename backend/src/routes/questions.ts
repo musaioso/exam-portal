@@ -390,12 +390,21 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
   // every question. Support both shapes; row-level values still win.
   const topSubjectId: string | null = body.subject_id || null;
   const topSubjectSlug: string | null = body.subject_slug || null;
+  const topSubjectCode: string | null = body.subject_code || null;
   const topChapterTitle: string = body.chapter_title != null ? String(body.chapter_title).trim() : "";
   const topChapterNumber = body.chapter_number;
+  // NotebookLM exports use one top-level subject/chapter and a flat questions
+  // array. Strict mode keeps the 4-option MCQ shape the audit expects.
+  const notebookLm = String(body.format || "").toLowerCase() === "notebooklm-mcq-v1";
 
-  const findSubjectId = async (id?: string | null, slug?: string | null): Promise<string | null> => {
+  const findSubjectId = async (
+    id?: string | null,
+    slug?: string | null,
+    code?: string | null
+  ): Promise<string | null> => {
     if (id) { const s = await get(db, "SELECT id FROM subjects WHERE id=?", [id]) as any; if (s) return s.id; }
     if (slug) { const s = await get(db, "SELECT id FROM subjects WHERE slug=?", [slug]) as any; if (s) return s.id; }
+    if (code) { const s = await get(db, "SELECT id FROM subjects WHERE code=? COLLATE NOCASE", [code]) as any; if (s) return s.id; }
     return null;
   };
 
@@ -429,7 +438,7 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
     return null;
   };
 
-  const defaultSubjectId = await findSubjectId(topSubjectId, topSubjectSlug);
+  const defaultSubjectId = await findSubjectId(topSubjectId, topSubjectSlug, topSubjectCode);
   const defaultChapterCache = new Map<string, string | null>();
   const skipDuplicates = body.skip_duplicates !== false; // default: on
   // Normalised prompts already in the bank — one lookup per subject, extended as
@@ -452,7 +461,7 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
     const row = questions[i] || {};
     try {
       // resolve subject (row-level wins, else top-level default)
-      const subject_id = (await findSubjectId(row.subject_id, row.subject_slug)) || defaultSubjectId;
+      const subject_id = (await findSubjectId(row.subject_id, row.subject_slug, row.subject_code)) || defaultSubjectId;
       if (!subject_id) throw new Error("subject_id or valid subject_slug required");
       const type = String(row.type || "mcq").toLowerCase();
       if (!VALID_TYPES.has(type)) throw new Error("invalid type");
@@ -484,6 +493,20 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
         else if (typeof row.options === "string" && row.options.trim() !== "") options = row.options.split("|").map((o: string) => o.trim()).filter(Boolean);
         if (!options || options.length < 2) throw new Error("mcq needs at least 2 options");
       }
+      // NotebookLM often writes the key as A/B/C/D rather than the option text.
+      let answer = row.answer != null ? String(row.answer).trim() : null;
+      if (notebookLm && options && answer && /^[A-D]$/i.test(answer)) {
+        answer = options["ABCD".indexOf(answer.toUpperCase())] ?? answer;
+      }
+      if (notebookLm) {
+        if (type !== "mcq") throw new Error("notebooklm format only supports mcq");
+        if (!options || options.length !== 4 || new Set(options).size !== 4) {
+          throw new Error("notebooklm format needs exactly 4 unique options");
+        }
+        if (!answer || !options.includes(answer)) {
+          throw new Error("notebooklm answer must be one of the 4 options");
+        }
+      }
       const difficulty = VALID_DIFF.has(row.difficulty) ? row.difficulty : "medium";
       const marks = row.marks != null && Number.isFinite(Number(row.marks)) && Number(row.marks) > 0 ? Number(row.marks) : 1;
       // Book/source page ref — keep both numeric and text forms
@@ -497,19 +520,31 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
         if (Number.isFinite(n) && n > 0) pageNum = Math.floor(n);
       }
       const section = row.section != null && String(row.section).trim() !== "" ? String(row.section).trim() : null;
+      const sourceQuote = row.source_quote != null && String(row.source_quote).trim() !== ""
+        ? String(row.source_quote).trim()
+        : null;
+      const derivation = row.derivation != null && String(row.derivation).trim() !== ""
+        ? String(row.derivation).trim()
+        : null;
+      const explanation = [row.explanation != null ? String(row.explanation).trim() : "", derivation ? `Derived: ${derivation}` : ""]
+        .filter(Boolean).join(" ") || null;
       const id = uuid();
-      await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,section,created_by,created_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,section,source_quote,created_by,created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [id, subject_id, chapter_id, type, difficulty, prompt,
-          options ? JSON.stringify(options) : null, row.answer != null ? String(row.answer) : null,
-          row.explanation != null ? String(row.explanation) : null, marks, pageVal, pageNum, section, req.user!.id, Date.now()]);
+          options ? JSON.stringify(options) : null, answer,
+          explanation, marks, pageVal, pageNum, section, sourceQuote, req.user!.id, Date.now()]);
       if (skipDuplicates) (await promptsFor(subject_id)).add(promptKey);
       imported++;
     } catch (e: any) {
       errors.push({ index: i, error: e?.message || "Invalid row" });
     }
   }
-  res.json({ ok: true, imported, skipped, failed: errors.length, errors, duplicateRows });
+  res.json({
+    ok: true,
+    format: notebookLm ? "notebooklm-mcq-v1" : undefined,
+    imported, skipped, failed: errors.length, errors, duplicateRows,
+  });
 });
 
 router.post("/:id/duplicate", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {

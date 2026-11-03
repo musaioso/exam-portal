@@ -74,6 +74,46 @@ A range is accepted only when the page states that range or the range follows
 directly from stated numbers. “The book says 80,000 from both East and West”
 does not justify “40,000 from East” unless the page also says the split is half.
 
+## Importing from Gemini Notebook / NotebookLM
+
+Use the template at `frontend/public/notebooklm-import-template.json`
+(also linked as **NotebookLM template** on the Question Bank page). The shape is:
+
+```json
+{
+  "format": "notebooklm-mcq-v1",
+  "subject_code": "BGS",
+  "chapter_number": 1,
+  "skip_duplicates": true,
+  "questions": [
+    {
+      "prompt": "...",
+      "options": ["...", "...", "...", "..."],
+      "answer": "exact option text or A/B/C/D",
+      "explanation": "...",
+      "page_number": 12,
+      "section": "...",
+      "source_quote": "...",
+      "derivation": "optional one-step calculation"
+    }
+  ]
+}
+```
+
+The importer resolves the subject by `subject_code` (BGS, B1, B2, ICT, ...),
+the chapter by `chapter_number` or `chapter_title`, maps an A/B/C/D answer to
+the option text, stores `source_quote` and `section`, and appends a derivation to
+the explanation. It requires exactly four unique options and an answer that
+matches one of them.
+
+`page_number` is optional for NotebookLM imports. After importing:
+
+1. Create or reuse the chapter's page-image batch.
+2. In **Correct existing**, set **Audit scope** to **Search whole chapter**.
+3. Start the audit. Questions without a page number are ranked against the
+   chapter's OCR text and the best pages are verified.
+4. Review, then fix the page, fix the answer, replace from the page, or delete.
+
 ## What students see
 
 Generated questions store:

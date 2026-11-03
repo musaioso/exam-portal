@@ -5,7 +5,7 @@ import { backupDatabaseFile } from "./backup";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "15";
+export const SCHEMA_VERSION = "16";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -224,6 +224,9 @@ CREATE TABLE IF NOT EXISTS correction_runs (
   subject_id TEXT NOT NULL,
   chapter_id TEXT,
   source_batch_id TEXT,
+  -- "nearby" checks the claimed page and its neighbours; "chapter" searches
+  -- the whole chapter, which is required for imports without page numbers.
+  search_scope TEXT NOT NULL DEFAULT 'nearby',
   status TEXT NOT NULL DEFAULT 'draft',
   checked INTEGER NOT NULL DEFAULT 0,
   ok INTEGER NOT NULL DEFAULT 0,
@@ -367,6 +370,8 @@ export async function migrate() {
   await ensureColumn(db, "questions", "verification", "TEXT");
   await ensureColumn(db, "questions", "verification_method", "TEXT");
   await ensureColumn(db, "questions", "section", "TEXT");
+  // v16: correction audits can search the whole chapter, not just the cited page.
+  await ensureColumn(db, "correction_runs", "search_scope", "TEXT NOT NULL DEFAULT 'nearby'");
   await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('schema_version', ?)", [SCHEMA_VERSION]);
 }
 
