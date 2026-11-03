@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, currentUser } from "../lib/api";
+import { api, currentUser, errorMessage } from "../lib/api";
 import { Card, Button, Input, Select, cn } from "../components/ui";
 import { confirmDialog } from "../components/Dialog";
 import { Plus, Trash2, ChevronRight, Pencil, Check, X } from "lucide-react";
@@ -67,7 +67,7 @@ export default function Subjects() {
   useEffect(() => {
     loadSubjects().catch((e) => {
       const status = e?.response?.status;
-      const message = e?.response?.data?.error || e?.message || "Failed to load subjects";
+      const message = errorMessage(e, "Failed to load subjects");
       setError(status ? `${message} (HTTP ${status})` : message);
     });
   }, []);
@@ -126,7 +126,7 @@ export default function Subjects() {
       await loadSubjects();
     } catch (e: any) {
       const status = e?.response?.status;
-      const message = e?.response?.data?.error || e?.message || "Failed to add subject";
+      const message = errorMessage(e, "Failed to add subject");
       setError(status ? `${message} (HTTP ${status})` : message);
     } finally {
       setSavingSubject(false);
@@ -153,7 +153,7 @@ export default function Subjects() {
       await loadSubjects();
     } catch (e: any) {
       const status = e?.response?.status;
-      const message = e?.response?.data?.error || e?.message || "Failed to update subject";
+      const message = errorMessage(e, "Failed to update subject");
       setError(status ? `${message} (HTTP ${status})` : message);
     }
   };
@@ -172,7 +172,7 @@ export default function Subjects() {
       await loadSubjects();
     } catch (e: any) {
       const status = e?.response?.status;
-      const message = e?.response?.data?.error || e?.message || "Failed to delete subject";
+      const message = errorMessage(e, "Failed to delete subject");
       setError(status ? `${message} (HTTP ${status})` : message);
     }
   };
@@ -209,7 +209,7 @@ export default function Subjects() {
       await loadSubjects();
     } catch (e: any) {
       const status = e?.response?.status;
-      const message = e?.response?.data?.error || e?.message || "Failed to delete questions";
+      const message = errorMessage(e, "Failed to delete questions");
       setError(status ? `${message} (HTTP ${status})` : message);
     }
   };
@@ -228,7 +228,7 @@ export default function Subjects() {
       await loadChapters(sid);
     } catch (e: any) {
       const status = e?.response?.status;
-      const message = e?.response?.data?.error || e?.message || "Failed to add chapter";
+      const message = errorMessage(e, "Failed to add chapter");
       setError(status ? `${message} (HTTP ${status})` : message);
     }
   };
@@ -253,7 +253,7 @@ export default function Subjects() {
       await loadChapters(sid);
     } catch (e: any) {
       const status = e?.response?.status;
-      const message = e?.response?.data?.error || e?.message || "Failed to update chapter";
+      const message = errorMessage(e, "Failed to update chapter");
       setError(status ? `${message} (HTTP ${status})` : message);
     }
   };
@@ -272,7 +272,7 @@ export default function Subjects() {
       await loadChapters(sid);
     } catch (e: any) {
       const status = e?.response?.status;
-      const message = e?.response?.data?.error || e?.message || "Failed to delete chapter";
+      const message = errorMessage(e, "Failed to delete chapter");
       setError(status ? `${message} (HTTP ${status})` : message);
     }
   };
@@ -287,7 +287,7 @@ export default function Subjects() {
       await loadChapters(sid);
     } catch (e: any) {
       const status = e?.response?.status;
-      const message = e?.response?.data?.error || e?.message || "Failed to merge chapters";
+      const message = errorMessage(e, "Failed to merge chapters");
       setError(status ? `${message} (HTTP ${status})` : message);
     }
   };
@@ -299,7 +299,7 @@ export default function Subjects() {
       await loadChapters(sid);
     } catch (e: any) {
       const status = e?.response?.status;
-      const message = e?.response?.data?.error || e?.message || "Failed to undo merge";
+      const message = errorMessage(e, "Failed to undo merge");
       setError(status ? `${message} (HTTP ${status})` : message);
     }
   };
@@ -492,7 +492,7 @@ export default function Subjects() {
                           if ((data?.updated ?? 0) > 0) setError(null);
                         } catch (e: any) {
                           const status = e?.response?.status;
-                          const message = e?.response?.data?.error || e?.message || "Failed to renumber chapters";
+                          const message = errorMessage(e, "Failed to renumber chapters");
                           setError(status ? `${message} (HTTP ${status})` : message);
                         }
                       }}

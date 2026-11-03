@@ -2,6 +2,7 @@ import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, Info } from "lucide-react";
 import { Button, cn } from "./ui";
+import { errorText } from "../lib/error-text";
 
 /**
  * In-app replacements for window.confirm() / window.alert().
@@ -159,7 +160,7 @@ export function DialogHost() {
   if (entry.kind === "confirm") {
     const o = entry.options;
     title = o.title ?? "Are you sure?";
-    body = entry.message || undefined;
+    body = errorText(entry.message) || undefined;
     danger = o.tone === "danger";
     footer = (
       <>
@@ -174,7 +175,7 @@ export function DialogHost() {
   } else if (entry.kind === "choice") {
     const o = entry.options;
     title = o.title ?? "Choose one";
-    body = entry.message || undefined;
+    body = errorText(entry.message) || undefined;
     const safeIdx = Math.max(0, o.actions.findIndex((a) => a.safe));
     footer = o.actions.map((a, i) => (
       <Button
@@ -189,7 +190,7 @@ export function DialogHost() {
   } else {
     const o = entry.options;
     title = o.title ?? "Heads up";
-    body = entry.message || undefined;
+    body = errorText(entry.message) || undefined;
     footer = (
       <Button data-dialog-safe variant="primary" onClick={() => settle(true)}>
         {o.okLabel ?? "OK"}

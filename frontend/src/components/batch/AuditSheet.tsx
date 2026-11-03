@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { errorMessage } from "../../lib/api";
 import { getBatch, auditBatch, confirmPage, type BatchPage } from "../../lib/batch";
 import { Button, Input } from "../ui";
 
@@ -113,7 +114,7 @@ export default function AuditSheet({ batchId, onChanged }: { batchId: string | n
       setPages(data.pages);
       onChanged();
     } catch (e: any) {
-      setError(e?.response?.data?.error || "The page audit could not run.");
+      setError(errorMessage(e, "The page audit could not run."));
     } finally {
       setBusy(false);
     }
@@ -128,7 +129,7 @@ export default function AuditSheet({ batchId, onChanged }: { batchId: string | n
       await load();
       onChanged();
     } catch (e: any) {
-      setError(e?.response?.data?.error || "The page could not be confirmed.");
+      setError(errorMessage(e, "The page could not be confirmed."));
     } finally {
       setBusy(false);
     }

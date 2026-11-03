@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, errorMessage } from "../lib/api";
 import { Button, Input } from "../components/ui";
 import { AuthField, AuthShell } from "../components/AuthShell";
 import { CircleAlert, Eye, EyeOff, UserPlus } from "lucide-react";
@@ -22,7 +22,7 @@ export default function Register() {
       nav("/login");
       return;
     } catch (x: any) {
-      setErr(x?.response?.data?.error || "Could not create the account. Please try again.");
+      setErr(errorMessage(x, "Could not create the account. Please try again."));
     }
     setBusy(false);
   };
