@@ -4,6 +4,7 @@ import AuditSheet from "../components/batch/AuditSheet";
 import RunPanel from "../components/batch/RunPanel";
 import CorrectionPanel from "../components/batch/CorrectionPanel";
 import { listBatches, type Batch as BatchRun } from "../lib/batch";
+import { batchSummary } from "../lib/batch-labels";
 import { Button } from "../components/ui";
 
 function GenerateTab() {
@@ -27,18 +28,17 @@ function GenerateTab() {
             <p className="text-sm text-slate-400">Reopen a batch to resume, inspect evidence, or undo it.</p>
           </div>
           <div className="grid gap-2 md:grid-cols-2">
-            {recent.map((batch) => (
+            {recent.map((batch, index) => (
               <button
                 key={batch.id}
                 type="button"
                 onClick={() => { setBatchId(batch.id); refresh(); }}
-                className="flex items-center justify-between rounded-2xl border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-left text-sm transition hover:bg-ink/5"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-left text-sm transition hover:bg-ink/5"
               >
-                <span>
-                  <span className="font-semibold text-slate-100">{batch.id.slice(0, 8)}</span>
-                  <span className="ml-2 text-xs text-slate-400">{batch.status} · {batch.saved} saved</span>
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium text-slate-200">{batchSummary(batch, index)}</span>
                 </span>
-                <span className="text-xs font-semibold text-indigo-300">Open</span>
+                <span className="shrink-0 text-xs font-semibold text-indigo-300">Open</span>
               </button>
             ))}
           </div>

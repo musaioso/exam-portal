@@ -16,6 +16,7 @@ import {
 } from "../../lib/batch";
 import { confirmDialog } from "../Dialog";
 import { Button, Field, Select } from "../ui";
+import { batchSummary, correctionRunSummary } from "../../lib/batch-labels";
 
 function parseJson(value: string | null | undefined): any {
   if (!value) return {};
@@ -79,9 +80,16 @@ export default function CorrectionPanel() {
   }, [subjectId, chapterId]);
 
   const sourceBatches = useMemo(
-    () => batches.filter((b) => b.subject_id === subjectId && (!chapterId || b.chapter_id === chapterId)),
+    () => batches
+      .filter((b) => b.subject_id === subjectId && (!chapterId || b.chapter_id === chapterId))
+      .sort((a, b) => a.created_at - b.created_at),
     [batches, subjectId, chapterId]
   );
+
+  const chapterLabel = (id: string | null) => {
+    const chapter = chapters.find((c) => c.id === id);
+    return chapter ? `Ch. ${chapter.number} — ${chapter.title}` : "";
+  };
 
   const loadCorrection = async (runId: string) => {
     const data = await getCorrection(runId);
@@ -253,8 +261,10 @@ export default function CorrectionPanel() {
           <Select
             value={sourceBatchId} onChange={(e) => setSourceBatchId(e.target.value)} disabled={!subjectId}>
             <option value="">Pick the source batch…</option>
-            {sourceBatches.map((b) => (
-              <option key={b.id} value={b.id}>{b.id.slice(0, 8)} · {b.status} · {b.saved} saved</option>
+            {sourceBatches.map((b, index) => (
+              <option key={b.id} value={b.id}>
+                {batchSummary(b, index, chapterId ? "" : chapterLabel(b.chapter_id))}
+              </option>
             ))}
           </Select>
         </Field>
@@ -280,7 +290,7 @@ export default function CorrectionPanel() {
         <div className="space-y-2">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Recent correction runs</p>
           <div className="flex flex-wrap gap-2">
-            {recentRuns.map((recent) => (
+            {recentRuns.map((recent, index) => (
               <Button
                 key={recent.id}
                 type="button"
@@ -289,7 +299,7 @@ export default function CorrectionPanel() {
                 className="font-medium"
                 onClick={() => { void loadCorrection(recent.id); }}
               >
-                {recent.id.slice(0, 8)} · {recent.status} · {recent.checked} checked
+                {correctionRunSummary(recent, index)}
               </Button>
             ))}
           </div>
