@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api, errorMessage } from "../lib/api";
 import { optionLabel } from "../lib/labels";
 import { useToast } from "../components/Toast";
@@ -634,14 +634,23 @@ export default function Generate() {
             <Sparkles size={22} />
           </span>
           <div>
-            <h1 className="text-2xl font-semibold text-slate-100">AI Question Generator</h1>
-            <p className="text-sm text-slate-400">Turn books, page photos or pasted text into review-ready questions.</p>
+            <h1 className="text-2xl font-semibold text-slate-100">Quick Draft</h1>
+            <p className="text-sm text-slate-400">Draft questions from PDFs, page photos, pasted text, or NotebookLM. MCQs must be audited before they go live.</p>
           </div>
         </div>
         <Button variant="ghost" onClick={() => { loadModels(true); loadKeys(); }} disabled={modelsLoading} title="Refresh model list and key status">
           <RefreshCw size={15} className={modelsLoading ? "animate-spin" : ""} /> Refresh
         </Button>
       </header>
+
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+        <AlertTriangle size={17} className="mt-0.5 shrink-0 text-amber-300" />
+        <p>
+          <b>Quick Draft is for drafts.</b> For page-grounded MCQs, use{" "}
+          <Link to="/batch" className="font-semibold underline underline-offset-2 hover:text-white">Batch Studio</Link>.
+          Any MCQ drafted here must be audited in <b>Correct existing</b> before students see it.
+        </p>
+      </div>
 
       {/* ------------------------------------------------------------ the form */}
       <Card hover={false} className="overflow-hidden p-0">

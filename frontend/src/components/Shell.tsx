@@ -11,7 +11,7 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin","teacher","student"] },
   { to: "/subjects", label: "Subjects & Chapters", icon: BookOpen, roles: ["admin","teacher"] },
   { to: "/questions", label: "Question Bank", icon: FileQuestion, roles: ["admin","teacher"] },
-  { to: "/generate", label: "AI Generate", icon: Sparkles, roles: ["admin","teacher"] },
+  { to: "/generate", label: "Quick Draft", icon: Sparkles, roles: ["admin","teacher"] },
   { to: "/batch", label: "Batch Studio", icon: Layers, roles: ["admin","teacher"] },
   { to: "/spelling", label: "Spelling MCQs", icon: SpellCheck, roles: ["admin","teacher"] },
   { to: "/exams", label: "Exams", icon: ClipboardList, roles: ["admin","teacher","student"] },
