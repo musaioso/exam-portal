@@ -46,7 +46,7 @@ export function FileInput({ className, ...props }: Omit<React.ComponentProps<"in
       className={cn(
         "block w-full rounded-2xl border border-slate-600/70 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-100 transition focus:border-violet-400/60 focus:outline-none focus:ring-2 focus:ring-violet-500/70",
         "file:mr-3 file:cursor-pointer file:rounded-2xl file:border-0 file:bg-gradient-to-r file:from-violet-500 file:via-fuchsia-500 file:to-cyan-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white file:shadow-lg file:shadow-fuchsia-500/30",
-        "hover:file:shadow-xl hover:file:shadow-fuchsia-400/40",
+        "file:transition-all file:duration-200 hover:file:-translate-y-0.5 hover:file:shadow-xl hover:file:shadow-fuchsia-400/40 active:file:scale-95",
         className,
       )}
     />
