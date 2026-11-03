@@ -124,7 +124,11 @@ export async function verifyCandidates(args: {
         rejected.push({ index, valid: false, reason: "quote not found on page", method: "ocr" });
         return;
       }
-      if (missingNumbers(pageText, [candidate.prompt, candidate.answer].join(" ")).length > 0) {
+      // A derived answer is allowed to contain a number that is not on the page
+      // (e.g. 80000 / 2 = 40000); the vision verifier checks the inputs and the
+      // arithmetic. Everything else must use numbers stated on the page.
+      if (!candidate.derivation &&
+        missingNumbers(pageText, [candidate.prompt, candidate.answer].join(" ")).length > 0) {
         rejected.push({ index, valid: false, reason: "number not found on page", method: "ocr" });
         return;
       }
@@ -140,6 +144,7 @@ export async function verifyCandidates(args: {
     options: candidate.options,
     answer: candidate.answer,
     sourceQuote: candidate.sourceQuote,
+    derivation: candidate.derivation || null,
   }));
 
   const messages: ChatMessage[] = [
@@ -150,7 +155,10 @@ export async function verifyCandidates(args: {
         '{"index":number,"valid":boolean,"reason":"..."}. Valid only if the quote is on the page and ' +
         "supports the answer. The question stem and correct answer must not use a term, classification, " +
         "or number absent from the page. Distractor options MAY be plausible alternatives not on the page; " +
-        "do not reject solely because a distractor is absent.",
+        "do not reject solely because a distractor is absent. " +
+        "If derivation is present, every input number must appear on the page and the arithmetic must be " +
+        "correct; a derived answer is valid only when the page states the inputs. Names, dates, labels and " +
+        "terms can never be derived.",
     },
     {
       role: "user",

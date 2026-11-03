@@ -1,7 +1,7 @@
 import { getDb, get, all, run } from "../../db/database";
 import { getProviderConfig } from "../ai/providers";
 import { generatePage as realGeneratePage } from "./generate";
-import { verifyCandidates as realVerifyCandidates, normalizeEvidence } from "./verify";
+import { verifyCandidates as realVerifyCandidates, normalizeEvidence, numericTokens } from "./verify";
 import { withRetry } from "./retry";
 import { loadPages } from "./correct";
 import type { Candidate } from "./generate";
@@ -29,6 +29,16 @@ function norm(s: string): string {
 
 function toks(s: string): string[] {
   return norm(s).split(" ").filter((t) => t.length > 2 && !STOP.has(t));
+}
+
+const MONTHS = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
+function monthsIn(text: string): string[] {
+  const value = norm(text);
+  return MONTHS.filter((month) => value.includes(month));
 }
 
 function jaccard(a: string, b: string): number {
@@ -132,6 +142,8 @@ export async function replaceItems(
 
   let replaced = 0;
   let failed = 0;
+  const generated: Array<{ prompt: string; answer: string; quote: string; nums: string[] }> = [];
+  const META_ANSWER = /information not provided|not provided|not mentioned|not stated|does not mention|does not state|page does not|none of the above|cannot be determined|not available/i;
 
   for (const itemId of itemIds) {
     const item = await get(db, "SELECT * FROM correction_items WHERE run_id=? AND id=?", [runId, itemId]);
@@ -156,7 +168,7 @@ export async function replaceItems(
 
     const avoid = await all(
       db,
-      `SELECT prompt,answer FROM questions
+      `SELECT prompt,answer,source_quote FROM questions
        WHERE subject_id=? AND COALESCE(chapter_id,'')=COALESCE(?,'') AND id<>?
        ORDER BY created_at DESC LIMIT 300`,
       [question.subject_id, question.chapter_id ?? null, question.id]
@@ -164,7 +176,28 @@ export async function replaceItems(
     const existing = avoid.map((row: any) => ({
       prompt: String(row.prompt || ""),
       answer: norm(row.answer),
+      quote: norm(row.source_quote || ""),
+      nums: numericTokens(row.answer),
     }));
+    // Other replacements already generated in this run must not be repeated.
+    const siblingRows = await all(
+      db,
+      "SELECT proposed_json FROM correction_items WHERE run_id=? AND id<>?",
+      [runId, item.id]
+    );
+    for (const row of siblingRows) {
+      try {
+        const sibling = JSON.parse(row.proposed_json || "{}");
+        if (sibling.replace === true && sibling.prompt) {
+          existing.push({
+            prompt: String(sibling.prompt),
+            answer: norm(sibling.answer),
+            quote: norm(sibling.source_quote || ""),
+            nums: numericTokens(sibling.answer),
+          });
+        }
+      } catch { /* ignore malformed legacy rows */ }
+    }
 
     const reasons: string[] = [];
     let replacement: any = null;
@@ -226,21 +259,46 @@ export async function replaceItems(
             continue;
           }
 
-          const duplicate = existing.find((row: any) => {
+          if (String(candidate.answer || "").length > 120) {
+            reasons.push(`page ${page.pageNumber}: replacement answer is too long for an option`);
+            continue;
+          }
+          const stemMonths = monthsIn(candidate.prompt);
+          const answerMonths = monthsIn(candidate.answer);
+          if (stemMonths.length && answerMonths.length &&
+            !answerMonths.some((month) => stemMonths.includes(month))) {
+            reasons.push(`page ${page.pageNumber}: stem and answer name different months`);
+            continue;
+          }
+          if (META_ANSWER.test(String(candidate.answer || ""))) {
+            reasons.push(`page ${page.pageNumber}: replacement answer is a non-answer (${candidate.answer})`);
+            continue;
+          }
+
+          const quote = norm(candidate.sourceQuote);
+          const candidateNums = numericTokens(candidate.answer);
+          const duplicate = [...existing, ...generated].find((row: any) => {
+            if (quote && row.quote && quote === row.quote) return true;
             const similarity = jaccard(candidate.prompt, row.prompt);
             if (similarity >= 0.75) return true;
-            return !!row.answer && row.answer === norm(candidate.answer) && similarity >= 0.55;
+            if (candidateNums.length && row.nums?.length &&
+              candidateNums.every((n) => row.nums.includes(n)) && similarity >= 0.2) return true;
+            return !!row.answer && row.answer === norm(candidate.answer) && similarity >= 0.3;
           });
           if (duplicate) {
             reasons.push(`page ${page.pageNumber}: replacement duplicates an existing question`);
             continue;
           }
 
+          const explanation = candidate.derivation
+            ? [candidate.explanation, `Derived: ${candidate.derivation}.`].filter(Boolean).join(" ")
+            : candidate.explanation;
           replacement = {
             prompt: candidate.prompt,
             options,
             answer: candidate.answer,
-            explanation: candidate.explanation,
+            explanation,
+            derivation: candidate.derivation || null,
             difficulty: question.difficulty || candidate.difficulty,
             page: String(page.pageNumber),
             page_number: page.pageNumber,
@@ -248,6 +306,7 @@ export async function replaceItems(
             source_quote: candidate.sourceQuote,
             replace: true,
           };
+          generated.push({ prompt: candidate.prompt, answer: norm(candidate.answer), quote, nums: candidateNums });
         } catch (error: any) {
           reasons.push(`page ${page.pageNumber}: ${String(error?.message || error)}`);
         }

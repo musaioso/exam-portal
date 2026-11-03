@@ -77,8 +77,13 @@ export async function auditQuestion(
       content:
         "Use only the attached textbook page. Check the question stem and keyed answer against that page. " +
         "Distractor options may be plausible alternatives not on the page; do not reject solely because a distractor is absent. " +
+        "An answer is supported if it is explicitly stated, or if it is ONE simple arithmetic result from numbers " +
+        "explicitly on the page (sum, difference, half, double, percentage). If derived, set derived=true and give " +
+        "the calculation in derivation, for example 80000 / 2 = 40000. Names, dates, labels, classifications and " +
+        "terms can never be derived; they must be explicit. " +
         'Return JSON only: {"supported":boolean,"quote":"verbatim sentence from the page",' +
-        '"correctAnswer":"optional exact option text","outsideTerm":"optional term not on the page","reason":"optional"}',
+        '"correctAnswer":"optional exact option text","outsideTerm":"optional term not on the page",' +
+        '"derived":boolean,"derivation":"optional one-step calculation","reason":"optional"}',
     },
     {
       role: "user",
@@ -95,6 +100,21 @@ export async function auditQuestion(
   const parsed = extractObject(result.text);
   const quote = String(parsed.quote || "").trim();
   const evidence = { quote, pageNumber: page.pageNumber, method: "vision" as const, reason: parsed.reason || null };
+
+  // A numeric answer may be one simple calculation from numbers on the page.
+  // The quote must still support the inputs; a derivation never licenses a
+  // name, date, label or term that the page does not state.
+  const derivation = String(parsed.derivation || "").trim();
+  const derived = parsed.derived === true && !!derivation && /\d/.test(derivation) && /\d/.test(answer);
+  if (derived) {
+    if (!quote) {
+      return { verdict: "not_found", proposed: null, evidence: { ...evidence, reason: "derived answer without a supporting quote" } };
+    }
+    if (page.text && !isQuoteOnPage(page.text, quote)) {
+      return { verdict: "wrong_page", proposed: null, evidence: { ...evidence, reason: "derivation quote not on claimed page" } };
+    }
+    return { verdict: "ok", proposed: null, evidence: { ...evidence, derived: true, derivation } };
+  }
 
   if (parsed.outsideTerm) {
     return { verdict: "outside_book", proposed: null, evidence: { ...evidence, outsideTerm: String(parsed.outsideTerm) } };

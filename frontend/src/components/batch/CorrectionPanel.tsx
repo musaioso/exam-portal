@@ -374,6 +374,7 @@ export default function CorrectionPanel() {
                       )}
                       {proposed.page_number != null && <div>page {proposed.page_number}</div>}
                       {proposed.answer != null && <div>answer {proposed.answer}</div>}
+                      {proposed.derivation && <div className="text-[10px] text-violet-300">derived: {proposed.derivation}</div>}
                       {proposed.source_quote && <div className="mt-1 text-[10px] italic text-slate-500">“{proposed.source_quote}”</div>}
                       {!proposed.replace && proposed.page_number == null && proposed.answer == null && "—"}
                     </td>

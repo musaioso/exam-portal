@@ -26,6 +26,17 @@ test("parseStrictReply preserves the section heading", () => {
   assert.equal(items[0].section, "Climate of Bangladesh");
 });
 
+test("parseStrictReply preserves a one-step derivation", () => {
+  const items = parseStrictReply(JSON.stringify([{
+    ...good,
+    answer: "40000",
+    options: ["40000", "30000", "50000", "60000"],
+    derivation: "80000 / 2 = 40000",
+  }]));
+  assert.equal(items.length, 1);
+  assert.equal(items[0].derivation, "80000 / 2 = 40000");
+});
+
 test("parseStrictReply rejects page attribution and bad options", () => {
   assert.equal(parseStrictReply(JSON.stringify([{ ...good, prompt: "According to page 57, what is the river?" }])).length, 0);
   assert.equal(parseStrictReply(JSON.stringify([{ ...good, options: ["Padma", "Padma", "A", "B"] }])).length, 0);

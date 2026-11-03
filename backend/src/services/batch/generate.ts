@@ -22,22 +22,26 @@ export interface Candidate {
   sourceQuote: string;
   /** Visible section heading on the cited page, when one is present. */
   section?: string | null;
+  /** One-step arithmetic from numbers explicitly on the page, when used. */
+  derivation?: string | null;
   marks: number;
 }
 
 const SYSTEM_PROMPT = `You write exam questions from a single scanned textbook page. Use ONLY the attached page. Never use outside knowledge, older-book terms, or anything not visible on the page. If the page does not state a fact, do not write a question about it.
 
 Return a JSON array. Each item must be:
-{"difficulty":"easy|medium|hard","prompt":"...","options":["...","...","...","..."],"answer":"exact option text","explanation":"one sentence","sourceQuote":"verbatim sentence from the page","section":"visible section heading on the page, or empty","marks":1}
+{"difficulty":"easy|medium|hard","prompt":"...","options":["...","...","...","..."],"answer":"exact option text","explanation":"one sentence","sourceQuote":"verbatim sentence from the page","section":"visible section heading on the page, or empty","derivation":"optional one-step calculation, or empty","marks":1}
 
 Rules:
 - Exactly 4 unique options. The answer must be copied character-for-character from one option.
 - sourceQuote must be an exact sentence from the page that supports the answer.
+- A question may ask for a result obtained by ONE simple arithmetic step from numbers explicitly on the page: sum, difference, half, double, or percentage. Include derivation, for example "80000 / 2 = 40000". The page must state every input number.
+- Never derive a name, date, label, classification, or term. Those must be explicitly stated.
 - Do not return a page number; the system assigns it.
-- Never write "according to page", "on page", "as stated in", "according to the textbook/Table/Figure", or an exercise reference.
+- Never write "according to", "on page", "as stated in", a section/point reference, or an exercise reference.
 - Write up to the requested number of distinct questions. If the page supports that many different facts, produce that many. Never repeat an existing question and never invent facts to fill the count.`;
 
-const BANNED = /according to page|on page \d|as stated in|according to the textbook|according to the chapter|according to chapter|according to table|according to figure|পাঠ্যবই অনুযায়ী/i;
+const BANNED = /according to|on page \d|as stated in|section \d|as mentioned in the (text|section)|পাঠ্যবই অনুযায়ী/i;
 
 export function buildStrictMessages(meta: GenerationMeta): ChatMessage[] {
   const avoid = (meta.avoidPrompts || [])
@@ -70,6 +74,7 @@ const itemSchema = z.object({
   explanation: z.string().optional(),
   sourceQuote: z.string(),
   section: z.string().optional(),
+  derivation: z.string().optional(),
   marks: z.number().optional(),
 });
 
@@ -110,6 +115,7 @@ export function parseStrictReply(text: string): Candidate[] {
     const sourceQuote = itemData.sourceQuote.trim();
     if (!sourceQuote) continue;
     const section = itemData.section ? String(itemData.section).trim() : null;
+    const derivation = itemData.derivation ? String(itemData.derivation).trim() : null;
     const marks = Number(itemData.marks) > 0 ? Math.floor(Number(itemData.marks)) : 1;
     out.push({
       type: "mcq",
@@ -120,6 +126,7 @@ export function parseStrictReply(text: string): Candidate[] {
       explanation: itemData.explanation ? String(itemData.explanation).trim() : null,
       sourceQuote,
       section: section || null,
+      derivation: derivation || null,
       marks,
     });
   }

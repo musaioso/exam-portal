@@ -79,6 +79,47 @@ test("replaceItems stores a full replacement without touching the question", asy
   assert.equal(question.prompt, "Test question?");
 });
 
+test("replaceItems rejects a non-answer such as 'information not provided'", async () => {
+  const { db, runId, itemId } = await setup();
+  const metaAnswer = "Information not provided on this page";
+  const result = await replaceItems(runId, [itemId], { maxPages: 1, attemptsPerPage: 1 }, {
+    generatePage: async () => [{
+      ...candidate,
+      answer: metaAnswer,
+      options: [candidate.options[0], candidate.options[1], candidate.options[2], metaAnswer],
+    }],
+    verifyCandidates: async () => [{ index: 0, valid: true }],
+  });
+
+  assert.deepEqual({ replaced: result.replaced, failed: result.failed }, { replaced: 0, failed: 1 });
+  const item = await get(db, "SELECT proposed_json,evidence_json FROM correction_items WHERE id=?", [itemId]);
+  assert.equal(item.proposed_json, null);
+  assert.match(item.evidence_json, /non-answer/);
+});
+
+test("replaceItems rejects a replacement that duplicates another replacement", async () => {
+  const { q, db, chapterId, runId, itemId } = await setup();
+  const secondQuestionId = randomUUID();
+  await run(db, `INSERT INTO questions
+    (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,marks,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    [secondQuestionId, q.subjectId, chapterId, "mcq", "medium", "Old question two?",
+      JSON.stringify(["A", "B", "C", "D"]), "A", 1, Date.now()]);
+  const secondItemId = randomUUID();
+  await run(db, `INSERT INTO correction_items
+    (id,run_id,question_id,verdict,current_json,proposed_json,evidence_json,status,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?)`,
+    [secondItemId, runId, secondQuestionId, "outside_book",
+      JSON.stringify({ prompt: "Old question two?" }), null, JSON.stringify({}), "proposed", Date.now() + 1]);
+
+  const result = await replaceItems(runId, [itemId, secondItemId], {}, {
+    generatePage: async () => [candidate],
+    verifyCandidates: async () => [{ index: 0, valid: true }],
+  });
+
+  assert.deepEqual({ replaced: result.replaced, failed: result.failed }, { replaced: 1, failed: 1 });
+});
+
 test("replaceItems rejects a replacement that duplicates an existing question", async () => {
   const { q, db, chapterId, runId, itemId } = await setup();
   await run(db, `INSERT INTO questions

@@ -57,6 +57,23 @@ Rejected rows stay in the evidence table with a reason. They never enter the ban
 
 **Undo batch** deletes only the questions created by that batch (`questions.batch_id = ...`). Existing questions are never selected.
 
+## What counts as “from the book”
+
+A question is valid only when the page supports it in one of two ways:
+
+1. **Explicit** — the stem, answer, name, date, label, or term is stated on the
+   page.
+2. **One-step calculation** — the answer is a single arithmetic result from
+   numbers the page states: sum, difference, half, double, or percentage. The
+   generator must record the calculation (for example `80000 / 2 = 40000`) and
+   the verifier checks that every input number is on the page and the arithmetic
+   is correct.
+
+A name, date, label, classification, or term is never accepted by calculation.
+A range is accepted only when the page states that range or the range follows
+directly from stated numbers. “The book says 80,000 from both East and West”
+does not justify “40,000 from East” unless the page also says the split is half.
+
 ## What students see
 
 Generated questions store:
