@@ -11,6 +11,10 @@
    those as `var(--color-*)` / color-mix() over the same variables, so simply
    redefining the variables below re-skins every screen at once.
 
+   Every shade used by the UI must be defined in BOTH blocks below. A shade
+   present in only one block falls back to stock Tailwind in the other mode.
+   Run `npm run theme:check` after changing this file.
+
    Mapping used across the app:
      slate-*    -> neutral canvas (dark = deep green-black, light = mint-white)
      indigo-*   -> brand green (primary buttons, active nav, badges)
@@ -32,6 +36,7 @@ html[data-theme="dark"] {
   /* neutral canvas (green-tinted dark) */
   --color-slate-950: #04120b;
   --color-slate-900: #0a1f14;
+  --color-slate-800: #123626;
   --color-slate-700: #1e4a34;
   --color-slate-600: #2b6046;
   --color-slate-500: #4d8467;
@@ -53,23 +58,34 @@ html[data-theme="dark"] {
   --color-violet-500: #10b981;
 
   /* teal accents / gradient stops */
+  --color-fuchsia-300: #5eead4;
   --color-fuchsia-400: #2dd4bf;
   --color-fuchsia-500: #14b8a6;
+  --color-teal-400: #2dd4bf;
+  --color-cyan-200: #99f6e4;
   --color-cyan-300: #5eead4;
   --color-cyan-400: #2dd4bf;
   --color-cyan-500: #14b8a6;
 
   /* info */
+  --color-sky-200: #99f6e4;
   --color-sky-300: #99f6e4;
   --color-sky-400: #5eead4;
+  --color-sky-500: #14b8a6;
 
   /* success / warning / danger */
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
   --color-emerald-300: #6ee7b7;
   --color-emerald-400: #34d399;
   --color-emerald-500: #10b981;
+  --color-amber-100: #fef3c7;
   --color-amber-200: #fde68a;
   --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
   --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-rose-100: #ffe4e6;
   --color-rose-200: #fecdd3;
   --color-rose-300: #fda4af;
   --color-rose-400: #fb7185;
@@ -114,6 +130,7 @@ html[data-theme="light"] {
   /* neutral canvas (green-tinted light = inverted lightness) */
   --color-slate-950: #eef7f1;
   --color-slate-900: #e2f1e8;
+  --color-slate-800: #d6ebdf;
   --color-slate-700: #b4d4c2;
   --color-slate-600: #93bca6;
   --color-slate-500: #5c8a70;
@@ -135,8 +152,10 @@ html[data-theme="light"] {
   --color-violet-500: #059669;
 
   /* teal accents — gradient stops stay saturated so white button text reads */
+  --color-fuchsia-300: #0f766e;
   --color-fuchsia-400: #14b8a6;
   --color-fuchsia-500: #0d9488;
+  --color-teal-400: #14b8a6;
   --color-cyan-300: #0f766e;
   --color-cyan-400: #14b8a6;
   --color-cyan-500: #0d9488;
@@ -145,6 +164,7 @@ html[data-theme="light"] {
   --color-sky-200: #115e59;
   --color-sky-300: #0f766e;
   --color-sky-400: #0f766e;
+  --color-sky-500: #0d9488;
   --color-cyan-200: #115e59;
 
   /* success / warning / danger (all shades used on tinted chips must stay
@@ -157,7 +177,9 @@ html[data-theme="light"] {
   --color-amber-100: #78350f;
   --color-amber-200: #92400e;
   --color-amber-300: #b45309;
+  --color-amber-400: #b45309;
   --color-amber-500: #d97706;
+  --color-amber-600: #92400e;
   --color-rose-100: #881337;
   --color-rose-200: #9f1239;
   --color-rose-300: #be123c;
