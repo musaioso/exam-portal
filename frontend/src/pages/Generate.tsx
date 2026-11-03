@@ -5,6 +5,7 @@ import { optionLabel } from "../lib/labels";
 import { useToast } from "../components/Toast";
 import { Card, Button, FileInput, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { errorText } from "../lib/error-text";
+import { uploadSizeError } from "../lib/upload-limits";
 import { alertDialog, confirmDialog } from "../components/Dialog";
 import {
   Sparkles, Upload, FileText, RefreshCw, Trash2, Wand2,
@@ -296,6 +297,12 @@ export default function Generate() {
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
+    const tooLarge = uploadSizeError(list, "upload");
+    if (tooLarge) {
+      await alertDialog({ title: "Upload too large", message: tooLarge });
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     setUploadPct(0);
     try {
       const fd = new FormData();
@@ -337,6 +344,12 @@ export default function Generate() {
   const readWithVision = async (files: FileList | null, providerId: string) => {
     if (!files || files.length === 0) return;
     const file = files[0];
+    const tooLarge = uploadSizeError([file], "image");
+    if (tooLarge) {
+      await alertDialog({ title: "Upload too large", message: tooLarge });
+      if (visionRef.current) visionRef.current.value = "";
+      return;
+    }
     setVisionBusy(true);
     try {
       const fd = new FormData();

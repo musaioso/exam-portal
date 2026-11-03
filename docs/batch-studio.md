@@ -161,5 +161,6 @@ Only `page_number`, `page`, `answer`, `explanation`, `source_quote`, and `source
 - PNG/JPEG page images only; PDF input stays in the existing AI Generate page.
 - One page image per generation call.
 - The batch runs in the local backend and the browser drives the step loop; a Vercel serverless function is not used for the long run.
+- Vercel caps a single request body at about 4.5 MB. Page-image uploads and the long batch run therefore belong on the local backend; the hosted site will reject a large page set with **Request Entity too large**.
 - Ollama (local) is supported. A 4B vision model on CPU is slower than a cloud Gemini Flash model; use `gemini-3.5-flash` for production-quality batches if local inference is too slow.
 - Correction of existing questions is the **Correct existing** tab; it updates in place and keeps question ids.

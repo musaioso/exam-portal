@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { uploadSizeError } from "./upload-limits";
 
 export interface Batch {
   id: string;
@@ -74,6 +75,12 @@ export async function createBatch(input: {
 }
 
 export async function uploadPages(batchId: string, files: File[]) {
+  const tooLarge = uploadSizeError(
+    files,
+    "page-image batch",
+    "Batch Studio page images should run on the local backend.",
+  );
+  if (tooLarge) throw new Error(tooLarge);
   const form = new FormData();
   for (const file of files) form.append("pages", file);
   const { data } = await api.post(`/batches/${batchId}/pages`, form, {

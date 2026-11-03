@@ -38,6 +38,9 @@ export function errorMessageFrom(error: any, fallback: string): string {
   if (fromApiMessage) return fromApiMessage;
 
   const status = Number(response?.status);
+  if (status === 413) {
+    return "This upload is larger than the server allows (about 4.5 MB per request). Compress the file or upload fewer pages at once.";
+  }
   if ([502, 503, 504].includes(status)) {
     return `The server was briefly unavailable (${status}). Please try again in a moment.`;
   }
