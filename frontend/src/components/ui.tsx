@@ -217,6 +217,7 @@ export function Select({ className, style, children, value, onChange, disabled, 
       <select
         {...props}
         value={value ?? ""}
+        disabled={disabled}
         onChange={() => {}}
         aria-hidden="true"
         tabIndex={-1}
