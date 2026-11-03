@@ -35,6 +35,8 @@ export async function createUser(role: Role, name = `Test ${role}`) {
 export async function createQuestion(opts: {
   page?: string | null;
   pageNumber?: number | null;
+  section?: string | null;
+  sourceQuote?: string | null;
   type?: "mcq" | "short" | "long";
   answer?: string;
   options?: string[];
@@ -46,10 +48,11 @@ export async function createQuestion(opts: {
   await run(db, "INSERT INTO subjects (id,name,slug,created_at) VALUES (?,?,?,?)",
     [subjectId, "Test Subject", `s-${subjectId}`, Date.now()]);
   await run(db, `INSERT INTO questions
-    (id,subject_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,created_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+    (id,subject_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,section,source_quote,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [id, subjectId, opts.type ?? "mcq", "medium", "Test question?", JSON.stringify(opts.options ?? ["A", "B"]),
-      opts.answer ?? "A", null, opts.marks ?? 1, opts.page ?? null, opts.pageNumber ?? null, Date.now()]);
+      opts.answer ?? "A", null, opts.marks ?? 1, opts.page ?? null, opts.pageNumber ?? null,
+      opts.section ?? null, opts.sourceQuote ?? null, Date.now()]);
   return { id, subjectId };
 }
 

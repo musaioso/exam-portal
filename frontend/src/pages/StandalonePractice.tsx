@@ -45,6 +45,8 @@ interface PracticeQuestion {
   answer?: string | null;
   page?: string | null;
   page_number?: number | null;
+  section?: string | null;
+  source_quote?: string | null;
   challenge?: ChallengeInfo | null;
   /** Index of the key inside `options` (-1 when the key matches no option). */
   answer_index: number;
@@ -535,6 +537,12 @@ export default function StandalonePractice() {
                       <div className="mt-1.5 flex gap-1.5 text-xs text-slate-400">
                         <Lightbulb size={13} className="mt-0.5 shrink-0 text-indigo-300" />
                         <span>{qq.explanation}</span>
+                      </div>
+                    )}
+                    {(qq.section || qq.source_quote) && (
+                      <div className="mt-1.5 rounded-xl border border-slate-700/50 bg-slate-900/40 px-2.5 py-2 text-[11px] text-slate-300">
+                        {qq.section && <div className="font-semibold text-slate-200">Section: {qq.section}</div>}
+                        {qq.source_quote && <div className="mt-1 italic">“{qq.source_quote}”</div>}
                       </div>
                     )}
                     {isStudent && (

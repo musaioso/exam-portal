@@ -31,10 +31,10 @@ test("step saves only verified, unique questions and stamps the resolved page", 
     VALUES (?,?,?,?,?,?,?,?,?)`, [pageId, batchId, 55, 55, "BGS conv 55.png", "match", "pending", testImage, Date.now()]);
 
   const result = await runNextPage(batchId, {
-    ocrPage: async () => "The Padma is the main river of Bangladesh.",
+    ocrPage: async () => "Rivers\nThe Padma is the main river of Bangladesh.",
     getProviderConfig: async () => ({ id: "fake", label: "Fake", baseURL: "http://fake", chatStyle: "google" as const }),
     generatePage: async () => [
-      { type: "mcq", difficulty: "easy", prompt: "What is the main river?", options: ["Padma", "Jamuna", "Meghna", "Karnaphuli"], answer: "Padma", explanation: "The page says so.", sourceQuote: "The Padma is the main river of Bangladesh.", marks: 1 },
+      { type: "mcq", difficulty: "easy", prompt: "What is the main river?", options: ["Padma", "Jamuna", "Meghna", "Karnaphuli"], answer: "Padma", explanation: "The page says so.", sourceQuote: "The Padma is the main river of Bangladesh.", section: "Rivers", marks: 1 },
       { type: "mcq", difficulty: "easy", prompt: "What is the capital?", options: ["Dhaka", "Khulna", "Rajshahi", "Sylhet"], answer: "Dhaka", explanation: "Not on the page.", sourceQuote: "Dhaka is the capital of Bangladesh.", marks: 1 },
     ],
     verifyCandidates: async () => [{ index: 0, valid: true }, { index: 1, valid: false, reason: "quote not found" }],
@@ -42,10 +42,11 @@ test("step saves only verified, unique questions and stamps the resolved page", 
 
   assert.equal(result.imported, 1);
   assert.equal(result.rejected, 1);
-  const rows = await all(db, "SELECT prompt,page_number,source_quote FROM questions WHERE batch_id=?", [batchId]);
+  const rows = await all(db, "SELECT prompt,page_number,source_quote,section FROM questions WHERE batch_id=?", [batchId]);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].page_number, 55);
   assert.equal(rows[0].source_quote, "The Padma is the main river of Bangladesh.");
+  assert.equal(rows[0].section, "Rivers");
   const page = await all(db, "SELECT status FROM batch_pages WHERE id=?", [pageId]);
   assert.equal(page[0].status, "done");
 });

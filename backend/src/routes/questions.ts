@@ -220,7 +220,7 @@ router.get("/practice", requireAuth, async (req: Request, res: Response) => {
   const rows = (await all(
     db,
     `SELECT q.id, q.subject_id, q.type, q.difficulty, q.prompt, q.options, q.answer,
-       q.explanation, q.marks, q.chapter_id, q.page, q.page_number,
+       q.explanation, q.marks, q.chapter_id, q.page, q.page_number, q.section, q.source_quote,
        s.name AS subject_name, c.number AS chapter_number, c.title AS chapter_title
      FROM questions q
      LEFT JOIN subjects s ON s.id = q.subject_id
@@ -496,12 +496,13 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
         const n = Number(pageRaw);
         if (Number.isFinite(n) && n > 0) pageNum = Math.floor(n);
       }
+      const section = row.section != null && String(row.section).trim() !== "" ? String(row.section).trim() : null;
       const id = uuid();
-      await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,created_by,created_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      await run(db, `INSERT INTO questions (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,section,created_by,created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [id, subject_id, chapter_id, type, difficulty, prompt,
           options ? JSON.stringify(options) : null, row.answer != null ? String(row.answer) : null,
-          row.explanation != null ? String(row.explanation) : null, marks, pageVal, pageNum, req.user!.id, Date.now()]);
+          row.explanation != null ? String(row.explanation) : null, marks, pageVal, pageNum, section, req.user!.id, Date.now()]);
       if (skipDuplicates) (await promptsFor(subject_id)).add(promptKey);
       imported++;
     } catch (e: any) {

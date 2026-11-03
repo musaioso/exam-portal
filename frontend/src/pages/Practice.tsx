@@ -246,6 +246,13 @@ export default function Practice() {
               </div>
             )}
 
+            {answered && (q.section || q.source_quote) && (
+              <div className="rounded-2xl border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-xs text-slate-300">
+                {q.section && <div className="font-semibold text-slate-200">Section: {q.section}</div>}
+                {q.source_quote && <div className="mt-1 italic">“{q.source_quote}”</div>}
+              </div>
+            )}
+
             {isStudent && (
               <ChallengeBox questionId={q.id} attemptId={attemptId} existing={q.challenge} />
             )}

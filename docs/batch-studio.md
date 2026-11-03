@@ -57,6 +57,16 @@ Rejected rows stay in the evidence table with a reason. They never enter the ban
 
 **Undo batch** deletes only the questions created by that batch (`questions.batch_id = ...`). Existing questions are never selected.
 
+## What students see
+
+Generated questions store:
+
+- the page number,
+- the visible section heading (when the page has one),
+- the exact verified source quote.
+
+In **Results** and **Practice**, a wrong or unanswered question shows the page, section, and quote so the student can find the exact sentence in the textbook. The section is stored only when it also appears in the page text; otherwise it is left blank. Questions created before this field was added may show page + quote only.
+
 ## Provider failures
 
 Gemini Flash can return 503 “high demand”, 429 rate limits, or a timeout. The batch retries a page up to 3 times with backoff, then:

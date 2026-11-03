@@ -18,13 +18,15 @@ export interface Candidate {
   answer: string;
   explanation: string | null;
   sourceQuote: string;
+  /** Visible section heading on the cited page, when one is present. */
+  section?: string | null;
   marks: number;
 }
 
 const SYSTEM_PROMPT = `You write exam questions from a single scanned textbook page. Use ONLY the attached page. Never use outside knowledge, older-book terms, or anything not visible on the page. If the page does not state a fact, do not write a question about it.
 
 Return a JSON array. Each item must be:
-{"difficulty":"easy|medium|hard","prompt":"...","options":["...","...","...","..."],"answer":"exact option text","explanation":"one sentence","sourceQuote":"verbatim sentence from the page","marks":1}
+{"difficulty":"easy|medium|hard","prompt":"...","options":["...","...","...","..."],"answer":"exact option text","explanation":"one sentence","sourceQuote":"verbatim sentence from the page","section":"visible section heading on the page, or empty","marks":1}
 
 Rules:
 - Exactly 4 unique options. The answer must be copied character-for-character from one option.
@@ -60,6 +62,7 @@ const itemSchema = z.object({
   answer: z.string(),
   explanation: z.string().optional(),
   sourceQuote: z.string(),
+  section: z.string().optional(),
   marks: z.number().optional(),
 });
 
@@ -99,6 +102,7 @@ export function parseStrictReply(text: string): Candidate[] {
     if (!options.includes(answer)) continue;
     const sourceQuote = itemData.sourceQuote.trim();
     if (!sourceQuote) continue;
+    const section = itemData.section ? String(itemData.section).trim() : null;
     const marks = Number(itemData.marks) > 0 ? Math.floor(Number(itemData.marks)) : 1;
     out.push({
       type: "mcq",
@@ -108,6 +112,7 @@ export function parseStrictReply(text: string): Candidate[] {
       answer,
       explanation: itemData.explanation ? String(itemData.explanation).trim() : null,
       sourceQuote,
+      section: section || null,
       marks,
     });
   }

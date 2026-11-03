@@ -5,7 +5,7 @@ import { backupDatabaseFile } from "./backup";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "14";
+export const SCHEMA_VERSION = "15";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS questions (
   page TEXT,
   -- numeric form used by the importer and print answer key
   page_number INTEGER,
+  -- visible section heading on the cited page
+  section TEXT,
   created_by TEXT,
   created_at INTEGER NOT NULL,
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
@@ -364,6 +366,7 @@ export async function migrate() {
   await ensureColumn(db, "questions", "source_file", "TEXT");
   await ensureColumn(db, "questions", "verification", "TEXT");
   await ensureColumn(db, "questions", "verification_method", "TEXT");
+  await ensureColumn(db, "questions", "section", "TEXT");
   await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('schema_version', ?)", [SCHEMA_VERSION]);
 }
 

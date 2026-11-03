@@ -6,7 +6,7 @@ import { getProviderConfig } from "../ai/providers";
 import { AIError, type ProviderConfig } from "../ai/types";
 import { ocrImage } from "../ai/ocr";
 import { generatePage as realGeneratePage, type Candidate } from "./generate";
-import { verifyCandidates as realVerifyCandidates } from "./verify";
+import { verifyCandidates as realVerifyCandidates, normalizeEvidence } from "./verify";
 import { withRetry, modelChain, isRetryableAIError } from "./retry";
 
 export interface StepResult {
@@ -298,14 +298,17 @@ export async function runNextPage(
     existing.add(key);
     seenHashes.add(promptHash);
     const id = randomUUID();
+    const section = candidate.section && pageText && normalizeEvidence(pageText).includes(normalizeEvidence(candidate.section))
+      ? String(candidate.section).trim()
+      : null;
     statements.push({
       sql: `INSERT INTO questions
-        (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,
+        (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,explanation,marks,page,page_number,section,
          batch_id,source_quote,source_file,verification,verification_method,created_by,created_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       params: [id, runRow.subject_id, runRow.chapter_id, "mcq", candidate.difficulty, candidate.prompt,
         JSON.stringify(candidate.options), candidate.answer, candidate.explanation, candidate.marks,
-        String(page.resolved_page_number), Number(page.resolved_page_number), batchId,
+        String(page.resolved_page_number), Number(page.resolved_page_number), section, batchId,
         candidate.sourceQuote, page.source_file, verificationJson, verdict?.method || "ocr",
         runRow.created_by, Date.now()],
     });

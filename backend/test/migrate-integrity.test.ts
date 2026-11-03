@@ -27,7 +27,7 @@ test("migrate keeps existing question ids and count", async () => {
   const after = (await all(db, "SELECT id FROM questions WHERE subject_id=? ORDER BY id", [subjectId])).map((r: any) => r.id);
   assert.deepEqual(after, before);
   const cols = (await all(db, "PRAGMA table_info(questions)")).map((r: any) => r.name);
-  for (const col of ["batch_id", "source_quote", "source_file", "verification", "verification_method"]) {
+  for (const col of ["batch_id", "source_quote", "source_file", "verification", "verification_method", "section"]) {
     assert.ok(cols.includes(col), `missing column ${col}`);
   }
   for (const table of ["correction_runs", "correction_items", "question_revisions"]) {

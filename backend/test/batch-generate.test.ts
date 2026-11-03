@@ -20,6 +20,12 @@ test("parseStrictReply accepts a valid item and drops a page field", () => {
   assert.equal(items[0].answer, "Padma");
 });
 
+test("parseStrictReply preserves the section heading", () => {
+  const items = parseStrictReply(JSON.stringify([{ ...good, section: "Climate of Bangladesh" }]));
+  assert.equal(items.length, 1);
+  assert.equal(items[0].section, "Climate of Bangladesh");
+});
+
 test("parseStrictReply rejects page attribution and bad options", () => {
   assert.equal(parseStrictReply(JSON.stringify([{ ...good, prompt: "According to page 57, what is the river?" }])).length, 0);
   assert.equal(parseStrictReply(JSON.stringify([{ ...good, options: ["Padma", "Padma", "A", "B"] }])).length, 0);
