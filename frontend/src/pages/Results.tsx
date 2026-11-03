@@ -307,14 +307,17 @@ export default function Results() {
                     )}
                   </div>
 
-                  {sourcePage(q) && (
-                    <div className="text-[11px] text-cyan-300/80">বইয়ের পৃষ্ঠা {sourcePage(q)}</div>
+                  {(sourcePage(q) || q.section) && (
+                    <div className="text-[11px] text-cyan-300/80">
+                      {sourcePage(q) ? `বইয়ের পৃষ্ঠা ${sourcePage(q)}` : ""}
+                      {sourcePage(q) && q.section ? " · " : ""}
+                      {q.section ? `Section: ${q.section}` : ""}
+                    </div>
                   )}
 
-                  {(!q.correct || !q.answered) && (q.section || q.source_quote) && (
-                    <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-[11px] text-slate-300">
-                      {q.section && <div className="font-semibold text-slate-200">Section: {q.section}</div>}
-                      {q.source_quote && <div className="mt-1 italic">“{q.source_quote}”</div>}
+                  {(!q.correct || !q.answered) && q.source_quote && (
+                    <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-[11px] italic text-slate-300">
+                      “{q.source_quote}”
                     </div>
                   )}
 

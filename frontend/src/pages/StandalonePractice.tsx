@@ -524,8 +524,12 @@ export default function StandalonePractice() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm">{qq.prompt}</div>
-                    {sourcePage(qq) && (
-                      <div className="mt-0.5 text-[11px] text-cyan-300/80">বইয়ের পৃষ্ঠা {sourcePage(qq)}</div>
+                    {(sourcePage(qq) || qq.section) && (
+                      <div className="mt-0.5 text-[11px] text-cyan-300/80">
+                        {sourcePage(qq) ? `বইয়ের পৃষ্ঠা ${sourcePage(qq)}` : ""}
+                        {sourcePage(qq) && qq.section ? " · " : ""}
+                        {qq.section ? `Section: ${qq.section}` : ""}
+                      </div>
                     )}
                     <div className="mt-1 space-y-0.5 text-xs">
                       <div className={ok ? "text-emerald-300" : "text-rose-300"}>
@@ -539,10 +543,9 @@ export default function StandalonePractice() {
                         <span>{qq.explanation}</span>
                       </div>
                     )}
-                    {(qq.section || qq.source_quote) && (
-                      <div className="mt-1.5 rounded-xl border border-slate-700/50 bg-slate-900/40 px-2.5 py-2 text-[11px] text-slate-300">
-                        {qq.section && <div className="font-semibold text-slate-200">Section: {qq.section}</div>}
-                        {qq.source_quote && <div className="mt-1 italic">“{qq.source_quote}”</div>}
+                    {qq.source_quote && (
+                      <div className="mt-1.5 rounded-xl border border-slate-700/50 bg-slate-900/40 px-2.5 py-2 text-[11px] italic text-slate-300">
+                        “{qq.source_quote}”
                       </div>
                     )}
                     {isStudent && (
@@ -603,6 +606,7 @@ export default function StandalonePractice() {
                   q.chapter_title ? `${q.chapter_number ?? ""}. ${q.chapter_title}`.trim() : "",
                   q.difficulty ? DIFF_LABEL[q.difficulty] || q.difficulty : "",
                   sourcePage(q) ? `বইয়ের পৃষ্ঠা ${sourcePage(q)}` : "",
+                  q.section ? `Section: ${q.section}` : "",
                   `${marksOf(q)} নম্বর`,
                 ]
                   .filter(Boolean)
