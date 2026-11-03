@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getBatch, auditBatch, confirmPage, type BatchPage } from "../../lib/batch";
+import { Button, Input } from "../ui";
 
 function badge(status: string) {
   if (status === "match" || status === "confirmed") return "border-emerald-500/40 bg-emerald-500/15 text-emerald-200";
@@ -27,56 +28,58 @@ function PageRow({ page, onConfirm }: { page: BatchPage; onConfirm: (file: strin
           <span className="text-xs text-emerald-300">Ready</span>
         ) : page.audit_status === "mismatch" && page.printed_number ? (
           <div className="flex flex-wrap gap-1">
-            <button
+            <Button
               type="button"
-              className="rounded-lg border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-800"
+              size="sm"
+              variant="outline"
               onClick={() => onConfirm(page.source_file, page.page_number ?? page.printed_number!)}
             >
               Use filename {page.page_number ?? "—"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="rounded-lg border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-800"
+              size="sm"
+              variant="outline"
               onClick={() => onConfirm(page.source_file, page.printed_number!)}
             >
               Use printed {page.printed_number}
-            </button>
+            </Button>
             <span className="flex items-center gap-1">
-              <input
+              <Input
                 type="number"
                 min={1}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                className="w-16 rounded-lg border border-slate-700/60 bg-slate-900/60 px-2 py-1 text-xs"
+                className="w-16 px-2 py-1 text-xs"
                 aria-label="Enter the correct printed page number"
               />
-              <button
+              <Button
                 type="button"
+                size="sm"
                 disabled={!value}
-                className="rounded-lg bg-indigo-500 px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
                 onClick={() => onConfirm(page.source_file, Number(value))}
               >
                 Use entered
-              </button>
+              </Button>
             </span>
           </div>
         ) : (
           <div className="flex items-center gap-1">
-            <input
+            <Input
               type="number"
               min={1}
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              className="w-20 rounded-lg border border-slate-700/60 bg-slate-900/60 px-2 py-1 text-xs"
+              className="w-20 px-2 py-1 text-xs"
             />
-            <button
+            <Button
               type="button"
+              size="sm"
               disabled={!value}
-              className="rounded-lg bg-indigo-500 px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
               onClick={() => onConfirm(page.source_file, Number(value))}
             >
               Confirm
-            </button>
+            </Button>
           </div>
         )}
       </td>
@@ -146,20 +149,21 @@ export default function AuditSheet({ batchId, onChanged }: { batchId: string | n
           <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${ready ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200" : "border-amber-500/40 bg-amber-500/15 text-amber-200"}`}>
             {ready ? "Ready to generate" : "Needs confirmation"}
           </span>
-          <button
+          <Button
             type="button"
+            size="sm"
+            variant="outline"
             onClick={runAudit}
             disabled={busy}
-            className="rounded-xl border border-slate-700/60 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800/60 disabled:opacity-50"
           >
             {busy ? "Working…" : "Run page audit"}
-          </button>
+          </Button>
         </div>
       </div>
 
-      {error && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>}
+      {error && <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+      <div className="overflow-x-auto rounded-2xl border border-slate-700/50">
         <table className="min-w-full text-left">
           <thead className="bg-slate-900/60 text-[10px] uppercase tracking-wide text-slate-400">
             <tr>

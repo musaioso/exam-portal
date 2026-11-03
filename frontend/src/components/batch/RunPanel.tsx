@@ -10,6 +10,7 @@ import {
   type StepResult,
 } from "../../lib/batch";
 import EvidenceTable from "./EvidenceTable";
+import { Button } from "../ui";
 
 export default function RunPanel({ batchId }: { batchId: string | null }) {
   const [batch, setBatch] = useState<Batch | null>(null);
@@ -123,7 +124,7 @@ export default function RunPanel({ batchId }: { batchId: string | null }) {
             ["rejected", batch?.rejected ?? 0],
             ["saved", saved],
           ].map(([label, value]) => (
-            <div key={String(label)} className="rounded-xl border border-slate-700/50 bg-slate-900/40 px-3 py-2">
+            <div key={String(label)} className="rounded-2xl border border-slate-700/50 bg-slate-900/40 px-3 py-2">
               <div className="text-lg font-bold text-slate-100">{value}</div>
               <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
             </div>
@@ -148,41 +149,37 @@ export default function RunPanel({ batchId }: { batchId: string | null }) {
           </p>
         )}
 
-        {error && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>}
+        {error && <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
 
         <div className="flex flex-wrap gap-2">
           {status === "draft" && (
-            <button type="button" onClick={run} disabled={busy}
-              className="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+            <Button type="button" onClick={run} disabled={busy}>
               {busy ? "Running…" : "Start batch"}
-            </button>
+            </Button>
           )}
           {status === "running" && (
-            <button type="button" onClick={pause} disabled={!busy}
-              className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-200 disabled:opacity-50">
+            <Button type="button" variant="outline" onClick={pause} disabled={!busy}
+              className="border-amber-500/40 bg-amber-500/10 text-amber-200 hover:border-amber-400/60">
               Pause
-            </button>
+            </Button>
           )}
           {status === "paused" && (
-            <button type="button" onClick={resume} disabled={busy}
-              className="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <Button type="button" onClick={resume} disabled={busy}>
               Resume
-            </button>
+            </Button>
           )}
-          <button type="button" onClick={retry} disabled={busy}
-            className="rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800/60 disabled:opacity-50">
+          <Button type="button" variant="outline" onClick={retry} disabled={busy}>
             Retry failed pages
-          </button>
+          </Button>
           {status === "done" && saved < target && (
-            <button type="button" onClick={topUp} disabled={busy}
-              className="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+            <Button type="button" onClick={topUp} disabled={busy}>
               Generate remaining ({target - saved})
-            </button>
+            </Button>
           )}
         </div>
 
         {status === "done" && saved < target && (
-          <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
             Short of target: {saved} of {target} saved. Generate remaining will revisit the pages with the existing questions as an avoid list.
           </p>
         )}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getBatchItems, undoBatch, type BatchItem } from "../../lib/batch";
 import { confirmDialog } from "../Dialog";
+import { Button } from "../ui";
 
 function parseQuestion(item: BatchItem): any {
   try {
@@ -79,18 +80,20 @@ export default function EvidenceTable({ batchId }: { batchId: string }) {
           <span className="rounded-full border border-rose-500/40 bg-rose-500/15 px-2 py-1 text-xs font-semibold text-rose-200">
             {rejected} rejected
           </span>
-          <button
+          <Button
             type="button"
+            size="sm"
+            variant="outline"
             onClick={undo}
             disabled={busy}
-            className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-200 hover:bg-rose-500/20 disabled:opacity-50"
+            className="border-rose-500/40 bg-rose-500/10 text-rose-200 hover:border-rose-400/60"
           >
             Undo batch
-          </button>
+          </Button>
         </div>
       </div>
 
-      {error && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>}
+      {error && <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
 
       <div className="flex gap-2">
         {(["all", "accepted", "rejected"] as const).map((value) => (
@@ -98,8 +101,8 @@ export default function EvidenceTable({ batchId }: { batchId: string }) {
             key={value}
             type="button"
             onClick={() => setFilter(value)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize ${
-              filter === value ? "bg-indigo-500 text-white" : "border border-slate-700/60 text-slate-300 hover:bg-slate-800/60"
+            className={`rounded-xl px-3 py-1.5 text-xs font-semibold capitalize transition ${
+              filter === value ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20" : "border border-slate-700/60 text-slate-300 hover:bg-ink/5"
             }`}
           >
             {value}
@@ -107,7 +110,7 @@ export default function EvidenceTable({ batchId }: { batchId: string }) {
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+      <div className="overflow-x-auto rounded-2xl border border-slate-700/50">
         <table className="min-w-full text-left">
           <thead className="bg-slate-900/60 text-[10px] uppercase tracking-wide text-slate-400">
             <tr>

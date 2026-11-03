@@ -7,5 +7,6 @@ backend/data/
 worktrees/
 .DS_Store
 .vercel
+.superpowers/
 .env*
 !.env.example

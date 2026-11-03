@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "./theme.css";
 
+/* The site switches themes with html[data-theme], not the OS preference.
+   Bind Tailwind's dark: variant to that attribute so an OS dark mode cannot
+   override the user's choice. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* ==========================================================================
    Theme tokens (greenish palette + light/dark) live in theme.css and are
    imported above — single source of truth, also inlined into the print

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, currentUser } from "../lib/api";
-import { Card, Button, Input, cn } from "../components/ui";
+import { Card, Button, Input, Select, cn } from "../components/ui";
 import { confirmDialog } from "../components/Dialog";
 import { Plus, Trash2, ChevronRight, Pencil, Check, X } from "lucide-react";
 
@@ -425,15 +425,16 @@ export default function Subjects() {
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-xs text-slate-400">Merge into:</span>
-                              <select
-                                className="rounded-xl bg-slate-900/60 border border-slate-600/70 px-3 py-1.5 text-xs text-slate-100"
+                              <Select
+                                compact
+                                className="w-auto max-w-[22rem]"
                                 value={canonical}
                                 onChange={(e) => setMergeCanonical((m) => ({ ...m, [key]: e.target.value }))}
                               >
                                 {arr.map((ch: any) => (
                                   <option key={ch.id} value={ch.id}>Ch. {ch.number} — {ch.title} ({ch.question_count ?? 0} q)</option>
                                 ))}
-                              </select>
+                              </Select>
                               <Button
                                 variant="outline"
                                 onClick={() => mergeChapters(s.id, canonical, dupIds)}
@@ -505,8 +506,9 @@ export default function Subjects() {
                   <div className="mt-3 rounded-xl border border-slate-600/40 bg-slate-900/40 p-3 space-y-2">
                     <div className="text-xs font-medium text-slate-300">Merge two chapters manually</div>
                     <div className="flex flex-wrap items-end gap-2">
-                      <select
-                        className="rounded-xl bg-slate-900/60 border border-slate-600/70 px-3 py-1.5 text-xs text-slate-100"
+                      <Select
+                        compact
+                        className="w-auto max-w-[18rem]"
                         value={manualMerge[s.id]?.from || ""}
                         onChange={(e) => setManualMerge((m) => ({ ...m, [s.id]: { from: e.target.value, to: m[s.id]?.to || "" } }))}
                       >
@@ -514,10 +516,11 @@ export default function Subjects() {
                         {(chapters[s.id] || []).map((ch: any) => (
                           <option key={ch.id} value={ch.id}>Ch. {ch.number} — {ch.title}</option>
                         ))}
-                      </select>
+                      </Select>
                       <span className="text-xs text-slate-500">→</span>
-                      <select
-                        className="rounded-xl bg-slate-900/60 border border-slate-600/70 px-3 py-1.5 text-xs text-slate-100"
+                      <Select
+                        compact
+                        className="w-auto max-w-[18rem]"
                         value={manualMerge[s.id]?.to || ""}
                         onChange={(e) => setManualMerge((m) => ({ ...m, [s.id]: { from: m[s.id]?.from || "", to: e.target.value } }))}
                       >
@@ -525,7 +528,7 @@ export default function Subjects() {
                         {(chapters[s.id] || []).map((ch: any) => (
                           <option key={ch.id} value={ch.id}>Ch. {ch.number} — {ch.title}</option>
                         ))}
-                      </select>
+                      </Select>
                       <Button
                         variant="outline"
                         disabled={!manualMerge[s.id]?.from || !manualMerge[s.id]?.to || manualMerge[s.id]?.from === manualMerge[s.id]?.to}

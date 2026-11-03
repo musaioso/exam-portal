@@ -15,6 +15,7 @@ import {
   type CorrectionRun,
 } from "../../lib/batch";
 import { confirmDialog } from "../Dialog";
+import { Button, Field, Select } from "../ui";
 
 function parseJson(value: string | null | undefined): any {
   if (!value) return {};
@@ -232,43 +233,39 @@ export default function CorrectionPanel() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <label className="space-y-1 text-sm">
-          <span className="text-slate-300">Subject</span>
-          <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+        <Field label="Subject">
+          <Select
             value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
             <option value="">Pick a subject…</option>
             {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </label>
+          </Select>
+        </Field>
 
-        <label className="space-y-1 text-sm">
-          <span className="text-slate-300">Chapter</span>
-          <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+        <Field label="Chapter">
+          <Select
             value={chapterId} onChange={(e) => setChapterId(e.target.value)} disabled={!subjectId}>
             <option value="">Pick a chapter…</option>
             {chapters.map((c: any) => <option key={c.id} value={c.id}>Ch {c.number} — {c.title}</option>)}
-          </select>
-        </label>
+          </Select>
+        </Field>
 
-        <label className="space-y-1 text-sm">
-          <span className="text-slate-300">Page-image batch</span>
-          <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+        <Field label="Page-image batch">
+          <Select
             value={sourceBatchId} onChange={(e) => setSourceBatchId(e.target.value)} disabled={!subjectId}>
             <option value="">Pick the source batch…</option>
             {sourceBatches.map((b) => (
               <option key={b.id} value={b.id}>{b.id.slice(0, 8)} · {b.status} · {b.saved} saved</option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
 
-        <label className="space-y-1 text-sm">
-          <span className="text-slate-300">Audit scope</span>
-          <select className="w-full rounded-xl border border-slate-700/60 bg-slate-900/60 px-3 py-2"
+        <Field label="Audit scope">
+          <Select
             value={searchScope} onChange={(e) => setSearchScope(e.target.value as "nearby" | "chapter")}>
             <option value="nearby">Cited page + nearby</option>
             <option value="chapter">Search whole chapter</option>
-          </select>
-        </label>
+          </Select>
+        </Field>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
@@ -284,47 +281,46 @@ export default function CorrectionPanel() {
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Recent correction runs</p>
           <div className="flex flex-wrap gap-2">
             {recentRuns.map((recent) => (
-              <button
+              <Button
                 key={recent.id}
                 type="button"
+                size="sm"
+                variant="outline"
+                className="font-medium"
                 onClick={() => { void loadCorrection(recent.id); }}
-                className="rounded-lg border border-slate-700/50 bg-slate-900/40 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800/60"
               >
                 {recent.id.slice(0, 8)} · {recent.status} · {recent.checked} checked
-              </button>
+              </Button>
             ))}
           </div>
         </div>
       )}
 
-      {error && <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>}
-      {notice && <p className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-sm text-indigo-200">{notice}</p>}
+      {error && <p className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
+      {notice && <p className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-200">{notice}</p>}
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={startAudit} disabled={!subjectId || !chapterId || !sourceBatchId || busy}
-          className="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+        <Button type="button" onClick={startAudit} disabled={!subjectId || !chapterId || !sourceBatchId || busy}>
           {busy && !run ? "Auditing…" : "Start audit"}
-        </button>
-        <button type="button" onClick={selectFlagged} disabled={!run || items.length === 0 || busy}
-          className="rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-200 disabled:opacity-50">
+        </Button>
+        <Button type="button" variant="outline" onClick={selectFlagged} disabled={!run || items.length === 0 || busy}>
           Select flagged
-        </button>
-        <button type="button" onClick={replaceSelected} disabled={selectedReplaceable === 0 || busy}
-          className="rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-200 disabled:opacity-50">
+        </Button>
+        <Button type="button" variant="outline" onClick={replaceSelected} disabled={selectedReplaceable === 0 || busy}
+          className="border-violet-500/40 bg-violet-500/10 text-violet-200 hover:border-violet-400/60">
           Replace from page ({selectedReplaceable})
-        </button>
-        <button type="button" onClick={applySelected} disabled={selectedProposed === 0 || busy}
-          className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-50">
+        </Button>
+        <Button type="button" variant="outline" onClick={applySelected} disabled={selectedProposed === 0 || busy}
+          className="border-emerald-500/40 bg-emerald-500/10 text-emerald-200 hover:border-emerald-400/60">
           Apply selected ({selectedProposed})
-        </button>
-        <button type="button" onClick={rejectSelected} disabled={selectedProposed === 0 || busy}
-          className="rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-200 disabled:opacity-50">
+        </Button>
+        <Button type="button" variant="outline" onClick={rejectSelected} disabled={selectedProposed === 0 || busy}>
           Reject selected
-        </button>
-        <button type="button" onClick={undoRun} disabled={!run || busy}
-          className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-200 disabled:opacity-50">
+        </Button>
+        <Button type="button" variant="outline" onClick={undoRun} disabled={!run || busy}
+          className="border-rose-500/40 bg-rose-500/10 text-rose-200 hover:border-rose-400/60">
           Undo run
-        </button>
+        </Button>
       </div>
 
       {run && (
@@ -339,7 +335,7 @@ export default function CorrectionPanel() {
       )}
 
       {items.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+        <div className="overflow-x-auto rounded-2xl border border-slate-700/50">
           <table className="min-w-full text-left">
             <thead className="bg-slate-900/60 text-[10px] uppercase tracking-wide text-slate-400">
               <tr>

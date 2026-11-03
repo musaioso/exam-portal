@@ -49,21 +49,30 @@
         }
         function panel() {
           if (appMounted || panelEl) return;
+          // This runs before the app CSS, so it needs inline colours. Read the
+          // theme the boot script just chose and use the green palette.
+          var dark = document.documentElement.getAttribute("data-theme") === "dark";
+          var colours = dark
+            ? { bg: "#04120b", card: "#0a1f14", text: "#eef8f2", muted: "#8bb39c", border: "#1e4a34", button: "linear-gradient(90deg,#10b981,#14b8a6)" }
+            : { bg: "#f5fbf7", card: "#ffffff", text: "#0b2417", muted: "#456b55", border: "#b4d4c2", button: "linear-gradient(90deg,#059669,#0d9488)" };
           var box = document.createElement("div");
           box.setAttribute("data-mcq-recovery", "1");
           box.style.cssText =
             "position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;" +
-            "justify-content:center;padding:24px;background:#0b1120;color:#e2e8f0;" +
+            "justify-content:center;padding:24px;background:" + colours.bg + ";color:" + colours.text + ";" +
             "font:15px/1.7 'Plus Jakarta Sans',system-ui,sans-serif;text-align:center";
           var inner = document.createElement("div");
-          inner.style.cssText = "max-width:520px";
+          inner.style.cssText =
+            "max-width:520px;padding:28px;border:1px solid " + colours.border + ";" +
+            "border-radius:24px;background:" + colours.card + ";" +
+            "box-shadow:0 20px 50px -20px rgba(4,18,11,.45)";
           inner.innerHTML = [
-            '<h2 style="margin:0 0 10px;font-size:20px">অ্যাপটি লোড হয়নি</h2>',
-            '<p style="margin:0 0 18px;color:#94a3b8">',
+            '<h2 style="margin:0 0 10px;font-size:20px;color:' + colours.text + '">অ্যাপটি লোড হয়নি</h2>',
+            '<p style="margin:0 0 18px;color:' + colours.muted + '">',
             "ইন্টারনেট সংযোগ ধীর থাকলে বা সাইটের পুরনো ফাইল সংরক্ষিত থাকলে এমন হতে পারে।",
             "</p>",
             '<button id="mcq-recovery-btn" style="padding:10px 22px;border:0;border-radius:12px;',
-            "background:linear-gradient(90deg,#8b5cf6,#22d3ee);color:#fff;font-weight:700;cursor:pointer",
+            "background:" + colours.button + ";color:#fff;font-weight:700;cursor:pointer",
             '">আবার চেষ্টা করুন</button>'
           ].join("");
           box.appendChild(inner);

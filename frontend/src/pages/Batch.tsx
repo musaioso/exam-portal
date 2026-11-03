@@ -4,6 +4,7 @@ import AuditSheet from "../components/batch/AuditSheet";
 import RunPanel from "../components/batch/RunPanel";
 import CorrectionPanel from "../components/batch/CorrectionPanel";
 import { listBatches, type Batch as BatchRun } from "../lib/batch";
+import { Button } from "../components/ui";
 
 function GenerateTab() {
   const [batchId, setBatchId] = useState<string | null>(null);
@@ -31,7 +32,7 @@ function GenerateTab() {
                 key={batch.id}
                 type="button"
                 onClick={() => { setBatchId(batch.id); refresh(); }}
-                className="flex items-center justify-between rounded-xl border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-left text-sm hover:bg-slate-800/60"
+                className="flex items-center justify-between rounded-2xl border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-left text-sm transition hover:bg-ink/5"
               >
                 <span>
                   <span className="font-semibold text-slate-100">{batch.id.slice(0, 8)}</span>
@@ -52,12 +53,6 @@ function GenerateTab() {
 
 export default function Batch() {
   const [tab, setTab] = useState<"generate" | "correct">("generate");
-  const tabClass = (active: boolean) =>
-    `rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-      active
-        ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
-        : "border border-slate-700/60 bg-slate-900/40 text-slate-300 hover:bg-slate-800/60"
-    }`;
 
   return (
     <div className="space-y-5">
@@ -71,12 +66,12 @@ export default function Batch() {
       </header>
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" className={tabClass(tab === "generate")} onClick={() => setTab("generate")}>
+        <Button type="button" variant={tab === "generate" ? "primary" : "outline"} onClick={() => setTab("generate")}>
           Generate
-        </button>
-        <button type="button" className={tabClass(tab === "correct")} onClick={() => setTab("correct")}>
+        </Button>
+        <Button type="button" variant={tab === "correct" ? "primary" : "outline"} onClick={() => setTab("correct")}>
           Correct existing
-        </button>
+        </Button>
       </div>
 
       {tab === "generate" ? <GenerateTab /> : <CorrectionPanel />}
