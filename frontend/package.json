@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run theme:check && vite build",
     "typecheck": "tsc -b",
-    "lint": "oxlint",
+    "lint": "oxlint && npm run theme:check",
+    "theme:check": "node scripts/check-theme.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
