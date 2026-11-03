@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api, errorMessage } from "../lib/api";
 import { optionLabel } from "../lib/labels";
 import { useToast } from "../components/Toast";
-import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
+import { Card, Button, FileInput, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { alertDialog, confirmDialog } from "../components/Dialog";
 import {
   Sparkles, Upload, FileText, RefreshCw, Trash2, Wand2,
@@ -682,17 +682,15 @@ export default function Generate() {
 
             {mode === "document" ? (
               <div className="space-y-4">
-                <input
+                <FileInput
                   ref={fileRef}
-                  type="file"
                   accept={ACCEPT}
                   multiple
                   className="hidden"
                   onChange={(e) => uploadFiles(e.target.files)}
                 />
-                <input
+                <FileInput
                   ref={visionRef}
-                  type="file"
                   accept={ACCEPT}
                   className="hidden"
                   onChange={(e) => readWithVision(e.target.files, visionProviders[0].id)}

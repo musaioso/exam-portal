@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "../../lib/api";
 import { createBatch, uploadPages, auditBatch } from "../../lib/batch";
-import { Button, Field, NumberInput, Select } from "../ui";
+import { Button, Field, FileInput, NumberInput, Select } from "../ui";
 
 export default function SetupPanel({ onCreated }: { onCreated: (batchId: string) => void }) {
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -107,11 +107,9 @@ export default function SetupPanel({ onCreated }: { onCreated: (batchId: string)
 
         <div className="md:col-span-2">
           <Field label="Page images (named BGS conv 55.png, …)">
-            <input
-              type="file"
+            <FileInput
               multiple
               accept=".png,.jpg,.jpeg,image/png,image/jpeg"
-              className="block w-full rounded-2xl border border-slate-600/70 bg-slate-900/60 px-4 py-2.5 text-sm text-slate-100 transition file:mr-3 file:cursor-pointer file:rounded-xl file:border-0 file:bg-indigo-500 file:px-3 file:py-1.5 file:font-semibold file:text-white hover:file:bg-indigo-400 focus:border-violet-400/60 focus:outline-none focus:ring-2 focus:ring-violet-500/70"
               onChange={(e) => setFiles(Array.from(e.target.files || []))}
             />
             <span className="mt-1 block pl-4 text-xs text-slate-500">{files.length} image{files.length === 1 ? "" : "s"} selected</span>

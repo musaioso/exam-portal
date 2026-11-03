@@ -174,6 +174,13 @@ export function findRawSelects(source) {
   return found;
 }
 
+export function findRawFileInputs(source) {
+  const masked = maskComments(source);
+  const found = [];
+  for (const match of masked.matchAll(/type\s*=\s*["']file["']/g)) found.push(match.index ?? 0);
+  return found;
+}
+
 export function findHardcodedColours(source) {
   const masked = maskComments(source);
   const found = [];
@@ -258,6 +265,9 @@ async function main() {
     if (file.endsWith(".tsx") && name !== "src/components/ui.tsx") {
       for (const index of findRawSelects(source)) {
         addError(file, lineAt(source, index), "raw <select> found — use <Select> from src/components/ui.tsx");
+      }
+      for (const index of findRawFileInputs(source)) {
+        addError(file, lineAt(source, index), "raw file input found — use <FileInput> from src/components/ui.tsx");
       }
     }
 
