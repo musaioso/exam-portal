@@ -31,6 +31,15 @@ function toks(s: string): string[] {
   return norm(s).split(" ").filter((t) => t.length > 2 && !STOP.has(t));
 }
 
+function jaccard(a: string, b: string): number {
+  const left = new Set(toks(a));
+  const right = new Set(toks(b));
+  if (left.size === 0 || right.size === 0) return 0;
+  let intersection = 0;
+  for (const token of left) if (right.has(token)) intersection++;
+  return intersection / (left.size + right.size - intersection);
+}
+
 function scorePage(page: Page, question: any): number {
   const text = norm(page.text);
   if (!text) return 0;
@@ -147,11 +156,15 @@ export async function replaceItems(
 
     const avoid = await all(
       db,
-      `SELECT prompt FROM questions
+      `SELECT prompt,answer FROM questions
        WHERE subject_id=? AND COALESCE(chapter_id,'')=COALESCE(?,'') AND id<>?
        ORDER BY created_at DESC LIMIT 300`,
       [question.subject_id, question.chapter_id ?? null, question.id]
     );
+    const existing = avoid.map((row: any) => ({
+      prompt: String(row.prompt || ""),
+      answer: norm(row.answer),
+    }));
 
     const reasons: string[] = [];
     let replacement: any = null;
@@ -210,6 +223,16 @@ export async function replaceItems(
           }
           if (!options.includes(candidate.answer)) {
             reasons.push(`page ${page.pageNumber}: replacement answer is not one of its options`);
+            continue;
+          }
+
+          const duplicate = existing.find((row: any) => {
+            const similarity = jaccard(candidate.prompt, row.prompt);
+            if (similarity >= 0.75) return true;
+            return !!row.answer && row.answer === norm(candidate.answer) && similarity >= 0.55;
+          });
+          if (duplicate) {
+            reasons.push(`page ${page.pageNumber}: replacement duplicates an existing question`);
             continue;
           }
 

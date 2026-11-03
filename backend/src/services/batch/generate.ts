@@ -37,7 +37,7 @@ Rules:
 - Never write "according to page", "on page", "as stated in", "according to the textbook/Table/Figure", or an exercise reference.
 - Write up to the requested number of distinct questions. If the page supports that many different facts, produce that many. Never repeat an existing question and never invent facts to fill the count.`;
 
-const BANNED = /according to page|on page \d|as stated in|according to the textbook|according to table|according to figure|পাঠ্যবই অনুযায়ী/i;
+const BANNED = /according to page|on page \d|as stated in|according to the textbook|according to the chapter|according to chapter|according to table|according to figure|পাঠ্যবই অনুযায়ী/i;
 
 export function buildStrictMessages(meta: GenerationMeta): ChatMessage[] {
   const avoid = (meta.avoidPrompts || [])

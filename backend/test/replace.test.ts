@@ -79,6 +79,25 @@ test("replaceItems stores a full replacement without touching the question", asy
   assert.equal(question.prompt, "Test question?");
 });
 
+test("replaceItems rejects a replacement that duplicates an existing question", async () => {
+  const { q, db, chapterId, runId, itemId } = await setup();
+  await run(db, `INSERT INTO questions
+    (id,subject_id,chapter_id,type,difficulty,prompt,options,answer,marks,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    [randomUUID(), q.subjectId, chapterId, "mcq", "medium", candidate.prompt,
+      JSON.stringify(candidate.options), candidate.answer, 1, Date.now()]);
+
+  const result = await replaceItems(runId, [itemId], { maxPages: 1, attemptsPerPage: 1 }, {
+    generatePage: async () => [candidate],
+    verifyCandidates: async () => [{ index: 0, valid: true }],
+  });
+
+  assert.deepEqual({ replaced: result.replaced, failed: result.failed }, { replaced: 0, failed: 1 });
+  const item = await get(db, "SELECT proposed_json,evidence_json FROM correction_items WHERE id=?", [itemId]);
+  assert.equal(item.proposed_json, null);
+  assert.match(item.evidence_json, /duplicates an existing question/);
+});
+
 test("replaceItems reports the verifier reason when nothing passes", async () => {
   const { db, runId, itemId } = await setup();
   const result = await replaceItems(runId, [itemId], { maxPages: 1, attemptsPerPage: 1 }, {
