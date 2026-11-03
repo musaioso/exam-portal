@@ -4,6 +4,7 @@ import {
   extractColourVars,
   findColourTokens,
   findHardcodedColours,
+  findRawFileInputs,
   findRawSelects,
   maskComments,
 } from "./check-theme.mjs";
@@ -43,6 +44,11 @@ test("ignores raw selects inside strings", () => {
 
 test("finds a real JSX raw select", () => {
   assert.equal(findRawSelects('return (<select className="x">hello</select>);').length, 1);
+});
+
+test("flags raw file inputs and ignores comments", () => {
+  assert.equal(findRawFileInputs('<input type="file" multiple />').length, 1);
+  assert.deepEqual(findRawFileInputs('// <input type="file" multiple />'), []);
 });
 
 test("catches hex, rgb, hsl, and oklch literals", () => {

@@ -14,8 +14,9 @@ Rules:
   and light (`html[data-theme="light"]`) blocks.
 - Use the shared controls from **`frontend/src/components/ui.tsx`**:
   `Input`, `Textarea`, `NumberInput`, `Select`, `Button`, `Field`, `Card`,
-  `Badge`. Do not use a raw `<select>` — the only allowed one is the hidden
-  native select inside `Select` itself.
+  `Badge`, `FileInput`. Do not use a raw `<select>` — the only allowed one is
+  the hidden native select inside `Select` itself. Do not use a raw
+  `<input type="file">`; use `FileInput`.
 - Do not hardcode colours (`#rrggbb`, `rgb()`, `hsl()`, `oklch()`) in
   application UI. `frontend/src/components/Logo.tsx` (brand artwork) and
   `data:image/` SVG lines are the only exceptions.

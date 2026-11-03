@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "../lib/api";
 import { optionLabel } from "../lib/labels";
 import { useToast } from "../components/Toast";
-import { Card, Button, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
+import { Card, Button, FileInput, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { confirmDialog, alertDialog } from "../components/Dialog";
 import { CopyCheck, Plus, Trash2, Upload } from "lucide-react";
 
@@ -452,7 +452,7 @@ export default function Questions() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Question Bank</h1>
         <div className="flex gap-2">
-          <input ref={importRef} type="file" accept="application/json,.json" className="hidden"
+          <FileInput ref={importRef} accept="application/json,.json" className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = ""; }} />
           <Button variant="ghost" onClick={() => importRef.current?.click()}><Upload size={16}/> Import JSON</Button>
           <a href="/notebooklm-import-template.json" download
