@@ -193,6 +193,34 @@ test("keeps same-numbered গদ্য and পদ্য chapters separate on imp
   ]);
 });
 
+test("question list filters by গদ্য / পদ্য", async () => {
+  const teacher = await createUser("teacher");
+  const subjectId = await createSubject();
+  for (const row of [
+    { prompt: "গদ্য প্রশ্ন এক", chapter_title: "গদ্য ১: সুভা" },
+    { prompt: "পদ্য প্রশ্ন এক", chapter_title: "পদ্য ১: বোশেখ" },
+  ]) {
+    const res = await fetch(`${server.baseUrl}/api/questions/bulk-import`, {
+      method: "POST",
+      headers: { ...auth(teacher.token), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject_id: subjectId,
+        questions: [{ ...row, type: "mcq", options: ["A", "B"], answer: "A" }],
+      }),
+    });
+    assert.equal(res.status, 200);
+  }
+
+  const list = await fetch(`${server.baseUrl}/api/questions?subject_id=${subjectId}&part=godyo`);
+  const body = await list.json();
+  assert.equal(body.total, 1);
+  assert.equal(body.questions.length, 1);
+  assert.equal(body.questions[0].prompt, "গদ্য প্রশ্ন এক");
+
+  const all = await (await fetch(`${server.baseUrl}/api/questions?subject_id=${subjectId}`)).json();
+  assert.equal(all.total, 2);
+});
+
 test("creating a range chapter keeps its title and explicit number", async () => {
   const teacher = await createUser("teacher");
   const subjectId = await createSubject();

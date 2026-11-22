@@ -101,6 +101,7 @@ export default function Exams() {
   const [qType, setQType] = useState("");
   const [qDifficulty, setQDifficulty] = useState("");
   const [qChapter, setQChapter] = useState("");
+  const [qPart, setQPart] = useState("");
   // Filter the bank by when each question was added, so a chapter that already
   // holds older questions can be topped up with only the newer ones.
   const [qDatePreset, setQDatePreset] = useState("all");
@@ -176,7 +177,24 @@ export default function Exams() {
     });
   };
 
-  useEffect(() => { setQPage(1); }, [qQuery, qType, qDifficulty, qChapter, qDateFrom, qDateTo, subjectKey]);
+  useEffect(() => { setQPage(1); }, [qQuery, qType, qDifficulty, qPart, qChapter, qDateFrom, qDateTo, subjectKey]);
+
+  // গদ্য / পদ্য is a Bangla 1st Paper split. The filter appears when that
+  // subject is in the paper, and narrows both the chapter list and the pool.
+  const b1Subject = subjects.find((s) => String(s.code || "").toUpperCase() === "B1" || s.slug === "bangla-1st");
+  const showPartFilter = !!b1Subject && form.subjectIds.includes(b1Subject.id);
+  const partChapterIds = useMemo(() => {
+    if (!qPart) return null;
+    return new Set(chapters.filter((c: any) => c.part === qPart).map((c: any) => c.id));
+  }, [qPart, chapters]);
+  useEffect(() => {
+    if (!showPartFilter && qPart) setQPart("");
+  }, [showPartFilter, qPart]);
+  useEffect(() => {
+    if (!qPart || !qChapter) return;
+    const ch = chapters.find((c: any) => c.id === qChapter);
+    if (ch && ch.part !== qPart) setQChapter("");
+  }, [qPart, qChapter, chapters]);
 
   // Date/time helpers for the "added on" filter (local time, not UTC), so
   // questions created a few minutes apart can be told apart.
@@ -209,6 +227,7 @@ export default function Exams() {
     if (qType && q.type !== qType) return false;
     if (qDifficulty && (q.difficulty || "medium") !== qDifficulty) return false;
     if (qChapter && q.chapter_id !== qChapter) return false;
+    if (partChapterIds && !partChapterIds.has(q.chapter_id)) return false;
     if (!inDateRange(q)) return false;
     const terms = qQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (!terms.length) return true;
@@ -258,6 +277,7 @@ export default function Exams() {
       let pool = availableQs.filter((q: any) => q.type === type && !form.question_ids.includes(q.id) && !picked.includes(q.id));
       if (blueprint.difficulty) pool = pool.filter((q: any) => (q.difficulty || "medium") === blueprint.difficulty);
       if (qChapter) pool = pool.filter((q: any) => q.chapter_id === qChapter);
+      if (partChapterIds) pool = pool.filter((q: any) => partChapterIds.has(q.chapter_id));
       pool = pool.filter((q: any) => inDateRange(q));
       picked.push(...shuffleArray(pool).slice(0, want).map((q: any) => q.id));
     }
@@ -689,10 +709,20 @@ export default function Exams() {
                     <option value="hard">Hard</option>
                   </Select>
                 </Field>
+                {showPartFilter && (
+                  <Field label="Part">
+                    <Select value={qPart} onChange={e => setQPart(e.target.value)}>
+                      <option value="">All</option>
+                      <option value="godyo">গদ্য</option>
+                      <option value="podyo">পদ্য</option>
+                    </Select>
+                  </Field>
+                )}
                 <Field label="Chapter">
                   <Select value={qChapter} onChange={e => setQChapter(e.target.value)}>
                     <option value="">All</option>
-                    {chapters.map((c: any) => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
+                    {(qPart ? chapters.filter((c: any) => c.part === qPart) : chapters)
+                      .map((c: any) => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
                   </Select>
                 </Field>
               </div>

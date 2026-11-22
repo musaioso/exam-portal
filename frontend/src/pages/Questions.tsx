@@ -37,6 +37,7 @@ export default function Questions() {
   const [filterType, setFilterType] = useState("");
   const [filterDifficulty, setFilterDifficulty] = useState("");
   const [filterAnswerQuality, setFilterAnswerQuality] = useState("");
+  const [filterPart, setFilterPart] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [questions, setQuestions] = useState<any[]>([]);
   const [form, setForm] = useState<any>(empty);
@@ -110,6 +111,7 @@ export default function Questions() {
   }, []);
   useEffect(() => {
     setSelectedChapter("");
+    setFilterPart("");
     if (selectedSubject) api.get(`/subjects/${selectedSubject}/chapters`).then(r => setChapters(r.data.chapters));
     else setChapters([]);
   }, [selectedSubject]);
@@ -121,6 +123,7 @@ export default function Questions() {
     const params = new URLSearchParams();
     if (selectedSubject) params.set("subject_id", selectedSubject);
     if (selectedChapter) params.set("chapter_id", selectedChapter);
+    if (filterPart) params.set("part", filterPart);
     if (filterType) params.set("type", filterType);
     if (filterDifficulty) params.set("difficulty", filterDifficulty);
     if (filterAnswerQuality) params.set("answer_quality", filterAnswerQuality);
@@ -134,8 +137,22 @@ export default function Questions() {
     // If the current page is now empty (e.g. after a delete), step back.
     if ((data.questions?.length ?? 0) === 0 && page > 1) setPage((p) => p - 1);
   };
-  useEffect(() => { setPage(1); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, filterAnswerQuality, searchQuery]);
-  useEffect(() => { loadQuestions(); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, filterAnswerQuality, searchQuery, page]);
+  useEffect(() => { setPage(1); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, filterAnswerQuality, filterPart, searchQuery]);
+  useEffect(() => { loadQuestions(); }, [selectedSubject, selectedChapter, filterType, filterDifficulty, filterAnswerQuality, filterPart, searchQuery, page]);
+
+  // গদ্য / পদ্য only exists on Bangla 1st Paper; the filter appears with that
+  // subject and narrows both the chapter list and the question query.
+  const selectedSubjectRow = subjects.find((s) => s.id === selectedSubject);
+  const showPartFilter = !!selectedSubject && (
+    String(selectedSubjectRow?.code || "").toUpperCase() === "B1" ||
+    selectedSubjectRow?.slug === "bangla-1st"
+  );
+  const visibleChapters = filterPart ? chapters.filter((c: any) => c.part === filterPart) : chapters;
+  useEffect(() => {
+    if (!filterPart || !selectedChapter) return;
+    const ch = chapters.find((c: any) => c.id === selectedChapter);
+    if (ch && ch.part !== filterPart) setSelectedChapter("");
+  }, [filterPart, selectedChapter, chapters]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -310,6 +327,7 @@ export default function Questions() {
       params.set("page", String(page));
       if (selectedSubject) params.set("subject_id", selectedSubject);
       if (selectedChapter) params.set("chapter_id", selectedChapter);
+      if (filterPart) params.set("part", filterPart);
       const { data } = await api.get(`/questions?${params.toString()}`);
       const rows = data.questions || [];
       ids.push(...rows.map((q: any) => q.id));
@@ -344,6 +362,7 @@ export default function Questions() {
       const params = new URLSearchParams();
       if (selectedSubject) params.set("subject_id", selectedSubject);
       if (selectedChapter) params.set("chapter_id", selectedChapter);
+      if (filterPart) params.set("part", filterPart);
       if (filterType) params.set("type", filterType);
       if (filterDifficulty) params.set("difficulty", filterDifficulty);
       if (filterAnswerQuality) params.set("answer_quality", filterAnswerQuality);
@@ -494,10 +513,19 @@ export default function Questions() {
               {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
           </Field>
+          {showPartFilter && (
+            <Field label="Part">
+              <Select value={filterPart} onChange={e => setFilterPart(e.target.value)}>
+                <option value="">All</option>
+                <option value="godyo">গদ্য</option>
+                <option value="podyo">পদ্য</option>
+              </Select>
+            </Field>
+          )}
           <Field label="Chapter">
             <Select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} disabled={!selectedSubject}>
               <option value="">All chapters</option>
-              {chapters.map(c => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
+              {visibleChapters.map(c => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
             </Select>
           </Field>
           <Field label="Type">
