@@ -218,9 +218,15 @@ export async function resolvePattern(
   chapterTitle: string
 ): Promise<PatternRecord | null> {
   const patterns = await listPatterns(db);
-  const forSubject = patterns.filter((p) => p.subject_id === subjectId);
-  const byTitle = forSubject.find((p) => matches(p, chapterTitle));
+  const titleMatches = patterns.filter((p) => matches(p, chapterTitle));
+  // A subject-scoped title match is the most specific choice; the seeded
+  // Bangla উপন্যাস/নাটক pattern is subject-agnostic, so its title match must
+  // still win over any subject row or the default.
+  const bySubjectTitle = titleMatches.find((p) => p.subject_id === subjectId);
+  if (bySubjectTitle) return bySubjectTitle;
+  const byTitle = titleMatches[0];
   if (byTitle) return byTitle;
+  const forSubject = patterns.filter((p) => p.subject_id === subjectId);
   if (forSubject.length > 0) return forSubject[0];
   return patterns.find((p) => p.is_default === 1) ?? null;
 }

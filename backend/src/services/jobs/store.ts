@@ -165,13 +165,26 @@ export async function updateJob(db: any, id: string, patch: UpdateJobInput): Pro
   if (!existing) return null;
   const sets: string[] = [];
   const params: any[] = [];
-  if (patch.subject_id !== undefined) { sets.push("subject_id=?"); params.push(String(patch.subject_id)); }
-  if (patch.chapter_id !== undefined) { sets.push("chapter_id=?"); params.push(String(patch.chapter_id)); }
+  if (patch.subject_id !== undefined) {
+    if (!patch.subject_id) throw new Error("subject_id is required");
+    sets.push("subject_id=?");
+    params.push(String(patch.subject_id));
+  }
+  if (patch.chapter_id !== undefined) {
+    if (!patch.chapter_id) throw new Error("chapter_id is required");
+    sets.push("chapter_id=?");
+    params.push(String(patch.chapter_id));
+  }
   if (patch.pattern_id !== undefined) {
     sets.push("pattern_id=?");
     params.push(patch.pattern_id ? String(patch.pattern_id) : null);
   }
-  if (patch.exam_label !== undefined) { sets.push("exam_label=?"); params.push(String(patch.exam_label)); }
+  if (patch.exam_label !== undefined) {
+    const label = String(patch.exam_label ?? "").trim();
+    if (!label) throw new Error("exam_label is required");
+    sets.push("exam_label=?");
+    params.push(label);
+  }
   if (patch.targets !== undefined) {
     sets.push("targets=?");
     params.push(JSON.stringify(cleanTargets(patch.targets)));
@@ -180,7 +193,14 @@ export async function updateJob(db: any, id: string, patch: UpdateJobInput): Pro
     sets.push("notes=?");
     params.push(patch.notes != null ? String(patch.notes) : null);
   }
-  if (patch.status !== undefined) { sets.push("status=?"); params.push(String(patch.status)); }
+  if (patch.status !== undefined) {
+    const status = String(patch.status ?? "").trim();
+    if (!["active", "done", "paused"].includes(status)) {
+      throw new Error("status must be active, done or paused");
+    }
+    sets.push("status=?");
+    params.push(status);
+  }
   if (sets.length > 0) {
     sets.push("updated_at=?");
     params.push(Date.now(), id);

@@ -56,3 +56,26 @@ test("refuses a job without a chapter", async () => {
   assert.equal(res.status, 400);
   assert.match((await res.json()).error, /chapter/i);
 });
+
+test("resolves the Bangla উপন্যাস/নাটক pattern from the chapter title", async () => {
+  const teacher = await createUser("teacher");
+  const db = await getDb();
+  const banglaChapter = randomUUID();
+  await run(db, "INSERT INTO chapters (id,subject_id,number,title,created_at) VALUES (?,?,?,?,?)",
+    [banglaChapter, subjectId, 4, "উপন্যাস: লালসালু", Date.now()]);
+  const res = await post(teacher.token, "/api/jobs", { subject_id: subjectId, chapter_id: banglaChapter });
+  assert.equal(res.status, 200);
+  const { job } = await res.json();
+  assert.match(job.pattern.name, /উপন্যাস/);
+  assert.deepEqual(job.pattern.parts[0].parts.map((p: any) => p.marks), [3, 7]);
+});
+
+test("refuses a null exam label instead of storing the string null", async () => {
+  const teacher = await createUser("teacher");
+  const created = await post(teacher.token, "/api/jobs", { subject_id: subjectId, chapter_id: chapterId });
+  const { job } = await created.json();
+  const res = await post(teacher.token, `/api/jobs/${job.id}`, { exam_label: null }, "PUT");
+  assert.equal(res.status, 400);
+  const listed = await (await fetch(`${server.baseUrl}/api/jobs?subject_id=${subjectId}`, { headers: auth(teacher.token) })).json();
+  assert.equal(listed.jobs.find((j: any) => j.id === job.id).exam_label, "SSC 2027");
+});
