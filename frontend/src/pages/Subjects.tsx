@@ -3,6 +3,7 @@ import { api, currentUser, errorMessage } from "../lib/api";
 import { Card, Button, Input, Select, cn } from "../components/ui";
 import { confirmDialog } from "../components/Dialog";
 import { Plus, Trash2, ChevronRight, Pencil, Check, X } from "lucide-react";
+import { chapterLabel } from "../lib/labels";
 
 function slugify(value: string) {
   return value
@@ -45,7 +46,7 @@ export default function Subjects() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [chapters, setChapters] = useState<Record<string, any[]>>({});
   const [newSub, setNewSub] = useState({ name: "", name_bn: "", slug: "", code: "" });
-  const [newCh, setNewCh] = useState<Record<string, { number: number; title: string; title_bn: string }>>({});
+  const [newCh, setNewCh] = useState<Record<string, { number: number; title: string; title_bn: string; part?: string }>>({});
   // canonical chapter id chosen for each duplicate group (keyed by normalised title)
   const [mergeCanonical, setMergeCanonical] = useState<Record<string, string>>({});
   // manual merge selection per subject
@@ -57,7 +58,7 @@ export default function Subjects() {
   const [editingSubject, setEditingSubject] = useState<string | null>(null);
   const [editSub, setEditSub] = useState({ name: "", name_bn: "", code: "" });
   const [editingChapter, setEditingChapter] = useState<string | null>(null);
-  const [editCh, setEditCh] = useState({ number: 0, title: "", title_bn: "" });
+  const [editCh, setEditCh] = useState({ number: 0, title: "", title_bn: "", part: "" });
   const canManage = currentUser()?.role === "admin" || currentUser()?.role === "teacher";
 
   const loadSubjects = async () => {
@@ -223,8 +224,12 @@ export default function Subjects() {
       return;
     }
     try {
-      await api.post(`/subjects/${sid}/chapters`, { ...current, number });
-      setNewCh(n => ({ ...n, [sid]: { number: number + 1, title: "", title_bn: "" } }));
+      // The picker shows গদ্য by default; make sure that default is what gets
+      // sent even when the teacher only typed a title.
+      const defaultPart = isBanglaFirst(subjects.find((x) => x.id === sid)) ? "godyo" : undefined;
+      const part = current.part || defaultPart;
+      await api.post(`/subjects/${sid}/chapters`, { ...current, number, ...(part ? { part } : {}) });
+      setNewCh(n => ({ ...n, [sid]: { number: number + 1, title: "", title_bn: "", part } }));
       await loadChapters(sid);
     } catch (e: any) {
       const status = e?.response?.status;
@@ -235,7 +240,7 @@ export default function Subjects() {
 
   const startEditChapter = (ch: any) => {
     setEditingChapter(ch.id);
-    setEditCh({ number: ch.number, title: ch.title, title_bn: ch.title_bn || "" });
+    setEditCh({ number: ch.number, title: ch.title, title_bn: ch.title_bn || "", part: ch.part || "" });
   };
 
   const cancelEditChapter = () => {
@@ -247,13 +252,29 @@ export default function Subjects() {
       setError("Chapter title is required.");
       return;
     }
+    const payload: any = { number: editCh.number, title: editCh.title, title_bn: editCh.title_bn };
+    // Only Bangla 1st Paper picks a part here; sending part:"" for the other
+    // subjects would wipe the word the server stored (পরিচ্ছেদ, অধ্যায়).
+    if (isBanglaFirst(subjects.find((s) => s.id === sid))) payload.part = editCh.part || "godyo";
     try {
-      await api.put(`/subjects/chapters/${id}`, editCh);
+      await api.put(`/subjects/chapters/${id}`, payload);
       setEditingChapter(null);
       await loadChapters(sid);
     } catch (e: any) {
       const status = e?.response?.status;
       const message = errorMessage(e, "Failed to update chapter");
+      setError(status ? `${message} (HTTP ${status})` : message);
+    }
+  };
+
+  const setChapterPart = async (id: string, sid: string, part: string) => {
+    setError(null);
+    try {
+      await api.put(`/subjects/chapters/${id}`, { part: part || null });
+      await loadChapters(sid);
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const message = errorMessage(e, "Failed to set the chapter part");
       setError(status ? `${message} (HTTP ${status})` : message);
     }
   };
@@ -308,6 +329,10 @@ export default function Subjects() {
     const n = newCh[sid]?.number;
     return Number.isFinite(n) && n! > 0 ? n : 1;
   };
+
+  // Bangla 1st Paper is split into গদ্য (prose) and পদ্য (poetry) pieces.
+  const isBanglaFirst = (s: any) =>
+    String(s?.code || "").toUpperCase() === "B1" || String(s?.slug || "") === "bangla-1st";
 
   return (
     <div className="space-y-6">
@@ -387,6 +412,13 @@ export default function Subjects() {
                       onChange={e => setNewCh(n => ({ ...n, [s.id]: { ...(n[s.id] || {}), title: e.target.value } }))} />
                     <Input className="flex-1" placeholder="Chapter title (Bangla)" value={newCh[s.id]?.title_bn ?? ""}
                       onChange={e => setNewCh(n => ({ ...n, [s.id]: { ...(n[s.id] || {}), title_bn: e.target.value } }))} />
+                    {isBanglaFirst(s) && (
+                      <Select className="w-28" value={newCh[s.id]?.part ?? "godyo"}
+                        onChange={e => setNewCh(n => ({ ...n, [s.id]: { ...(n[s.id] || {}), part: e.target.value } }))}>
+                        <option value="godyo">গদ্য</option>
+                        <option value="podyo">পদ্য</option>
+                      </Select>
+                    )}
                     <Button onClick={() => addChapter(s.id)} aria-label="Add chapter" title="Add chapter">
                       <Plus size={16} />
                     </Button>
@@ -418,7 +450,7 @@ export default function Subjects() {
                             <div className="space-y-1">
                               {arr.map((ch: any) => (
                                 <div key={ch.id} className="flex items-center justify-between text-xs text-slate-200">
-                                  <span>Ch. {ch.number} — {ch.title} <span className="text-slate-500">({ch.question_count ?? 0} questions)</span></span>
+                                  <span>{chapterLabel(ch)} <span className="text-slate-500">({ch.question_count ?? 0} questions)</span></span>
                                   {ch.id === canonical && <span className="text-emerald-400">canonical</span>}
                                 </div>
                               ))}
@@ -432,7 +464,7 @@ export default function Subjects() {
                                 onChange={(e) => setMergeCanonical((m) => ({ ...m, [key]: e.target.value }))}
                               >
                                 {arr.map((ch: any) => (
-                                  <option key={ch.id} value={ch.id}>Ch. {ch.number} — {ch.title} ({ch.question_count ?? 0} q)</option>
+                                  <option key={ch.id} value={ch.id}>{chapterLabel(ch)} ({ch.question_count ?? 0} q)</option>
                                 ))}
                               </Select>
                               <Button
@@ -456,6 +488,13 @@ export default function Subjects() {
                         <Input className="w-16" type="number" value={editCh.number} onChange={e => setEditCh({ ...editCh, number: Number(e.target.value) || 1 })} />
                         <Input className="flex-1" value={editCh.title} onChange={e => setEditCh({ ...editCh, title: e.target.value })} placeholder="Chapter title" />
                         <Input className="flex-1" value={editCh.title_bn} onChange={e => setEditCh({ ...editCh, title_bn: e.target.value })} placeholder="Title (Bangla)" />
+                        {isBanglaFirst(s) && (
+                          <Select className="w-28" value={editCh.part || "godyo"}
+                            onChange={e => setEditCh({ ...editCh, part: e.target.value })}>
+                            <option value="godyo">গদ্য</option>
+                            <option value="podyo">পদ্য</option>
+                          </Select>
+                        )}
                         <button onClick={() => saveEditChapter(ch.id, s.id)} className="text-emerald-400 hover:text-emerald-300" aria-label="Save chapter">
                           <Check size={14} />
                         </button>
@@ -465,9 +504,22 @@ export default function Subjects() {
                       </div>
                     ) : (
                       <>
-                        <span>Ch. {ch.number} — {ch.title} {ch.title_bn && <span className="text-slate-500">({ch.title_bn})</span>}</span>
+                        <span>{chapterLabel(ch)} {ch.title_bn && <span className="text-slate-500">({ch.title_bn})</span>}</span>
                         {canManage && (
                           <div className="flex items-center gap-1">
+                            {isBanglaFirst(s) && (
+                              <Select
+                                compact
+                                className="w-24"
+                                title="গদ্য / পদ্য"
+                                value={ch.part || ""}
+                                onChange={(e) => setChapterPart(ch.id, s.id, e.target.value)}
+                              >
+                                <option value="">—</option>
+                                <option value="godyo">গদ্য</option>
+                                <option value="podyo">পদ্য</option>
+                              </Select>
+                            )}
                             <button onClick={() => startEditChapter(ch)} className="text-sky-400 hover:text-sky-300" aria-label="Edit chapter">
                               <Pencil size={14} />
                             </button>
@@ -514,7 +566,7 @@ export default function Subjects() {
                       >
                         <option value="">From chapter…</option>
                         {(chapters[s.id] || []).map((ch: any) => (
-                          <option key={ch.id} value={ch.id}>Ch. {ch.number} — {ch.title}</option>
+                          <option key={ch.id} value={ch.id}>{chapterLabel(ch)}</option>
                         ))}
                       </Select>
                       <span className="text-xs text-slate-500">→</span>
@@ -526,7 +578,7 @@ export default function Subjects() {
                       >
                         <option value="">Into chapter…</option>
                         {(chapters[s.id] || []).map((ch: any) => (
-                          <option key={ch.id} value={ch.id}>Ch. {ch.number} — {ch.title}</option>
+                          <option key={ch.id} value={ch.id}>{chapterLabel(ch)}</option>
                         ))}
                       </Select>
                       <Button

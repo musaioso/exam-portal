@@ -16,6 +16,7 @@ import {
 } from "../../lib/batch";
 import { confirmDialog } from "../Dialog";
 import { Button, Field, Select } from "../ui";
+import { chapterLabel as chapterText } from "../../lib/labels";
 import { batchSummary, correctionRunSummary } from "../../lib/batch-labels";
 
 function parseJson(value: string | null | undefined): any {
@@ -88,7 +89,7 @@ export default function CorrectionPanel() {
 
   const chapterLabel = (id: string | null) => {
     const chapter = chapters.find((c) => c.id === id);
-    return chapter ? `Ch. ${chapter.number} — ${chapter.title}` : "";
+    return chapter ? chapterText(chapter) : "";
   };
 
   const loadCorrection = async (runId: string) => {
@@ -253,7 +254,7 @@ export default function CorrectionPanel() {
           <Select
             value={chapterId} onChange={(e) => setChapterId(e.target.value)} disabled={!subjectId}>
             <option value="">Pick a chapter…</option>
-            {chapters.map((c: any) => <option key={c.id} value={c.id}>Ch {c.number} — {c.title}</option>)}
+            {chapters.map((c: any) => <option key={c.id} value={c.id}>{chapterText(c)}</option>)}
           </Select>
         </Field>
 

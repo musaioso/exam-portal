@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, errorMessage } from "../lib/api";
-import { optionLabel } from "../lib/labels";
+import { optionLabel, chapterLabel } from "../lib/labels";
 import { useToast } from "../components/Toast";
 import { Card, Button, FileInput, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { errorText } from "../lib/error-text";
@@ -872,7 +872,7 @@ export default function Generate() {
               <Field label="Chapter (optional)">
                 <Select value={chapterId} onChange={(e) => setChapterId(e.target.value)} placeholder="Whole subject" disabled={!subjectId}>
                   <option value="">Whole subject</option>
-                  {chapters.map((c) => <option key={c.id} value={c.id}>Ch {c.number} — {c.title}</option>)}
+                  {chapters.map((c) => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
                 </Select>
               </Field>
 

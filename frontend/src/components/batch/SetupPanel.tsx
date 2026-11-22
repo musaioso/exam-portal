@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "../../lib/api";
 import { createBatch, uploadPages, auditBatch } from "../../lib/batch";
 import { Button, Field, FileInput, NumberInput, Select } from "../ui";
+import { chapterLabel } from "../../lib/labels";
 
 export default function SetupPanel({ onCreated }: { onCreated: (batchId: string) => void }) {
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -101,7 +102,7 @@ export default function SetupPanel({ onCreated }: { onCreated: (batchId: string)
             disabled={!subjectId}
           >
             <option value="">Pick a chapter…</option>
-            {chapters.map((c: any) => <option key={c.id} value={c.id}>Ch {c.number} — {c.title}</option>)}
+            {chapters.map((c: any) => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
           </Select>
         </Field>
 

@@ -72,7 +72,7 @@ async function duplicateGroups(db: any, filters: { subject_id?: any; chapter_id?
   const chapter_id = first(filters.chapter_id);
   const type = first(filters.type);
   let sql = `SELECT q.id, q.subject_id, q.chapter_id, q.type, q.difficulty, q.prompt, q.options, q.answer, q.explanation, q.marks, q.created_at,
-    s.name AS subject_name, c.number AS chapter_number, c.title AS chapter_title
+    s.name AS subject_name, c.number AS chapter_number, c.title AS chapter_title, c.part AS chapter_part
     FROM questions q
     LEFT JOIN subjects s ON s.id = q.subject_id
     LEFT JOIN chapters c ON c.id = q.chapter_id
@@ -118,7 +118,7 @@ router.get("/duplicates", requireAuth, requireRole("admin", "teacher"), async (r
 router.get("/export", async (req: Request, res: Response) => {
   const db = await getDb();
   const { subject_id, chapter_id, type, difficulty, q } = req.query as any;
-  let sql = "SELECT q.*, s.slug as subject_slug, s.name as subject_name, c.number as chapter_number, c.title as chapter_title FROM questions q LEFT JOIN subjects s ON s.id=q.subject_id LEFT JOIN chapters c ON c.id=q.chapter_id WHERE 1=1";
+  let sql = "SELECT q.*, s.slug as subject_slug, s.name as subject_name, c.number as chapter_number, c.title as chapter_title, c.part as chapter_part FROM questions q LEFT JOIN subjects s ON s.id=q.subject_id LEFT JOIN chapters c ON c.id=q.chapter_id WHERE 1=1";
   const params: any[] = [];
   if (subject_id) { sql += " AND q.subject_id=?"; params.push(subject_id); }
   if (chapter_id) { sql += " AND q.chapter_id=?"; params.push(chapter_id); }
@@ -223,7 +223,7 @@ router.get("/practice", requireAuth, async (req: Request, res: Response) => {
     db,
     `SELECT q.id, q.subject_id, q.type, q.difficulty, q.prompt, q.options, q.answer,
        q.explanation, q.marks, q.chapter_id, q.page, q.page_number, q.section, q.source_quote,
-       s.name AS subject_name, c.number AS chapter_number, c.title AS chapter_title
+       s.name AS subject_name, c.number AS chapter_number, c.title AS chapter_title, c.part AS chapter_part
      FROM questions q
      LEFT JOIN subjects s ON s.id = q.subject_id
      LEFT JOIN chapters c ON c.id = q.chapter_id
@@ -270,7 +270,7 @@ router.get("/practice/filters", requireAuth, async (req: Request, res: Response)
   // The chapters of the chosen subject (all of them when nothing is chosen yet).
   // The subject name comes along so the chips can say which book a chapter
   // belongs to when no single subject has been picked.
-  let chapterSql = `SELECT c.id, c.subject_id, c.number, c.title, s.name AS subject_name, COUNT(q.id) AS mcq_count
+  let chapterSql = `SELECT c.id, c.subject_id, c.number, c.title, c.part, s.name AS subject_name, COUNT(q.id) AS mcq_count
      FROM chapters c LEFT JOIN subjects s ON s.id = c.subject_id
      LEFT JOIN questions q ON q.chapter_id = c.id AND ${MCQ}`;
   const chapterParams: any[] = [];
@@ -373,6 +373,10 @@ router.post("/bulk-update", requireAuth, requireRole("admin", "teacher"), async 
 
 const VALID_TYPES = new Set(["mcq", "short", "long"]);
 const VALID_DIFF = new Set(["easy", "medium", "hard"]);
+const VALID_PARTS = new Set(["oddhay", "poricched", "godyo", "podyo"]);
+
+const validPart = (value: unknown): string | null =>
+  typeof value === "string" && VALID_PARTS.has(value) ? value : null;
 
 router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
   const body = req.body || {};
@@ -409,7 +413,7 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
   // title is given but no such chapter exists yet, create it with that number.
   const resolveChapterId = async (
     subjectId: string,
-    o: { chapter_id?: any; chapter_number?: any; chapter_title?: string }
+    o: { chapter_id?: any; chapter_number?: any; chapter_title?: string; part?: any }
   ): Promise<string | null> => {
     if (o.chapter_id) {
       const c = await get(db, "SELECT id FROM chapters WHERE id=? AND subject_id=?", [o.chapter_id, subjectId]) as any;
@@ -418,6 +422,9 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
     const rawTitle = String(o.chapter_title || "").trim();
     const heading = rawTitle ? parseChapterHeading(rawTitle) : null;
     const title = heading ? heading.title : "";
+    // The word in the title ("গদ্য ৩: …") is the best evidence; an explicit
+    // row-level part may override it.
+    const part = validPart(o.part) ?? heading?.part ?? null;
     let explicitNumber: number | null = null;
     if (o.chapter_number != null && o.chapter_number !== "") {
       const parsed = Number(toAsciiDigits(String(o.chapter_number)));
@@ -428,26 +435,38 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
     if (title) {
       // Prefer the identity the title names; legacy rows may still hold the
       // un-stripped heading, so try that spelling before falling back to number.
-      let c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND (title=? COLLATE NOCASE OR title_bn=? COLLATE NOCASE)", [subjectId, title, title]) as any;
+      let c = await get(db, "SELECT id, part FROM chapters WHERE subject_id=? AND (title=? COLLATE NOCASE OR title_bn=? COLLATE NOCASE)", [subjectId, title, title]) as any;
       if (!c && rawTitle !== title) {
-        c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND (title=? COLLATE NOCASE OR title_bn=? COLLATE NOCASE)", [subjectId, rawTitle, rawTitle]) as any;
+        c = await get(db, "SELECT id, part FROM chapters WHERE subject_id=? AND (title=? COLLATE NOCASE OR title_bn=? COLLATE NOCASE)", [subjectId, rawTitle, rawTitle]) as any;
       }
       if (!c && number != null) {
-        c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND number=?", [subjectId, number]) as any;
+        // When the heading names a part (গদ্য/পদ্য), a same-numbered chapter
+        // from the other part must not be reused: Bangla 1st Paper numbers its
+        // prose and poetry pieces separately.
+        c = part
+          ? await get(db, "SELECT id, part FROM chapters WHERE subject_id=? AND number=? AND part=?", [subjectId, number, part]) as any
+          : await get(db, "SELECT id, part FROM chapters WHERE subject_id=? AND number=?", [subjectId, number]) as any;
       }
       if (!c) {
         const mx = await get(db, "SELECT MAX(number) as m FROM chapters WHERE subject_id=?", [subjectId]) as any;
         const nextNumber = number ?? ((mx && mx.m ? Number(mx.m) : 0) + 1);
         const cid = uuid();
-        await run(db, "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,created_at) VALUES (?,?,?,?,?,?,?)",
-          [cid, subjectId, nextNumber, title, title, null, Date.now()]);
+        await run(db, "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,part,created_at) VALUES (?,?,?,?,?,?,?,?)",
+          [cid, subjectId, nextNumber, title, title, null, part, Date.now()]);
         c = { id: cid };
+      } else if (part && !c.part) {
+        // Fill a missing word without overwriting one a teacher already picked.
+        await run(db, "UPDATE chapters SET part=? WHERE id=?", [part, c.id]);
       }
       return c.id;
     }
     if (number != null) {
-      const c = await get(db, "SELECT id FROM chapters WHERE subject_id=? AND number=?", [subjectId, number]) as any;
-      if (c) return c.id;
+      const c = part
+        ? await get(db, "SELECT id, part FROM chapters WHERE subject_id=? AND number=? AND part=?", [subjectId, number, part]) as any
+        : await get(db, "SELECT id, part FROM chapters WHERE subject_id=? AND number=?", [subjectId, number]) as any;
+      if (!c) return null;
+      if (part && !c.part) await run(db, "UPDATE chapters SET part=? WHERE id=?", [part, c.id]);
+      return c.id;
     }
     return null;
   };
@@ -493,10 +512,10 @@ router.post("/bulk-import", requireAuth, requireRole("admin", "teacher"), async 
       const hasRowChapter = !!(row.chapter_id || (row.chapter_number != null && row.chapter_number !== "") || (rowChapterTitle && rowChapterTitle.trim()));
       let chapter_id: string | null;
       if (hasRowChapter) {
-        chapter_id = await resolveChapterId(subject_id, { chapter_id: row.chapter_id, chapter_number: row.chapter_number, chapter_title: rowChapterTitle });
+        chapter_id = await resolveChapterId(subject_id, { chapter_id: row.chapter_id, chapter_number: row.chapter_number, chapter_title: rowChapterTitle, part: row.part });
       } else if (topChapterTitle || (topChapterNumber != null && topChapterNumber !== "")) {
         if (defaultChapterCache.has(subject_id)) chapter_id = defaultChapterCache.get(subject_id) ?? null;
-        else { chapter_id = await resolveChapterId(subject_id, { chapter_number: topChapterNumber, chapter_title: topChapterTitle }); defaultChapterCache.set(subject_id, chapter_id); }
+        else { chapter_id = await resolveChapterId(subject_id, { chapter_number: topChapterNumber, chapter_title: topChapterTitle, part: body.part }); defaultChapterCache.set(subject_id, chapter_id); }
       } else {
         chapter_id = null;
       }

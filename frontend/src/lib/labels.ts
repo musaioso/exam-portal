@@ -18,6 +18,61 @@ export function optionLabel(prompt: string | null | undefined, index: number): s
 }
 
 /**
+ * The book's own word for a chapter. Bangla 2nd Paper uses পরিচ্ছেদ, Bangla 1st
+ * Paper uses গদ্য / পদ্য for its prose and poetry pieces, and the other books
+ * fall back to "Ch." The value is stored on the chapter so a label never has to
+ * guess from the title.
+ */
+export type ChapterPart = "oddhay" | "poricched" | "godyo" | "podyo";
+
+const CHAPTER_WORDS: Record<ChapterPart, string> = {
+  oddhay: "অধ্যায়",
+  poricched: "পরিচ্ছেদ",
+  godyo: "গদ্য",
+  podyo: "পদ্য",
+};
+
+export function chapterWord(part?: string | null): string {
+  return part && Object.prototype.hasOwnProperty.call(CHAPTER_WORDS, part)
+    ? CHAPTER_WORDS[part as ChapterPart]
+    : "Ch.";
+}
+
+type ChapterLike = { number?: number | null; title?: string | null; part?: string | null } | null | undefined;
+
+/** "Ch.3 Title" for English books, "পরিচ্ছেদ ৩ — শিরোনাম" for Bangla ones. */
+export function chapterLabel(chapter: ChapterLike): string {
+  if (!chapter) return "";
+  const word = chapterWord(chapter.part);
+  const title = chapter.title ? String(chapter.title) : "";
+  // Bangla 1st Paper does not number its prose and poems, so its label carries
+  // only the section word and the piece name.
+  const noNumber = chapter.part === "godyo" || chapter.part === "podyo";
+  if (noNumber) return `${word}${title ? ` — ${title}` : ""}`.trim();
+  const number = chapter.number != null
+    ? (word === "Ch." ? String(chapter.number) : toBnDigits(chapter.number))
+    : "";
+  if (word === "Ch.") return `Ch.${number}${title ? ` ${title}` : ""}`.trim();
+  return `${word} ${number}${title ? ` — ${title}` : ""}`.trim();
+}
+
+/** Prefix and number only, for tight chips: "Ch.3", "গদ্য". */
+export function chapterShort(chapter: ChapterLike): string {
+  if (!chapter) return "";
+  const word = chapterWord(chapter.part);
+  if (chapter.part === "godyo" || chapter.part === "podyo") return word;
+  const number = chapter.number != null
+    ? (word === "Ch." ? String(chapter.number) : toBnDigits(chapter.number))
+    : "";
+  return word === "Ch." ? `Ch.${number}` : `${word} ${number}`.trim();
+}
+
+/** Always show a Bengali number for the Bangla part words (৩, ১০, …). */
+export function toBnDigits(value: string | number): string {
+  return String(value ?? "").replace(/[0-9]/g, (d) => "০১২৩৪৫৬৭৮৯"[Number(d)]);
+}
+
+/**
  * The book/source page stored with a question. Prefers the free-text form so a
  * range like "42-43" survives; falls back to the numeric importer value.
  *

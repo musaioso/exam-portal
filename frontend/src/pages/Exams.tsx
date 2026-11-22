@@ -9,6 +9,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { chapterLabel as chapterText, chapterShort } from "../lib/labels";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const copy = [...arr];
@@ -264,7 +265,7 @@ export default function Exams() {
   };
 
   const subjectName = (id: string) => subjects.find((s) => s.id === id)?.name || "Subject";
-  const chapterLabel = (c: any) => `Ch.${c.number} ${c.title}${form.subjectIds.length > 1 ? ` (${subjectName(c.subject_id)})` : ""}`;
+  const chapterLabel = (c: any) => `${chapterText(c)}${form.subjectIds.length > 1 ? ` (${subjectName(c.subject_id)})` : ""}`;
 
   const selectedQs = useMemo(
     () => form.question_ids.map((id) => availableQs.find((q: any) => q.id === id)).filter(Boolean),
@@ -768,7 +769,7 @@ export default function Exams() {
                           <span className="flex-1 truncate">{q.prompt}</span>
                           {ch && (
                             <span className="max-w-28 shrink-0 truncate text-[11px] text-slate-500">
-                              {form.subjectIds.length > 1 ? `${subjectName(ch.subject_id)} · ` : ""}Ch.{ch.number}
+                              {form.subjectIds.length > 1 ? `${subjectName(ch.subject_id)} · ` : ""}{chapterShort(ch)}
                             </span>
                           )}
                           <span className="shrink-0 text-[11px] text-slate-500" title={`Added ${new Date(q.created_at).toLocaleString()}`}>

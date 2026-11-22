@@ -2,9 +2,18 @@ import { Router, Request, Response } from "express";
 import { randomUUID as uuid } from "node:crypto";
 import { getDb, run, get, all } from "../db/database";
 import { requireAuth, requireRole } from "../middleware/auth";
-import { parseChapterHeading } from "../lib/chapter";
+import { parseChapterHeading, type ChapterPart } from "../lib/chapter";
 
 const router = Router();
+
+const PART_VALUES = new Set<ChapterPart>(["oddhay", "poricched", "godyo", "podyo"]);
+
+/** Accept only a known part key; anything else is treated as "not sent". */
+function asChapterPart(value: unknown): ChapterPart | null {
+  return typeof value === "string" && PART_VALUES.has(value as ChapterPart)
+    ? (value as ChapterPart)
+    : null;
+}
 
 // Subjects
 router.get("/", async (_req, res) => {
@@ -111,6 +120,7 @@ router.post("/:subjectId/chapters/merge", requireAuth, requireRole("admin", "tea
       title: r.title,
       title_bn: r.title_bn,
       summary: r.summary,
+      part: r.part ?? null,
       created_at: r.created_at,
     })),
     movedByChapter,
@@ -144,7 +154,7 @@ router.post("/:subjectId/chapters/merge", requireAuth, requireRole("admin", "tea
 });
 
 router.post("/:subjectId/chapters", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
-  const { number, title, title_bn, summary } = req.body || {};
+  const { number, title, title_bn, summary, part: partInput } = req.body || {};
   if (!title || !String(title).trim()) return res.status(400).json({ error: "Missing title" });
   const heading = parseChapterHeading(String(title));
   const headingBn = title_bn ? parseChapterHeading(String(title_bn)) : null;
@@ -157,17 +167,24 @@ router.post("/:subjectId/chapters", requireAuth, requireRole("admin", "teacher")
   const chapterTitle = heading.title;
   const chapterTitleBn = headingBn ? headingBn.title : null;
   const db = await getDb();
+  const subject = await get(db, "SELECT code FROM subjects WHERE id=?", [req.params.subjectId]) as any;
+  // The teacher's pick wins; otherwise use the word in the heading, and give
+  // Bangla 2nd Paper its book word even when the title has no prefix.
+  const chapterPart = asChapterPart(partInput)
+    ?? heading.part
+    ?? headingBn?.part
+    ?? (String(subject?.code || "").toUpperCase() === "B2" ? "poricched" : null);
   const id = uuid();
-  await run(db, "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,created_at) VALUES (?,?,?,?,?,?,?)",
-    [id, req.params.subjectId, chapterNumber, chapterTitle, chapterTitleBn, summary || null, Date.now()]);
-  res.json({ chapter: { id, number: chapterNumber, title: chapterTitle } });
+  await run(db, "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,part,created_at) VALUES (?,?,?,?,?,?,?,?)",
+    [id, req.params.subjectId, chapterNumber, chapterTitle, chapterTitleBn, summary || null, chapterPart, Date.now()]);
+  res.json({ chapter: { id, number: chapterNumber, title: chapterTitle, part: chapterPart } });
 });
 
 router.put("/chapters/:id", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
-  const { number, title, title_bn, summary } = req.body || {};
+  const { number, title, title_bn, summary, part } = req.body || {};
   if (title !== undefined && !String(title).trim()) return res.status(400).json({ error: "Missing title" });
   const db = await getDb();
-  const existing = await get(db, "SELECT number, title, title_bn FROM chapters WHERE id=?", [req.params.id]);
+  const existing = await get(db, "SELECT number, title, title_bn, part FROM chapters WHERE id=?", [req.params.id]) as any;
   if (!existing) return res.status(404).json({ error: "Chapter not found" });
 
   let chapterNumber = Number.isFinite(Number(number)) && Number(number) > 0 ? Number(number) : Number(existing.number);
@@ -199,9 +216,19 @@ router.put("/chapters/:id", requireAuth, requireRole("admin", "teacher"), async 
   const parsedNumber = titleNumber ?? (titleKind === "none" ? bnNumber : null);
   if (parsedNumber != null && parsedNumber > 0) chapterNumber = parsedNumber;
 
-  await run(db, "UPDATE chapters SET number=?, title=?, title_bn=?, summary=COALESCE(?,summary) WHERE id=?",
-    [chapterNumber, chapterTitle, chapterTitleBn, summary, req.params.id]);
-  res.json({ ok: true, chapter: { number: chapterNumber, title: chapterTitle } });
+  // Explicit pick wins. Otherwise keep the stored word, filling it from the
+  // heading only when the row has none yet.
+  let chapterPart: ChapterPart | null = existing.part ?? null;
+  if (part !== undefined) {
+    chapterPart = part === null || part === "" ? null : (asChapterPart(part) ?? chapterPart);
+  } else if (!chapterPart) {
+    chapterPart = parseChapterHeading(String(chapterTitle)).part
+      ?? (chapterTitleBn ? parseChapterHeading(String(chapterTitleBn)).part : null);
+  }
+
+  await run(db, "UPDATE chapters SET number=?, title=?, title_bn=?, summary=COALESCE(?,summary), part=? WHERE id=?",
+    [chapterNumber, chapterTitle, chapterTitleBn, summary, chapterPart, req.params.id]);
+  res.json({ ok: true, chapter: { number: chapterNumber, title: chapterTitle, part: chapterPart } });
 });
 
 router.delete("/chapters/:id", requireAuth, requireRole("admin", "teacher"), async (req: Request, res: Response) => {
@@ -306,10 +333,11 @@ router.post("/:subjectId/chapters/merges/:historyId/undo", requireAuth, requireR
         : Number.isFinite(savedNumber) && savedNumber > 0 ? savedNumber : 1;
     const title = heading.title;
     const titleBn = d.title_bn ? (headingBn ? headingBn.title : d.title_bn) : null;
+    const part = asChapterPart(d.part) ?? heading.part ?? headingBn?.part ?? null;
     await run(
       db,
-      "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,created_at) VALUES (?,?,?,?,?,?,?)",
-      [d.id, req.params.subjectId, number, title, titleBn, d.summary || null, d.created_at || Date.now()]
+      "INSERT INTO chapters (id,subject_id,number,title,title_bn,summary,part,created_at) VALUES (?,?,?,?,?,?,?,?)",
+      [d.id, req.params.subjectId, number, title, titleBn, d.summary || null, part, d.created_at || Date.now()]
     );
   }
 

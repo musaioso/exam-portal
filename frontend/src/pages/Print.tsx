@@ -5,6 +5,7 @@ import { parseOptions, PREVIEW_STORAGE_KEY, readPrintPrefs, writePrintPrefs, typ
 import { seededShuffle, questionSeed } from "../lib/shuffle";
 import { Card, Button, Select, Field, Input, NumberInput, Textarea } from "../components/ui";
 import { Printer, FileText } from "lucide-react";
+import { chapterLabel } from "../lib/labels";
 
 type Mode = "exam" | "manual";
 
@@ -249,7 +250,7 @@ export default function Print() {
               <Field label="Chapter">
                 <Select value={chapterId} onChange={e => setChapterId(e.target.value)}>
                   <option value="">All chapters</option>
-                  {chapters.map(c => <option key={c.id} value={c.id}>Ch.{c.number} {c.title}</option>)}
+                  {chapters.map(c => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
                 </Select>
               </Field>
               <Field label="Question Type">

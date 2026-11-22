@@ -6,7 +6,7 @@ import { backupDatabaseFile } from "./backup";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "16";
+export const SCHEMA_VERSION = "17";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS chapters (
   title TEXT NOT NULL,
   title_bn TEXT,
   summary TEXT,
+  -- The book's own word for a chapter: oddhay | poricched | godyo | podyo.
+  part TEXT,
   created_at INTEGER NOT NULL,
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
 );
@@ -378,10 +380,16 @@ export async function migrate() {
   // class leaderboard (and other cross-student views).
   await ensureColumn(db, "users", "is_test", "INTEGER NOT NULL DEFAULT 0");
   // v14: chapter numbers must match the number written in the title, and that
-  // prefix no longer belongs in the stored title (the UI prints "Ch. N — title",
-  // which produced "Ch. 1 — CH. 11: …"). Range/multi-chapter headings keep both
-  // their number and their title. Idempotent: clean titles parse to no prefix.
-  const chapterRows = (await all(db, "SELECT id, number, title, title_bn FROM chapters")) as any[];
+  // prefix no longer belongs in the stored title (the label prints its own
+  // word and number, which produced "Ch. 1 — CH. 11: …"). Range/multi-chapter
+  // headings keep both their number and their title. Idempotent: clean titles
+  // parse to no prefix.
+  //
+  // v17: the book's own word for a chapter (গদ্য / পদ্য / পরিচ্ছেদ / অধ্যায়).
+  // The prefix is stripped from the title by parseChapterHeading, so the word has
+  // to be stored separately for the UI to print instead of "Ch.".
+  await ensureColumn(db, "chapters", "part", "TEXT");
+  const chapterRows = (await all(db, "SELECT id, number, title, title_bn, part FROM chapters")) as any[];
   for (const ch of chapterRows) {
     const fromTitle = parseChapterHeading(ch.title);
     const fromBn = ch.title_bn != null ? parseChapterHeading(ch.title_bn) : null;
@@ -406,11 +414,21 @@ export async function migrate() {
       sets.push("title_bn=?");
       params.push(fromBn.title);
     }
+    // Only fill a missing part; a teacher's explicit choice is never overwritten.
+    const part = fromTitle.part ?? fromBn?.part ?? null;
+    if (part && !ch.part) {
+      sets.push("part=?");
+      params.push(part);
+    }
     if (sets.length > 0) {
       params.push(ch.id);
       await run(db, `UPDATE chapters SET ${sets.join(", ")} WHERE id=?`, params);
     }
   }
+  // Bangla 2nd Paper's chapters are called পরিচ্ছেদ, so existing rows get the
+  // book's word even when their title never carried it.
+  await run(db,
+    "UPDATE chapters SET part='poricched' WHERE part IS NULL AND subject_id IN (SELECT id FROM subjects WHERE code='B2' COLLATE NOCASE)");
   await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('schema_version', ?)", [SCHEMA_VERSION]);
 }
 

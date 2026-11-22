@@ -2,7 +2,7 @@ import "./env";
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { get, getDb, run } from "../src/db/database";
+import { get, getDb, run, all } from "../src/db/database";
 import { parseChapterHeading } from "../src/lib/chapter";
 import { auth, createUser, startServer } from "./helpers";
 
@@ -20,19 +20,19 @@ async function createSubject() {
 
 test("parses an English CH. prefix and zero-padded number", () => {
   assert.deepEqual(parseChapterHeading("CH. 04: The Topography and the Climate of Bangladesh"),
-    { number: 4, title: "The Topography and the Climate of Bangladesh", kind: "single" });
+    { number: 4, title: "The Topography and the Climate of Bangladesh", kind: "single", part: null });
 });
 
 test("parses Chapter and Ch spellings with different separators", () => {
   assert.deepEqual(parseChapterHeading("Chapter 5 - Photosynthesis"),
-    { number: 5, title: "Photosynthesis", kind: "single" });
+    { number: 5, title: "Photosynthesis", kind: "single", part: null });
   assert.deepEqual(parseChapterHeading("Ch 7: The Organs of Government"),
-    { number: 7, title: "The Organs of Government", kind: "single" });
+    { number: 7, title: "The Organs of Government", kind: "single", part: null });
 });
 
 test("parses a Bengali poricched and converts Bengali digits", () => {
   assert.deepEqual(parseChapterHeading("পরিচ্ছেদ ১০: উপসর্গ দিয়ে শব্দ গঠন"),
-    { number: 10, title: "উপসর্গ দিয়ে শব্দ গঠন", kind: "single" });
+    { number: 10, title: "উপসর্গ দিয়ে শব্দ গঠন", kind: "single", part: "poricched" });
 });
 
 test("leaves range and multi-poricched titles untouched", () => {
@@ -41,7 +41,7 @@ test("leaves range and multi-poricched titles untouched", () => {
     "পরিচ্ছেদ ১০ ও ১১: উপসর্গ ও প্রত্যয়",
     "পরিচ্ছেদ ১২ ও ১৩: সমাস ও সন্ধি",
   ]) {
-    assert.deepEqual(parseChapterHeading(title), { number: null, title, kind: "range" });
+    assert.deepEqual(parseChapterHeading(title), { number: null, title, kind: "range", part: "poricched" });
   }
 });
 
@@ -52,18 +52,37 @@ test("recognises spaced and symbolic range separators", () => {
     "Chapter 3 / 4: Composition",
     "Ch. 12 – 13: Composition",
   ]) {
-    assert.deepEqual(parseChapterHeading(title), { number: null, title, kind: "range" });
+    const part = title.startsWith("পরিচ্ছেদ") ? "poricched" : null;
+    assert.deepEqual(parseChapterHeading(title), { number: null, title, kind: "range", part });
   }
 });
 
 test("does not treat an ordinal suffix as a chapter number", () => {
-  for (const title of ["CH. 21st Century Skills", "পরিচ্ছেদ ১ম: প্রথম"]) {
-    assert.deepEqual(parseChapterHeading(title), { number: null, title, kind: "none" });
-  }
+  assert.deepEqual(parseChapterHeading("CH. 21st Century Skills"),
+    { number: null, title: "CH. 21st Century Skills", kind: "none", part: null });
+  assert.deepEqual(parseChapterHeading("পরিচ্ছেদ ১ম: প্রথম"),
+    { number: null, title: "পরিচ্ছেদ ১ম: প্রথম", kind: "none", part: "poricched" });
+});
+
+test("parses অধ্যায়, গদ্য and পদ্য headings", () => {
+  assert.deepEqual(parseChapterHeading("অধ্যায় ৩: রাষ্ট্রভাষা আন্দোলন"),
+    { number: 3, title: "রাষ্ট্রভাষা আন্দোলন", kind: "single", part: "oddhay" });
+  assert.deepEqual(parseChapterHeading("গদ্য ১: সুভা"),
+    { number: 1, title: "সুভা", kind: "single", part: "godyo" });
+  assert.deepEqual(parseChapterHeading("পদ্য ২: বোশেখ"),
+    { number: 2, title: "বোশেখ", kind: "single", part: "podyo" });
+  // A part word without a number is still a part.
+  assert.deepEqual(parseChapterHeading("পদ্য: বোশেখ"),
+    { number: null, title: "বোশেখ", kind: "none", part: "podyo" });
+});
+
+test("does not read a part word inside a longer word", () => {
+  assert.deepEqual(parseChapterHeading("গদ্যাংশ: প্রথম অংশ"),
+    { number: null, title: "গদ্যাংশ: প্রথম অংশ", kind: "none", part: null });
 });
 
 test("leaves an unprefixed title untouched", () => {
-  assert.deepEqual(parseChapterHeading("প্রত্যুপকার"), { number: null, title: "প্রত্যুপকার", kind: "none" });
+  assert.deepEqual(parseChapterHeading("প্রত্যুপকার"), { number: null, title: "প্রত্যুপকার", kind: "none", part: null });
 });
 
 test("creating a chapter takes its number from the title and strips the prefix", async () => {
@@ -88,6 +107,90 @@ test("creating a chapter takes its number from the title and strips the prefix",
   assert.equal(chapters.length, 1);
   assert.equal(chapters[0].number, 11);
   assert.equal(chapters[0].title, "The Economic Indicators and the Nature of the Economy of Bangladesh");
+});
+
+test("creating a chapter stores the part word from the heading", async () => {
+  const teacher = await createUser("teacher");
+  const subjectId = await createSubject();
+  const res = await fetch(`${server.baseUrl}/api/subjects/${subjectId}/chapters`, {
+    method: "POST",
+    headers: { ...auth(teacher.token), "Content-Type": "application/json" },
+    body: JSON.stringify({ number: 1, title: "গদ্য ৫: সুভা" }),
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.chapter.part, "godyo");
+  assert.equal(body.chapter.number, 5);
+  assert.equal(body.chapter.title, "সুভা");
+  const row = await get(await getDb(), "SELECT part FROM chapters WHERE id=?", [body.chapter.id]);
+  assert.equal(row.part, "godyo");
+});
+
+test("Bangla 2nd Paper chapters default to পরিচ্ছেদ", async () => {
+  const teacher = await createUser("teacher");
+  const subjectId = await createSubject();
+  const db = await getDb();
+  await run(db, "UPDATE subjects SET code='B2' WHERE id=?", [subjectId]);
+  const res = await fetch(`${server.baseUrl}/api/subjects/${subjectId}/chapters`, {
+    method: "POST",
+    headers: { ...auth(teacher.token), "Content-Type": "application/json" },
+    body: JSON.stringify({ number: 1, title: "বানান শুদ্ধকরণ" }),
+  });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).chapter.part, "poricched");
+});
+
+test("bulk import records the part word when it creates a chapter", async () => {
+  const teacher = await createUser("teacher");
+  const subjectId = await createSubject();
+  const res = await fetch(`${server.baseUrl}/api/questions/bulk-import`, {
+    method: "POST",
+    headers: { ...auth(teacher.token), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      subject_id: subjectId,
+      questions: [{
+        prompt: "Part word import question",
+        type: "mcq",
+        options: ["A", "B"],
+        answer: "A",
+        chapter_title: "অধ্যায় ৩: রাষ্ট্রভাষা আন্দোলন",
+      }],
+    }),
+  });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).imported, 1);
+  const chapter = await get(await getDb(), "SELECT number, title, part FROM chapters WHERE subject_id=?", [subjectId]);
+  assert.equal(Number(chapter.number), 3);
+  assert.equal(chapter.title, "রাষ্ট্রভাষা আন্দোলন");
+  assert.equal(chapter.part, "oddhay");
+});
+
+test("keeps same-numbered গদ্য and পদ্য chapters separate on import", async () => {
+  const teacher = await createUser("teacher");
+  const subjectId = await createSubject();
+  const rows = [
+    { prompt: "গদ্য সুভা প্রশ্ন", chapter_title: "গদ্য ১: সুভা" },
+    { prompt: "পদ্য বোশেখ প্রশ্ন", chapter_title: "পদ্য ১: বোশেখ" },
+  ];
+  for (const row of rows) {
+    const res = await fetch(`${server.baseUrl}/api/questions/bulk-import`, {
+      method: "POST",
+      headers: { ...auth(teacher.token), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject_id: subjectId,
+        questions: [{ ...row, type: "mcq", options: ["A", "B"], answer: "A" }],
+      }),
+    });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).imported, 1);
+  }
+  const chapters = await all(await getDb(),
+    "SELECT number, title, part FROM chapters WHERE subject_id=? ORDER BY part", [subjectId]) as any[];
+  assert.equal(chapters.length, 2);
+  assert.deepEqual(chapters.map((c) => [Number(c.number), c.title, c.part]), [
+    [1, "সুভা", "godyo"],
+    [1, "বোশেখ", "podyo"],
+  ]);
 });
 
 test("creating a range chapter keeps its title and explicit number", async () => {

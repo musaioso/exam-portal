@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "../lib/api";
-import { optionLabel } from "../lib/labels";
+import { optionLabel, chapterLabel } from "../lib/labels";
 import { useToast } from "../components/Toast";
 import { Card, Button, FileInput, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { confirmDialog, alertDialog } from "../components/Dialog";
@@ -10,7 +10,7 @@ const empty = { subject_id: "", chapter_id: "", type: "mcq", difficulty: "medium
 
 type DupeItem = {
   id: string; prompt: string; type: string; difficulty: string;
-  chapter_number: number | null; chapter_title: string | null;
+  chapter_number: number | null; chapter_title: string | null; chapter_part: string | null;
   answer: string | null; explanation: string | null; marks: number; created_at: number;
 };
 type DupeGroup = { key: string; subject_name: string | null; count: number; answerDiffers: boolean; items: DupeItem[] };
@@ -215,7 +215,7 @@ export default function Questions() {
       }
       const lines = found
         .slice(0, 5)
-        .map((d) => `• ${[d.chapter_title && `Ch.${d.chapter_number} ${d.chapter_title}`, d.type?.toUpperCase(), d.answer && `answer: ${clip(d.answer, 40)}`].filter(Boolean).join(" · ") || "no chapter"}`)
+        .map((d) => `• ${[d.chapter_title && chapterLabel({ number: d.chapter_number, title: d.chapter_title, part: d.chapter_part }), d.type?.toUpperCase(), d.answer && `answer: ${clip(d.answer, 40)}`].filter(Boolean).join(" · ") || "no chapter"}`)
         .join("\n");
       const ok = await confirmDialog({
         title: `Already in the bank (${found.length})`,
@@ -497,7 +497,7 @@ export default function Questions() {
           <Field label="Chapter">
             <Select value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)} disabled={!selectedSubject}>
               <option value="">All chapters</option>
-              {chapters.map(c => <option key={c.id} value={c.id}>Ch.{c.number} {c.title}</option>)}
+              {chapters.map(c => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
             </Select>
           </Field>
           <Field label="Type">
@@ -601,7 +601,7 @@ export default function Questions() {
                             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
                               <span>{it.type.toUpperCase()}</span>
                               <span>· {it.difficulty}</span>
-                              {it.chapter_title && <span>· Ch.{it.chapter_number} {it.chapter_title}</span>}
+                              {it.chapter_title && <span>· {chapterLabel({ number: it.chapter_number, title: it.chapter_title, part: it.chapter_part })}</span>}
                               <span>· {it.marks} mark(s)</span>
                               <span>· added {shortDate(it.created_at)}</span>
                             </div>
@@ -640,7 +640,7 @@ export default function Questions() {
               <Field label="Chapter">
                 <Select value={form.chapter_id} onChange={e => setForm({ ...form, chapter_id: e.target.value })}>
                   <option value="">No chapter / all</option>
-                  {formChapters.map(c => <option key={c.id} value={c.id}>Ch.{c.number} {c.title}</option>)}
+                  {formChapters.map(c => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
                 </Select>
               </Field>
               <Field label="Type">
