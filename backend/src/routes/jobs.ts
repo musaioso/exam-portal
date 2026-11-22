@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { get, getDb } from "../db/database";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { chapterAvoidList, type WorkOrderKind } from "../services/jobs/avoid";
+import { importReply } from "../services/jobs/import";
 import { jobProgress } from "../services/jobs/progress";
 import {
   createJob,
@@ -11,11 +12,20 @@ import {
   listJobs,
   listRuns,
   updateJob,
+  type GenerationRun,
 } from "../services/jobs/store";
+import { undoRun } from "../services/jobs/undo";
 import { renderWorkOrder } from "../services/jobs/work-order";
 
 const router = Router();
 router.use(requireAuth, requireRole("admin", "teacher"));
+
+const MAX_REPLY_BYTES = 1024 * 1024;
+
+/** A run is only addressable through the job that owns it. */
+async function runForJob(db: any, jobId: string, runId: string): Promise<GenerationRun | null> {
+  return get(db, "SELECT * FROM generation_runs WHERE id=? AND job_id=?", [runId, jobId]);
+}
 
 router.get("/", async (req: Request, res: Response) => {
   const db = await getDb();
@@ -105,6 +115,60 @@ router.post("/:id/work-order", async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(400).json({ error: error?.message || "Could not build the work order" });
   }
+});
+
+router.post("/:id/runs/:runId/import", async (req: Request, res: Response) => {
+  const db = await getDb();
+  const job = await getJob(db, String(req.params.id));
+  if (!job) return res.status(404).json({ error: "Job not found" });
+  const run = await runForJob(db, job.id, String(req.params.runId));
+  if (!run) return res.status(404).json({ error: "Run not found" });
+  if (run.undone_at) {
+    return res.status(409).json({ error: "This run has already been undone." });
+  }
+
+  const body = req.body || {};
+  const payload = body.payload;
+  if (payload === undefined || payload === null) {
+    return res.status(400).json({ error: "payload is required" });
+  }
+  if (typeof payload === "string" && Buffer.byteLength(payload, "utf8") > MAX_REPLY_BYTES) {
+    return res.status(413).json({ error: "The reply is larger than 1 MB. Paste a smaller batch." });
+  }
+  if (!job.pattern) {
+    return res.status(400).json({ error: "this job has no pattern" });
+  }
+
+  try {
+    const result = await importReply({
+      db,
+      job,
+      run,
+      pattern: job.pattern,
+      payload,
+      userId: req.user!.id,
+      dryRun: body.dryRun === true,
+    });
+    const refreshed = await runForJob(db, job.id, run.id);
+    res.json({ ...result, run: refreshed });
+  } catch (error: any) {
+    res.status(400).json({ error: error?.message || "Could not import the reply" });
+  }
+});
+
+router.post("/:id/runs/:runId/undo", async (req: Request, res: Response) => {
+  const db = await getDb();
+  const job = await getJob(db, String(req.params.id));
+  if (!job) return res.status(404).json({ error: "Job not found" });
+  const run = await runForJob(db, job.id, String(req.params.runId));
+  if (!run) return res.status(404).json({ error: "Run not found" });
+  if (run.undone_at) {
+    return res.status(400).json({ error: "This run has already been undone." });
+  }
+
+  const { deleted } = await undoRun(db, job.id, run.id);
+  const refreshed = await runForJob(db, job.id, run.id);
+  res.json({ deleted, run: refreshed });
 });
 
 export default router;
