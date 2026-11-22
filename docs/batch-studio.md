@@ -74,9 +74,54 @@ A range is accepted only when the page states that range or the range follows
 directly from stated numbers. “The book says 80,000 from both East and West”
 does not justify “40,000 from East” unless the page also says the split is half.
 
-## Importing from Gemini Notebook / NotebookLM
+## NotebookLM work orders
 
-Use the template at `frontend/public/notebooklm-import-template.json`
+The **NotebookLM** tab turns the round trip into a saved work order per chapter:
+the site remembers the format, the target counts, the exact prompt it gave and
+what came back.
+
+1. Open **Batch Studio → NotebookLM**.
+2. Click **+ New job**: pick the subject, the chapter and the pattern, keep the
+   exam label (`SSC 2027`), and set the targets (MCQ, CQ passages, short
+   questions).
+3. Click **Copy prompt** on the job, choose the kind and the count, and paste
+   the prompt into NotebookLM. The avoid list inside the prompt names what the
+   chapter already holds, so the model does not repeat it.
+4. Copy NotebookLM's answer and click **Paste reply**. The preview shows what
+   would be imported before anything is written. Fences, curly quotes, prose
+   and `[1]`-style citation markers are cleaned first.
+5. Click **Import**, then **Runs** to see every run with its stored prompt, its
+   counters and **Undo this run**.
+6. Click **Open audit** to verify the imported rows against the chapter's
+   scanned pages.
+
+The counters are in stems: one MCQ is one, one short question is one, and one CQ
+passage is one even though it becomes four rows (or two for a Bangla
+উপন্যাস/নাটক passage). A passage imports as one group — its parts are accepted
+together or skipped together, never half a group. That is why a run shows both
+`imported` (stems) and `imported_rows` (question rows).
+
+A pattern is data, not code. **Patterns** on the NotebookLM tab lists the
+formats with their parts and marks, and lets you add, edit or delete one without
+touching the database. A pattern needs at least one part, whole-number marks
+above zero, and a passage of 2–6 parts. Deleting a pattern never deletes a job
+or a question: the job keeps its counts and simply loses the format reference.
+
+A `page_number` in a reply is the model's claim, never evidence. The audit is
+what verifies a page.
+
+After importing:
+
+1. Create or reuse the chapter's page-image batch.
+2. In **Correct existing**, set **Audit scope** to **Search whole chapter**.
+3. Start the audit. Questions without a page number are ranked against the
+   chapter's OCR text and the best pages are verified.
+4. Review, then fix the page, fix the answer, replace from the page, or delete.
+
+### Legacy file import
+
+The Question Bank still accepts a JSON file. Use the template at
+`frontend/public/notebooklm-import-template.json`
 (also linked as **NotebookLM template** on the Question Bank page). The shape is:
 
 ```json
@@ -106,13 +151,9 @@ the option text, stores `source_quote` and `section`, and appends a derivation t
 the explanation. It requires exactly four unique options and an answer that
 matches one of them.
 
-`page_number` is optional for NotebookLM imports. After importing:
-
-1. Create or reuse the chapter's page-image batch.
-2. In **Correct existing**, set **Audit scope** to **Search whole chapter**.
-3. Start the audit. Questions without a page number are ranked against the
-   chapter's OCR text and the best pages are verified.
-4. Review, then fix the page, fix the answer, replace from the page, or delete.
+`page_number` is optional for NotebookLM imports. After importing, verify the
+pages with the audit steps above; a page number in the file is a claim until the
+audit confirms it.
 
 ## What students see
 

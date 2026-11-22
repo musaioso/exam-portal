@@ -28,6 +28,15 @@ Demo accounts (after seed):
 ## Batch Studio
 The strict, evidence-checked batch generator is documented in [docs/batch-studio.md](docs/batch-studio.md). It generates new questions only; existing questions are never updated by a batch.
 
+### NotebookLM work orders
+The **NotebookLM** tab in Batch Studio saves one work order per chapter: the
+question pattern, the target counts, the exact prompt copied to NotebookLM and
+every imported run. Copy the prompt, paste the reply, review the runs, and undo
+a run when needed. Counters are in stems and a passage imports as one group. A
+page number the model returns is only a claim — the page audit verifies it. The
+legacy JSON file import and its template are still available on the Question
+Bank page.
+
 ## Worktrees (parallel sectors)
 ```
 git worktree list
@@ -46,6 +55,7 @@ Each worktree is a separate directory/branch; run `npm install` inside it before
 - Role-based auth (admin/teacher/student)
 - Subject & chapter management
 - Question bank: MCQ, short, long
+- NotebookLM work orders per chapter: saved pattern, prompt copy, reply import, run undo
 - Exam builder + online attempt + auto-grading (MCQ)
 - Printable question papers with answer key & mark scheme
 - Modern dark theme (Tailwind)
