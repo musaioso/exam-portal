@@ -7,15 +7,31 @@ to return to for the overall picture.
 - Plan: `docs/superpowers/plans/2026-11-23-notebooklm-work-orders.md`
 - Design: `docs/superpowers/specs/2026-11-23-notebooklm-work-orders-design.md`
 
+## Automatic runner
+
+```powershell
+.\scripts\run-phases.ps1 -List      # status of every phase
+.\scripts\run-phases.ps1 -DryRun    # check the wiring, spend no session
+.\scripts\run-phases.ps1            # run every pending phase, one session each
+.\scripts\run-phases.ps1 -From p3   # resume from a phase
+```
+
+Each phase runs in a fresh, named session (`ses-nbwo-p1-…`), reads its brief in
+`plan/`, and writes `plan/state/pN.json`. The runner continues only on
+`"status": "done"` and stops on `blocked`. See `plan/README.md`.
+
+The runner is a port of `C:\Users\musaioso\remote\voice\run-phases.ps1`.
+
 ## Rules for every phase session
 
 1. Read the design spec, the plan, and this file before doing anything.
-2. Do only the phase named in the start line you were given. Do not start
-   another phase, even if you finish early.
+2. Do only the phase named in your brief. Do not start another phase, even if
+   you finish early.
 3. Run that phase's tests and the verification commands the plan lists.
-4. Update your phase row (status, commit range, anything unfinished) and append
-   one entry to the log at the bottom.
-5. Stop and report back. The next phase starts in a new chat.
+4. Update your phase row (status, commit range, anything unfinished), write
+   `plan/state/pN.json`, and append one entry to the log at the bottom.
+5. Stop and report back. The runner starts the next phase in a new session; if
+   you were started by hand, the next phase is a new chat.
 
 ## Phase status
 
@@ -27,7 +43,7 @@ to return to for the overall picture.
 | 4 — UI | 12–14 | blocked on Phase 3 | — | NotebookLM tab, paste, runs |
 | 5 — Patterns, docs | 15–16 | blocked on Phase 4 | — | pattern editor, end-to-end run |
 
-## Start lines (paste into a new chat)
+## Start lines (manual fallback)
 
 **Phase 1**
 
@@ -69,3 +85,6 @@ to return to for the overall picture.
 
 - 2026-11-23 — Phase 0 (design + plan) done in the design chat. Design approved
   by the teacher. Plan written and self-reviewed. No code yet.
+- 2026-11-23 — Phase runner added (`scripts/run-phases.ps1`, `plan/`), ported
+  from `remote\voice\run-phases.ps1`. Listing, dry run and the done-gate were
+  verified without spending a session.

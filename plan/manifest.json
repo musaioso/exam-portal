@@ -1,0 +1,30 @@
+{
+  "title": "NotebookLM work orders",
+  "phases": [
+    {
+      "id": "p1",
+      "title": "Foundation: schema, patterns, jobs, progress",
+      "brief": "plan\\phase-1.md"
+    },
+    {
+      "id": "p2",
+      "title": "Work orders: avoid list, renderer, endpoint",
+      "brief": "plan\\phase-2.md"
+    },
+    {
+      "id": "p3",
+      "title": "Reply import: sanitise, validate, import, undo",
+      "brief": "plan\\phase-3.md"
+    },
+    {
+      "id": "p4",
+      "title": "NotebookLM tab UI",
+      "brief": "plan\\phase-4.md"
+    },
+    {
+      "id": "p5",
+      "title": "Pattern editor, docs, end-to-end",
+      "brief": "plan\\phase-5.md"
+    }
+  ]
+}

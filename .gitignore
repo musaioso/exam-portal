@@ -10,3 +10,6 @@ worktrees/
 .superpowers/
 .env*
 !.env.example
+plan/state/*.log
+plan/state/*.log.stderr
+plan/state/run.lock
