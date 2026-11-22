@@ -2,6 +2,7 @@ import path from "node:path";
 import { getDb, run, all, execScript, dbFilePath, storage } from "./database";
 import { parseChapterHeading } from "../lib/chapter";
 import { backupDatabaseFile } from "./backup";
+import { seedPatterns } from "../services/jobs/patterns";
 
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
@@ -493,6 +494,9 @@ CREATE INDEX IF NOT EXISTS idx_questions_passage_group ON questions(passage_grou
   // book's word even when their title never carried it.
   await run(db,
     "UPDATE chapters SET part='poricched' WHERE part IS NULL AND subject_id IN (SELECT id FROM subjects WHERE code='B2' COLLATE NOCASE)");
+  // Seed the print patterns known today; the rest of the matrix is filled in
+  // the UI, so this is a one-time insert per name, never an update.
+  await seedPatterns(db);
   await run(db, "INSERT OR REPLACE INTO app_meta (key,value) VALUES ('schema_version', ?)", [SCHEMA_VERSION]);
 }
 
