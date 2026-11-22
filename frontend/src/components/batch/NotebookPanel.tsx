@@ -6,6 +6,7 @@ import { chapterLabel } from "../../lib/labels";
 import {
   createJob,
   createWorkOrder,
+  JOB_KIND_LABEL,
   listJobs,
   listPatterns,
   listRuns,
@@ -17,6 +18,8 @@ import {
 } from "../../lib/jobs";
 import { useToast } from "../Toast";
 import { Badge, Button, Card, Field, Input, NumberInput, Select } from "../ui";
+import PasteReplyDialog from "./PasteReplyDialog";
+import RunsDrawer from "./RunsDrawer";
 
 interface SubjectRow {
   id: string;
@@ -33,11 +36,7 @@ interface ChapterRow {
   part?: string | null;
 }
 
-const KIND_LABEL: Record<JobKind, string> = {
-  mcq: "MCQ",
-  short: "Short",
-  passage: "CQ",
-};
+const KIND_LABEL = JOB_KIND_LABEL;
 
 function patternKinds(pattern: Pattern | null): JobKind[] {
   const kinds: JobKind[] = [];
@@ -391,6 +390,8 @@ export default function NotebookPanel() {
   const [error, setError] = useState("");
   const [newJobOpen, setNewJobOpen] = useState(false);
   const [copyJob, setCopyJob] = useState<Job | null>(null);
+  const [pasteJob, setPasteJob] = useState<Job | null>(null);
+  const [runsJob, setRunsJob] = useState<Job | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -505,6 +506,8 @@ export default function NotebookPanel() {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" size="sm" onClick={() => setCopyJob(job)}>Copy prompt</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setPasteJob(job)}>Paste reply</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setRunsJob(job)}>Runs</Button>
                   <Button
                     type="button"
                     size="sm"
@@ -538,6 +541,22 @@ export default function NotebookPanel() {
           job={copyJob}
           onClose={() => setCopyJob(null)}
           onCopied={() => { void load(); }}
+        />
+      )}
+
+      {pasteJob && (
+        <PasteReplyDialog
+          job={pasteJob}
+          onClose={() => setPasteJob(null)}
+          onChanged={() => { void load(); }}
+        />
+      )}
+
+      {runsJob && (
+        <RunsDrawer
+          job={runsJob}
+          onClose={() => setRunsJob(null)}
+          onChanged={() => { void load(); }}
         />
       )}
     </section>

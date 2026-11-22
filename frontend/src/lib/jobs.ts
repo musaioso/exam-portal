@@ -3,6 +3,18 @@ import { api } from "./api";
 /** The three things a work order can ask NotebookLM for. */
 export type JobKind = "mcq" | "short" | "passage";
 
+export const JOB_KIND_LABEL: Record<JobKind, string> = {
+  mcq: "MCQ",
+  short: "Short",
+  passage: "CQ",
+};
+
+/** A counter unit: one passage counts once even though it becomes several rows. */
+export function jobUnitLabel(kind: JobKind, count = 1): string {
+  const base = kind === "mcq" ? "MCQ" : kind === "short" ? "short question" : "passage";
+  return count === 1 ? base : `${base}s`;
+}
+
 export type PatternKind = "mcq" | "short" | "long" | "passage";
 
 export interface PatternPart {
