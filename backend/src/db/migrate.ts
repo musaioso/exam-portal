@@ -6,7 +6,7 @@ import { backupDatabaseFile } from "./backup";
 // Bump this whenever SCHEMA (or the ALTERs below) change so that cold starts
 // re-run the migration once. When it matches what is stored in `app_meta`,
 // warmup can skip the whole schema script (see serverless.ts).
-export const SCHEMA_VERSION = "17";
+export const SCHEMA_VERSION = "18";
 
 // NOTE: `pin` is a 4-digit code a student types after tapping their own name on
 // the sign-in page. It sits in the clear on purpose so the teacher can read it
@@ -321,6 +321,56 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_challenges_open_once
   ON question_challenges(student_id, question_id, IFNULL(attempt_id, ''))
   WHERE status='open';
 
+-- NotebookLM work orders: editable print patterns, one job per subject+chapter,
+-- and a run log holding the exact prompt that was copied. Counters are in units
+-- (a passage counts once); questions.passage_group ties the rows of one stem.
+CREATE TABLE IF NOT EXISTS question_patterns (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  subject_id TEXT,
+  chapter_match TEXT,
+  parts TEXT NOT NULL,
+  is_default INTEGER NOT NULL DEFAULT 0,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS generation_jobs (
+  id TEXT PRIMARY KEY,
+  subject_id TEXT NOT NULL,
+  chapter_id TEXT NOT NULL,
+  pattern_id TEXT,
+  exam_label TEXT NOT NULL DEFAULT 'SSC 2027',
+  targets TEXT NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'active',
+  notes TEXT,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+  FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE,
+  FOREIGN KEY (pattern_id) REFERENCES question_patterns(id) ON DELETE SET NULL
+);
+CREATE TABLE IF NOT EXISTS generation_runs (
+  id TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  requested INTEGER NOT NULL DEFAULT 0,
+  prompt_text TEXT NOT NULL DEFAULT '',
+  imported INTEGER NOT NULL DEFAULT 0,
+  imported_rows INTEGER NOT NULL DEFAULT 0,
+  skipped INTEGER NOT NULL DEFAULT 0,
+  failed INTEGER NOT NULL DEFAULT 0,
+  undone_at INTEGER,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (job_id) REFERENCES generation_jobs(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_patterns_subject ON question_patterns(subject_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_subject_chapter ON generation_jobs(subject_id, chapter_id);
+CREATE INDEX IF NOT EXISTS idx_runs_job ON generation_runs(job_id, created_at);
+
 CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);
 CREATE INDEX IF NOT EXISTS idx_questions_chapter ON questions(chapter_id);
 CREATE INDEX IF NOT EXISTS idx_chapters_subject ON chapters(subject_id);
@@ -389,6 +439,20 @@ export async function migrate() {
   // The prefix is stripped from the title by parseChapterHeading, so the word has
   // to be stored separately for the UI to print instead of "Ch.".
   await ensureColumn(db, "chapters", "part", "TEXT");
+  // v18: NotebookLM work orders — run attribution and passage grouping.
+  await ensureColumn(db, "questions", "job_id", "TEXT");
+  await ensureColumn(db, "questions", "generation_run_id", "TEXT");
+  await ensureColumn(db, "questions", "passage_group", "TEXT");
+  await ensureColumn(db, "questions", "passage_stem", "TEXT");
+  await ensureColumn(db, "questions", "passage_part", "TEXT");
+  await ensureColumn(db, "questions", "passage_index", "INTEGER");
+  // The questions indexes come after the ALTERs: SCHEMA runs first, and an
+  // existing database only gains these columns here.
+  await execScript(db, `
+CREATE INDEX IF NOT EXISTS idx_questions_job ON questions(job_id);
+CREATE INDEX IF NOT EXISTS idx_questions_run ON questions(generation_run_id);
+CREATE INDEX IF NOT EXISTS idx_questions_passage_group ON questions(passage_group);
+`);
   const chapterRows = (await all(db, "SELECT id, number, title, title_bn, part FROM chapters")) as any[];
   for (const ch of chapterRows) {
     const fromTitle = parseChapterHeading(ch.title);
