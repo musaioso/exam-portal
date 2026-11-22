@@ -106,10 +106,12 @@ export default function PasteReplyDialog({
       const refreshed = await listRuns(job.id);
       const open = refreshed.runs.filter((run) => !run.undone_at);
       setRuns(open);
-      if (imported.failed > 0 && imported.imported === 0) {
+      if (imported.failed > 0 && imported.imported === 0 && imported.skipped === 0) {
         toast.error("Nothing was imported. Check the row errors below.");
-      } else {
+      } else if (imported.imported > 0) {
         toast.success(`Imported ${imported.imported} ${jobUnitLabel(selectedRun?.kind ?? "passage", imported.imported)} (${imported.importedRows} rows).`);
+      } else if (imported.skipped > 0) {
+        toast.info(`Nothing new to import — ${imported.skipped} ${jobUnitLabel(selectedRun?.kind ?? "passage", imported.skipped)} already in the bank.`);
       }
     } catch (e: any) {
       setError(errorMessage(e, "Could not import the reply."));
@@ -243,7 +245,8 @@ export default function PasteReplyDialog({
                 onClick={importNow}
                 disabled={
                   importing || checking || !text.trim() || !runId || !preview ||
-                  preview.imported === 0 || (result !== null && result.imported > 0)
+                  preview.imported + preview.skipped + preview.failed === 0 ||
+                  result !== null
                 }
               >
                 {importing ? "Importing…" : "Import"}
