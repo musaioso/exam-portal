@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "../lib/api";
-import { optionLabel, chapterLabel } from "../lib/labels";
+import { optionLabel, chapterLabel, BANGLA_CHAPTER_PARTS } from "../lib/labels";
 import { useToast } from "../components/Toast";
 import { Card, Button, FileInput, Input, NumberInput, Field, Textarea, Select, Badge, Skeleton, cn } from "../components/ui";
 import { confirmDialog, alertDialog } from "../components/Dialog";
@@ -148,6 +148,17 @@ export default function Questions() {
     selectedSubjectRow?.slug === "bangla-1st"
   );
   const visibleChapters = filterPart ? chapters.filter((c: any) => c.part === filterPart) : chapters;
+  const formChapter = formChapters.find((c: any) => c.id === form.chapter_id);
+  const stemSection = formChapter?.part === "uponnas" || formChapter?.part === "natok";
+  // উপন্যাস / নাটক use a fixed 3 + 7 scheme, so picking the type or chapter fills
+  // the marks in; the teacher can still change them afterwards.
+  const stemMarksFor = (nextType: string, nextChapterId: string) => {
+    const ch = formChapters.find((c: any) => c.id === nextChapterId);
+    if (ch?.part !== "uponnas" && ch?.part !== "natok") return {};
+    if (nextType === "short") return { marks: 3 };
+    if (nextType === "long") return { marks: 7 };
+    return {};
+  };
   useEffect(() => {
     if (!filterPart || !selectedChapter) return;
     const ch = chapters.find((c: any) => c.id === selectedChapter);
@@ -517,8 +528,7 @@ export default function Questions() {
             <Field label="Part">
               <Select value={filterPart} onChange={e => setFilterPart(e.target.value)}>
                 <option value="">All</option>
-                <option value="godyo">গদ্য</option>
-                <option value="podyo">পদ্য</option>
+                {BANGLA_CHAPTER_PARTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
               </Select>
             </Field>
           )}
@@ -666,19 +676,24 @@ export default function Questions() {
                 </Select>
               </Field>
               <Field label="Chapter">
-                <Select value={form.chapter_id} onChange={e => setForm({ ...form, chapter_id: e.target.value })}>
+                <Select value={form.chapter_id} onChange={e => setForm({ ...form, chapter_id: e.target.value, ...stemMarksFor(form.type, e.target.value) })}>
                   <option value="">No chapter / all</option>
                   {formChapters.map(c => <option key={c.id} value={c.id}>{chapterLabel(c)}</option>)}
                 </Select>
               </Field>
               <Field label="Type">
-                <Select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                <Select value={form.type} onChange={e => setForm({ ...form, type: e.target.value, ...stemMarksFor(e.target.value, form.chapter_id) })}>
                   <option value="mcq">MCQ</option>
                   <option value="short">Short</option>
                   <option value="long">Long</option>
                 </Select>
               </Field>
             </div>
+            {stemSection && (
+              <p className="rounded-lg border border-slate-600/40 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
+                উপন্যাস / নাটক: শুধু <b>short (৩ নম্বর)</b> ও <b>long (৭ নম্বর)</b> — উভয় প্রশ্নের শুরুতে উদ্দীপক দিন।
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Field label="Difficulty">
                 <Select value={form.difficulty} onChange={e => setForm({ ...form, difficulty: e.target.value })}>

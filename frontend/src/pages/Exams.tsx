@@ -9,7 +9,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { chapterLabel as chapterText, chapterShort } from "../lib/labels";
+import { chapterLabel as chapterText, chapterShort, BANGLA_CHAPTER_PARTS } from "../lib/labels";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const copy = [...arr];
@@ -713,8 +713,7 @@ export default function Exams() {
                   <Field label="Part">
                     <Select value={qPart} onChange={e => setQPart(e.target.value)}>
                       <option value="">All</option>
-                      <option value="godyo">গদ্য</option>
-                      <option value="podyo">পদ্য</option>
+                      {BANGLA_CHAPTER_PARTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                     </Select>
                   </Field>
                 )}

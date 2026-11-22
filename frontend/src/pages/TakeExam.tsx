@@ -403,9 +403,11 @@ export default function TakeExam() {
                       })}
                     </div>
                   )}
-                  {q.type === "short" && (
+                  {q.type === "short" && (Number(q.marks) >= 3 ? (
+                    <Textarea rows={3} value={answers[q.id] || ""} onChange={e => saveAnswer(q.id, e.target.value)} placeholder="Your answer" />
+                  ) : (
                     <Input value={answers[q.id] || ""} onChange={e => saveAnswer(q.id, e.target.value)} placeholder="Your answer" />
-                  )}
+                  ))}
                   {q.type === "long" && (
                     <Textarea rows={5} value={answers[q.id] || ""} onChange={e => saveAnswer(q.id, e.target.value)} placeholder="Your answer" />
                   )}

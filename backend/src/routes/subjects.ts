@@ -6,7 +6,7 @@ import { parseChapterHeading, type ChapterPart } from "../lib/chapter";
 
 const router = Router();
 
-const PART_VALUES = new Set<ChapterPart>(["oddhay", "poricched", "godyo", "podyo"]);
+const PART_VALUES = new Set<ChapterPart>(["oddhay", "poricched", "godyo", "podyo", "uponnas", "natok"]);
 
 /** Accept only a known part key; anything else is treated as "not sent". */
 function asChapterPart(value: unknown): ChapterPart | null {

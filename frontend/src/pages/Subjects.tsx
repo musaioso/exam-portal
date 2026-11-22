@@ -3,7 +3,7 @@ import { api, currentUser, errorMessage } from "../lib/api";
 import { Card, Button, Input, Select, cn } from "../components/ui";
 import { confirmDialog } from "../components/Dialog";
 import { Plus, Trash2, ChevronRight, Pencil, Check, X } from "lucide-react";
-import { chapterLabel } from "../lib/labels";
+import { chapterLabel, BANGLA_CHAPTER_PARTS } from "../lib/labels";
 
 function slugify(value: string) {
   return value
@@ -415,8 +415,7 @@ export default function Subjects() {
                     {isBanglaFirst(s) && (
                       <Select className="w-28" value={newCh[s.id]?.part ?? "godyo"}
                         onChange={e => setNewCh(n => ({ ...n, [s.id]: { ...(n[s.id] || {}), part: e.target.value } }))}>
-                        <option value="godyo">গদ্য</option>
-                        <option value="podyo">পদ্য</option>
+                        {BANGLA_CHAPTER_PARTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                       </Select>
                     )}
                     <Button onClick={() => addChapter(s.id)} aria-label="Add chapter" title="Add chapter">
@@ -491,8 +490,7 @@ export default function Subjects() {
                         {isBanglaFirst(s) && (
                           <Select className="w-28" value={editCh.part || "godyo"}
                             onChange={e => setEditCh({ ...editCh, part: e.target.value })}>
-                            <option value="godyo">গদ্য</option>
-                            <option value="podyo">পদ্য</option>
+                            {BANGLA_CHAPTER_PARTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                           </Select>
                         )}
                         <button onClick={() => saveEditChapter(ch.id, s.id)} className="text-emerald-400 hover:text-emerald-300" aria-label="Save chapter">
@@ -511,13 +509,12 @@ export default function Subjects() {
                               <Select
                                 compact
                                 className="w-24"
-                                title="গদ্য / পদ্য"
+                                title="বিভাগ"
                                 value={ch.part || ""}
                                 onChange={(e) => setChapterPart(ch.id, s.id, e.target.value)}
                               >
                                 <option value="">—</option>
-                                <option value="godyo">গদ্য</option>
-                                <option value="podyo">পদ্য</option>
+                                {BANGLA_CHAPTER_PARTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                               </Select>
                             )}
                             <button onClick={() => startEditChapter(ch)} className="text-sky-400 hover:text-sky-300" aria-label="Edit chapter">

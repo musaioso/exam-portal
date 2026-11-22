@@ -8,13 +8,15 @@ const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
 const BN_ZERO = BN_DIGITS.charCodeAt(0);
 
 /** The book's own word for a chapter. */
-export type ChapterPart = "oddhay" | "poricched" | "godyo" | "podyo";
+export type ChapterPart = "oddhay" | "poricched" | "godyo" | "podyo" | "uponnas" | "natok";
 
 const PART_WORDS: Record<string, ChapterPart> = {
   "অধ্যায়": "oddhay",
   "পরিচ্ছেদ": "poricched",
   "গদ্য": "godyo",
   "পদ্য": "podyo",
+  "উপন্যাস": "uponnas",
+  "নাটক": "natok",
 };
 
 /** Convert Bengali digits to ASCII without touching the rest of the string. */
@@ -48,12 +50,12 @@ export interface ChapterHeading {
 // so titles such as "CH. 21st Century" or "পরিচ্ছেদ ১ম" are not mistaken for a
 // heading.
 const PREFIX =
-  /^(?:(অধ্যায়|পরিচ্ছেদ|গদ্য|পদ্য)|ch(?:apter)?\.?|chap\.?)\s*([০-৯0-9]+)((?:\s*[-–—,&/]\s*[০-৯0-9]+|\s+(?:ও|এবং|and|to)\s+[০-৯0-9]+)+)?(?![\p{L}\p{N}\p{M}])\s*[:：.\-–—|]?\s*/iu;
+  /^(?:(অধ্যায়|পরিচ্ছেদ|গদ্য|পদ্য|উপন্যাস|নাটক)|ch(?:apter)?\.?|chap\.?)\s*([০-৯0-9]+)((?:\s*[-–—,&/]\s*[০-৯0-9]+|\s+(?:ও|এবং|and|to)\s+[০-৯0-9]+)+)?(?![\p{L}\p{N}\p{M}])\s*[:：.\-–—|]?\s*/iu;
 
-// A part word with no number at all: "গদ্য: সুভা", "পদ্য — বোশেখ". The word
-// must not run into a longer word ("পদ্যাংশ"): combining marks count too.
+// A part word with no number at all: "গদ্য: সুভা", "উপন্যাস — পথের পাঁচালী".
+// The word must not run into a longer word ("পদ্যাংশ"): combining marks count.
 const BARE_PART =
-  /^(অধ্যায়|পরিচ্ছেদ|গদ্য|পদ্য)(?![\p{L}\p{N}\p{M}])\s*[:：.\-–—|]?\s*/iu;
+  /^(অধ্যায়|পরিচ্ছেদ|গদ্য|পদ্য|উপন্যাস|নাটক)(?![\p{L}\p{N}\p{M}])\s*[:：.\-–—|]?\s*/iu;
 
 const partOf = (word: string | undefined): ChapterPart | null =>
   word ? PART_WORDS[word] ?? null : null;

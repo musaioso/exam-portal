@@ -379,7 +379,7 @@ router.post("/bulk-update", requireAuth, requireRole("admin", "teacher"), async 
 
 const VALID_TYPES = new Set(["mcq", "short", "long"]);
 const VALID_DIFF = new Set(["easy", "medium", "hard"]);
-const VALID_PARTS = new Set(["oddhay", "poricched", "godyo", "podyo"]);
+const VALID_PARTS = new Set(["oddhay", "poricched", "godyo", "podyo", "uponnas", "natok"]);
 
 const validPart = (value: unknown): string | null =>
   typeof value === "string" && VALID_PARTS.has(value) ? value : null;

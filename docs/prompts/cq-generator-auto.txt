@@ -9,7 +9,7 @@ STEP 1 — Identify the source yourself. Do not ask me unless it is impossible t
    ধর্ম / Religion = RLG
    বাংলাদেশ ও বিশ্বপরিচয় / Bangladesh and Global Studies = BGS
    তথ্য ও যোগাযোগ প্রযুক্তি / ICT = ICT
-2. Chapter: read the printed chapter heading. Put its number in "chapter_number" and the title text alone in "chapter_title" — drop the "অধ্যায় ৩:" / "Chapter 3:" prefix. But KEEP "গদ্য ৩:" or "পদ্য ২:" at the start when the book prints it, because that word names the section.
+2. Chapter: read the printed chapter heading. Put its number in "chapter_number" and the title text alone in "chapter_title" — drop the "অধ্যায় ৩:" / "Chapter 3:" prefix. But KEEP "গদ্য ৩:", "পদ্য ২:", "উপন্যাস:" or "নাটক:" at the start when the book prints it, because that word names the section.
 3. If several chapters are uploaded, use the one I name in chat. If I name none, use the most recently added source.
 4. If the subject or chapter cannot be read from the source, ask me one short question and stop.
 

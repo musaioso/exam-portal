@@ -76,6 +76,13 @@ test("parses অধ্যায়, গদ্য and পদ্য headings", () 
     { number: null, title: "বোশেখ", kind: "none", part: "podyo" });
 });
 
+test("parses উপন্যাস and নাটক headings", () => {
+  assert.deepEqual(parseChapterHeading("উপন্যাস: পথের পাঁচালী"),
+    { number: null, title: "পথের পাঁচালী", kind: "none", part: "uponnas" });
+  assert.deepEqual(parseChapterHeading("নাটক ২: সিরাজউদ্দৌলা"),
+    { number: 2, title: "সিরাজউদ্দৌলা", kind: "single", part: "natok" });
+});
+
 test("does not read a part word inside a longer word", () => {
   assert.deepEqual(parseChapterHeading("গদ্যাংশ: প্রথম অংশ"),
     { number: null, title: "গদ্যাংশ: প্রথম অংশ", kind: "none", part: null });
@@ -199,6 +206,7 @@ test("question list filters by গদ্য / পদ্য", async () => {
   for (const row of [
     { prompt: "গদ্য প্রশ্ন এক", chapter_title: "গদ্য ১: সুভা" },
     { prompt: "পদ্য প্রশ্ন এক", chapter_title: "পদ্য ১: বোশেখ" },
+    { prompt: "উপন্যাস প্রশ্ন এক", chapter_title: "উপন্যাস: পথের পাঁচালী" },
   ]) {
     const res = await fetch(`${server.baseUrl}/api/questions/bulk-import`, {
       method: "POST",
@@ -218,7 +226,11 @@ test("question list filters by গদ্য / পদ্য", async () => {
   assert.equal(body.questions[0].prompt, "গদ্য প্রশ্ন এক");
 
   const all = await (await fetch(`${server.baseUrl}/api/questions?subject_id=${subjectId}`)).json();
-  assert.equal(all.total, 2);
+  assert.equal(all.total, 3);
+
+  const novel = await (await fetch(`${server.baseUrl}/api/questions?subject_id=${subjectId}&part=uponnas`)).json();
+  assert.equal(novel.total, 1);
+  assert.equal(novel.questions[0].prompt, "উপন্যাস প্রশ্ন এক");
 });
 
 test("creating a range chapter keeps its title and explicit number", async () => {
