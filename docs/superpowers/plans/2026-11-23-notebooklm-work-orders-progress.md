@@ -41,7 +41,7 @@ The runner is a port of `C:\Users\musaioso\remote\voice\run-phases.ps1`.
 | 2 — Work order | 5–7 | done | a53ea4e..e547512 | avoid list, renderer, endpoint |
 | 3 — Reply import | 8–11 | done | edb0500..987b50b | sanitise, validate, atomic passage import, undo |
 | 4 — UI | 12–14 | done | 76c8940..c80c132 | NotebookLM tab, paste reply, runs drawer, unverified pages |
-| 5 — Patterns, docs | 15–16 | blocked on Phase 4 | — | pattern editor, end-to-end run |
+| 5 — Patterns, docs | 15–16 | done | c340f04..d574ac2 | pattern editor, docs, end-to-end run |
 
 ## Start lines (manual fallback)
 
@@ -105,3 +105,17 @@ The runner is a port of `C:\Users\musaioso\remote\voice\run-phases.ps1`.
   `unverified_pages` on the job list (rows with no page number). Theme,
   typecheck, lint and build pass; a live API walk created a job, copied a
   prompt, previewed and imported a reply, listed the run, then undid it.
+- 2026-11-23 — Phase 5 done (Tasks 15–16, commits c340f04..d574ac2): the
+  NotebookLM tab has a Patterns editor (list, add, edit, delete with name,
+  subject, chapter-title match and parts/marks, enforcing 1+ parts, positive
+  marks and 2–6 passage parts), the docs and README describe the job flow while
+  keeping the legacy template, and the seven end-to-end checks passed on a
+  throwaway database. 135 backend tests, backend typecheck, and frontend theme,
+  typecheck, lint and build pass.
+
+## Build complete
+
+All five phases are done. The teacher can create a per-chapter NotebookLM work
+order, copy its prompt, paste the reply, review and undo runs, edit the question
+patterns, and audit imported rows. Still deferred is chunk 3: grouping in exams
+and print (paper rendering) — it has no task by design.
