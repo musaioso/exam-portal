@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { all, get, run } from "../../db/database";
 import { parseParts, resolvePattern, type PatternRecord } from "./patterns";
+import { jobProgress, type JobProgress } from "./progress";
 
 export interface JobTargets {
   mcq?: number;
@@ -21,6 +22,8 @@ export interface JobRecord {
   updated_at: number;
   /** Present on list/get responses; the row itself only stores pattern_id. */
   pattern?: PatternRecord | null;
+  /** Present on list responses: computed from the bank, not stored. */
+  progress?: JobProgress;
 }
 
 export interface GenerationRun {
@@ -123,7 +126,9 @@ export async function listJobs(db: any, subjectId?: string | null): Promise<JobR
   const rows = subjectId
     ? await all(db, `${JOB_SELECT} WHERE j.subject_id=? ORDER BY j.created_at DESC`, [subjectId])
     : await all(db, `${JOB_SELECT} ORDER BY j.created_at DESC`);
-  return rows.map(mapJob);
+  const jobs = rows.map(mapJob);
+  for (const job of jobs) job.progress = await jobProgress(db, job);
+  return jobs;
 }
 
 export async function createJob(db: any, input: CreateJobInput, userId: string): Promise<JobRecord> {
