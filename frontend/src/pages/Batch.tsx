@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import SetupPanel from "../components/batch/SetupPanel";
 import AuditSheet from "../components/batch/AuditSheet";
 import RunPanel from "../components/batch/RunPanel";
 import CorrectionPanel from "../components/batch/CorrectionPanel";
+import NotebookPanel from "../components/batch/NotebookPanel";
 import { listBatches, type Batch as BatchRun } from "../lib/batch";
 import { batchSummary } from "../lib/batch-labels";
 import { Button } from "../components/ui";
+
+type BatchTab = "generate" | "correct" | "notebook";
 
 function GenerateTab() {
   const [batchId, setBatchId] = useState<string | null>(null);
@@ -51,8 +55,28 @@ function GenerateTab() {
   );
 }
 
+function tabFrom(value: string | null): BatchTab {
+  if (value === "correct" || value === "notebook") return value;
+  return "generate";
+}
+
 export default function Batch() {
-  const [tab, setTab] = useState<"generate" | "correct">("generate");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [tab, setTab] = useState<BatchTab>(() => tabFrom(tabParam));
+
+  // Deep links (e.g. from a NotebookLM job) carry ?tab=correct&chapter=…
+  useEffect(() => {
+    setTab(tabFrom(tabParam));
+  }, [tabParam]);
+
+  const chooseTab = (next: BatchTab) => {
+    setTab(next);
+    setSearchParams({ tab: next }, { replace: true });
+  };
+
+  const deepLinkSubject = searchParams.get("subject") ?? "";
+  const deepLinkChapter = searchParams.get("chapter") ?? "";
 
   return (
     <div className="space-y-5">
@@ -66,15 +90,26 @@ export default function Batch() {
       </header>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant={tab === "generate" ? "primary" : "outline"} onClick={() => setTab("generate")}>
+        <Button type="button" variant={tab === "generate" ? "primary" : "outline"} onClick={() => chooseTab("generate")}>
           Generate
         </Button>
-        <Button type="button" variant={tab === "correct" ? "primary" : "outline"} onClick={() => setTab("correct")}>
+        <Button type="button" variant={tab === "correct" ? "primary" : "outline"} onClick={() => chooseTab("correct")}>
           Correct existing
+        </Button>
+        <Button type="button" variant={tab === "notebook" ? "primary" : "outline"} onClick={() => chooseTab("notebook")}>
+          NotebookLM
         </Button>
       </div>
 
-      {tab === "generate" ? <GenerateTab /> : <CorrectionPanel />}
+      {tab === "generate" && <GenerateTab />}
+      {tab === "correct" && (
+        <CorrectionPanel
+          key={`${deepLinkSubject}:${deepLinkChapter}`}
+          initialSubjectId={deepLinkSubject || undefined}
+          initialChapterId={deepLinkChapter || undefined}
+        />
+      )}
+      {tab === "notebook" && <NotebookPanel />}
     </div>
   );
 }

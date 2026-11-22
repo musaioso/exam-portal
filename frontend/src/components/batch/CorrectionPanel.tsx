@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage } from "../../lib/api";
 import {
   listBatches,
@@ -32,12 +32,19 @@ function verdictClass(verdict: string) {
   return "border-rose-500/40 bg-rose-500/15 text-rose-200";
 }
 
-export default function CorrectionPanel() {
+export default function CorrectionPanel({
+  initialSubjectId,
+  initialChapterId,
+}: {
+  initialSubjectId?: string;
+  initialChapterId?: string;
+} = {}) {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [chapters, setChapters] = useState<any[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [subjectId, setSubjectId] = useState("");
-  const [chapterId, setChapterId] = useState("");
+  const [subjectId, setSubjectId] = useState(initialSubjectId ?? "");
+  const [chapterId, setChapterId] = useState(initialChapterId ?? "");
+  const lastSubject = useRef(initialSubjectId ?? "");
   const [sourceBatchId, setSourceBatchId] = useState("");
   const [searchScope, setSearchScope] = useState<"nearby" | "chapter">("nearby");
   const [questionCount, setQuestionCount] = useState<number | null>(null);
@@ -60,10 +67,18 @@ export default function CorrectionPanel() {
   }, []);
 
   useEffect(() => {
-    setChapterId("");
     setSourceBatchId("");
     setQuestionCount(null);
-    if (!subjectId) { setChapters([]); return; }
+    if (!subjectId) {
+      lastSubject.current = "";
+      setChapters([]);
+      setChapterId("");
+      return;
+    }
+    // A deep link supplies its chapter up front; only a later subject change
+    // should clear the chapter the teacher picked.
+    if (lastSubject.current && lastSubject.current !== subjectId) setChapterId("");
+    lastSubject.current = subjectId;
     api.get(`/subjects/${subjectId}/chapters`)
       .then((r) => setChapters(r.data.chapters || []))
       .catch(() => setChapters([]));
