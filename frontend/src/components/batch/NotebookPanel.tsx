@@ -1,6 +1,5 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { X } from "lucide-react";
 import { api, errorMessage } from "../../lib/api";
 import { chapterLabel } from "../../lib/labels";
 import {
@@ -18,7 +17,9 @@ import {
 } from "../../lib/jobs";
 import { useToast } from "../Toast";
 import { Badge, Button, Card, Field, Input, NumberInput, Select } from "../ui";
+import Modal from "./Modal";
 import PasteReplyDialog from "./PasteReplyDialog";
+import PatternEditor from "./PatternEditor";
 import RunsDrawer from "./RunsDrawer";
 
 interface SubjectRow {
@@ -85,54 +86,6 @@ function relativeAge(timestamp: number): string {
   if (months < 12) return `${months} month${months === 1 ? "" : "s"} ago`;
   const years = Math.floor(months / 12);
   return `${years} year${years === 1 ? "" : "s"} ago`;
-}
-
-function Modal({
-  title,
-  description,
-  onClose,
-  children,
-}: {
-  title: string;
-  description?: string;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onMouseDown={onClose} />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="glass relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-600/60 p-6 shadow-2xl"
-      >
-        <div className="mb-4 flex items-start justify-between gap-4 pr-6">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
-            {description && <p className="mt-1 text-sm text-slate-400">{description}</p>}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute right-4 top-4 rounded-xl p-1.5 text-slate-400 transition hover:bg-ink/10 hover:text-slate-200"
-        >
-          <X size={16} />
-        </button>
-        {children}
-      </div>
-    </div>
-  );
 }
 
 function NewJobDialog({
@@ -389,6 +342,7 @@ export default function NotebookPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newJobOpen, setNewJobOpen] = useState(false);
+  const [patternsOpen, setPatternsOpen] = useState(false);
   const [copyJob, setCopyJob] = useState<Job | null>(null);
   const [pasteJob, setPasteJob] = useState<Job | null>(null);
   const [runsJob, setRunsJob] = useState<Job | null>(null);
@@ -414,9 +368,18 @@ export default function NotebookPanel() {
     }
   }, []);
 
+  const loadPatterns = useCallback(async () => {
+    try {
+      const { patterns: rows } = await listPatterns();
+      setPatterns(rows);
+    } catch {
+      setPatterns([]);
+    }
+  }, []);
+
   useEffect(() => {
     void load();
-    listPatterns().then((result) => setPatterns(result.patterns)).catch(() => setPatterns([]));
+    void loadPatterns();
     api.get("/subjects").then(async (result) => {
       const rows = (result.data.subjects || []) as SubjectRow[];
       setSubjects(rows);
@@ -430,7 +393,7 @@ export default function NotebookPanel() {
       setSubjects([]);
       setChapters([]);
     });
-  }, [load]);
+  }, [load, loadPatterns]);
 
   const subjectName = (id: string) => subjects.find((subject) => subject.id === id)?.name ?? "Subject";
   const chapterFor = (id: string) => chapters.find((chapter) => chapter.id === id);
@@ -448,7 +411,10 @@ export default function NotebookPanel() {
             Copy the prompt, paste the reply, and keep the run history.
           </p>
         </div>
-        <Button type="button" onClick={() => setNewJobOpen(true)}>+ New job</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => setPatternsOpen(true)}>Patterns</Button>
+          <Button type="button" onClick={() => setNewJobOpen(true)}>+ New job</Button>
+        </div>
       </div>
 
       {error && (
@@ -531,6 +497,17 @@ export default function NotebookPanel() {
           onClose={() => setNewJobOpen(false)}
           onCreated={() => {
             toast.success("Job created.");
+            void load();
+          }}
+        />
+      )}
+
+      {patternsOpen && (
+        <PatternEditor
+          subjects={subjects}
+          onClose={() => setPatternsOpen(false)}
+          onSaved={() => {
+            void loadPatterns();
             void load();
           }}
         />
