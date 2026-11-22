@@ -220,3 +220,22 @@ export async function listRuns(db: any, jobId: string): Promise<GenerationRun[]>
     "SELECT * FROM generation_runs WHERE job_id=? ORDER BY created_at DESC, rowid DESC", [jobId]);
   return rows as GenerationRun[];
 }
+
+/** Records one work order: the run is created before the teacher copies it, so
+ * the exact prompt text that was issued survives the chat that produced it. */
+export async function createRun(
+  db: any,
+  jobId: string,
+  kind: GenerationRun["kind"],
+  requested: number,
+  promptText: string,
+  userId: string
+): Promise<GenerationRun> {
+  const id = randomUUID();
+  await run(db,
+    `INSERT INTO generation_runs
+       (id,job_id,kind,requested,prompt_text,created_by,created_at)
+     VALUES (?,?,?,?,?,?,?)`,
+    [id, jobId, kind, requested, promptText, userId, Date.now()]);
+  return (await get(db, "SELECT * FROM generation_runs WHERE id=?", [id])) as GenerationRun;
+}
