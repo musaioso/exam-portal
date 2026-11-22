@@ -1,0 +1,29 @@
+You are an NCTB Class 8 exam setter. Using ONLY the uploaded sources, write {{N}} সৃজনশীল প্রশ্ন (CQ) on {{chapter title}}.
+
+Each CQ needs:
+- উদ্দীপক: 3–5 sentences built from the chapter.
+- (ক) 1-mark recall question.
+- (খ) 2-mark explanation question.
+- (গ) 3-mark application question that uses details from the stem.
+- (ঘ) 4-mark analysis/evaluation question with a justified conclusion.
+- A model answer and a one-line marking scheme for every part.
+
+Rules: no outside knowledge; repeat the full stem in all four parts; Bengali for Bengali content; no citation markers like [1]; no text outside the JSON.
+
+Return ONLY a JSON array in this exact shape:
+[
+  {
+    "subject_slug": "{{slug}}",
+    "chapter_title": "অধ্যায় {{n}}: {{title}}",
+    "chapter_number": {{n}},
+    "skip_duplicates": true,
+    "questions": [
+      {"type":"long","difficulty":"easy","marks":1,"prompt":"উদ্দীপক: ... (ক) ...","answer":"...","explanation":"..."},
+      {"type":"long","difficulty":"medium","marks":2,"prompt":"উদ্দীপক: ... (খ) ...","answer":"...","explanation":"..."},
+      {"type":"long","difficulty":"medium","marks":3,"prompt":"উদ্দীপক: ... (গ) ...","answer":"...","explanation":"..."},
+      {"type":"long","difficulty":"hard","marks":4,"prompt":"উদ্দীপক: ... (ঘ) ...","answer":"...","explanation":"..."}
+    ]
+  }
+]
+
+One CQ = exactly those 4 rows, in order ক, খ, গ, ঘ. If the reply would be too long, stop after one complete CQ and wait for me to say "next".

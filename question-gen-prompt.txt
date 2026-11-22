@@ -8,7 +8,7 @@ Return this exact top-level structure:
 
 {
   "subject_slug": "kebab-case-subject-name",
-  "chapter_title": "?????? ?: ???????? ???",
+  "chapter_title": "অধ্যায় ১: শিরোনাম",
   "chapter_number": 1,
   "skip_duplicates": true,
   "questions": [
@@ -36,14 +36,14 @@ Each question must follow this exact format:
 
 ### Top-level
 - subject_slug: Use kebab-case (e.g., "bangladesh-global-studies", "english-1st", "english-2nd", "ict", "religion", "bangla-1st", "bangla-2nd").
-- chapter_title: Must clearly include "??????" (e.g., "?????? ?: ????? ????????", "?????? ?: ????????"). Use Bengali if the subject is Bengali. Do NOT omit "??????".
+- chapter_title: Must clearly include "অধ্যায়" (e.g., "অধ্যায় ১: বাংলাদেশের ইতিহাস", "অধ্যায় ৩: রাষ্ট্রভাষা আন্দোলন"). Use Bengali if the subject is Bengali. Do NOT omit "অধ্যায়".
 - chapter_number: Number only (e.g., 1, 2, 3).
 - skip_duplicates: Always true.
 
 ### Per-question
 - type: Must be exactly "mcq", "short", or "long".
 - difficulty: Must be exactly "easy", "medium", or "hard".
-- marks: Positive number >= 1. Suggested: MCQ = 1, Short = 2�5, Long = 8�10.
+- marks: Positive number >= 1. Suggested: MCQ = 1, Short = 2–5, Long = 8–10.
 - prompt: Write the full question clearly. Do NOT include question numbers. For fill-in-the-blank, write blank as ____.
 - options: REQUIRED ONLY when type is "mcq". For MCQ, provide AT LEAST 2 options, ideally 4. For matching/combination questions (i, ii, iii type), use combinations as options (e.g., "i,ii", "ii,iii", "i,ii,iii", "i only"). For "short" and "long", OMIT the options field entirely (do not include it).
 - answer: For MCQ, this MUST be EXACTLY the same text as one of the options (character-for-character). Do NOT use A/B/C/D letters as the answer. For short/long, put the correct answer/key or "Rubric-based." if subjective.
@@ -54,11 +54,11 @@ Each question must follow this exact format:
 
 ## IMPORTANT INSTRUCTIONS
 1. Output ONLY valid JSON. No markdown, code blocks, backticks, or text before/after.
-2. For MCQ, "answer" must match one option EXACTLY (full text, not A�D).
+2. For MCQ, "answer" must match one option EXACTLY (full text, not A–D).
 3. For short and long questions, DO NOT include "options" field at all.
 4. Generate exactly the number requested, covering all specified topics.
 5. Vary difficulty as requested. Avoid duplicates.
-6. Always include "??????" in chapter_title as requested.
+6. Always include "অধ্যায়" in chapter_title as requested.
 7. explanation is REQUIRED for every question.
 
 Now generate questions based on my instructions below:
