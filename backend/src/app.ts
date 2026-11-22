@@ -12,6 +12,7 @@ import documentsRouter from "./routes/documents";
 import batchesRouter from "./routes/batches";
 import correctionsRouter from "./routes/corrections";
 import patternsRouter from "./routes/patterns";
+import jobsRouter from "./routes/jobs";
 import { requireAuth } from "./middleware/auth";
 import { ensureReady } from "./serverless";
 import { storage, isPersistent, dbLabel, getDb, get } from "./db/database";
@@ -119,6 +120,7 @@ function createApp() {
   app.use("/api/batches", batchesRouter);
   app.use("/api/corrections", correctionsRouter);
   app.use("/api/patterns", patternsRouter);
+  app.use("/api/jobs", jobsRouter);
 
   // Me endpoint — this is the profile card a student sees. It deliberately
   // includes their own PIN: they sign in with name + PIN and must be able to
