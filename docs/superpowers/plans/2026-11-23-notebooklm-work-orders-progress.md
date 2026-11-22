@@ -39,7 +39,7 @@ The runner is a port of `C:\Users\musaioso\remote\voice\run-phases.ps1`.
 |---|---|---|---|---|
 | 1 — Foundation | 1–4 | done | 9278629..f79295b | schema, patterns, jobs API, progress |
 | 2 — Work order | 5–7 | done | a53ea4e..e547512 | avoid list, renderer, endpoint |
-| 3 — Reply import | 8–11 | blocked on Phase 2 | — | sanitise, validate, import, undo |
+| 3 — Reply import | 8–11 | done | edb0500..987b50b | sanitise, validate, atomic passage import, undo |
 | 4 — UI | 12–14 | blocked on Phase 3 | — | NotebookLM tab, paste, runs |
 | 5 — Patterns, docs | 15–16 | blocked on Phase 4 | — | pattern editor, end-to-end run |
 
@@ -95,3 +95,7 @@ The runner is a port of `C:\Users\musaioso\remote\voice\run-phases.ps1`.
   chapter-scoped avoid list, seven-section work-order renderer and
   `POST /api/jobs/:id/work-order` with stored runs are in; 114 backend tests
   and typecheck pass.
+- 2026-11-23 — Phase 3 done (Tasks 8–11, commits edb0500..987b50b): reply
+  sanitiser, per-kind row validation, atomic passage expansion with chapter and
+  subject skip buckets, import and undo endpoints; undo keeps the run with
+  `undone_at` and prunes exams; 135 backend tests and typecheck pass.
