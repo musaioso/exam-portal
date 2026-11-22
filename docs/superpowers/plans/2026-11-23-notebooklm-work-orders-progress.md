@@ -40,7 +40,7 @@ The runner is a port of `C:\Users\musaioso\remote\voice\run-phases.ps1`.
 | 1 — Foundation | 1–4 | done | 9278629..f79295b | schema, patterns, jobs API, progress |
 | 2 — Work order | 5–7 | done | a53ea4e..e547512 | avoid list, renderer, endpoint |
 | 3 — Reply import | 8–11 | done | edb0500..987b50b | sanitise, validate, atomic passage import, undo |
-| 4 — UI | 12–14 | blocked on Phase 3 | — | NotebookLM tab, paste, runs |
+| 4 — UI | 12–14 | done | 76c8940..c80c132 | NotebookLM tab, paste reply, runs drawer, unverified pages |
 | 5 — Patterns, docs | 15–16 | blocked on Phase 4 | — | pattern editor, end-to-end run |
 
 ## Start lines (manual fallback)
@@ -99,3 +99,9 @@ The runner is a port of `C:\Users\musaioso\remote\voice\run-phases.ps1`.
   sanitiser, per-kind row validation, atomic passage expansion with chapter and
   subject skip buckets, import and undo endpoints; undo keeps the run with
   `undone_at` and prunes exams; 135 backend tests and typecheck pass.
+- 2026-11-23 — Phase 4 done (Tasks 12–14, commits 76c8940..c80c132): typed
+  jobs client, NotebookLM tab with job list/creation and prompt copy,
+  paste-reply dry-run preview and import, runs drawer with undo, and
+  `unverified_pages` on the job list (rows with no page number). Theme,
+  typecheck, lint and build pass; a live API walk created a job, copied a
+  prompt, previewed and imported a reply, listed the run, then undid it.
