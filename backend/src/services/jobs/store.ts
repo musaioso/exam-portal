@@ -24,6 +24,12 @@ export interface JobRecord {
   pattern?: PatternRecord | null;
   /** Present on list responses: computed from the bank, not stored. */
   progress?: JobProgress;
+  /**
+   * Present on list responses: imported rows for this job that still carry no
+   * page number. A page returned by the model is stored as a claim, so this is
+   * a count of rows the audit has not put a page on yet.
+   */
+  unverified_pages?: number;
 }
 
 export interface GenerationRun {
@@ -127,7 +133,12 @@ export async function listJobs(db: any, subjectId?: string | null): Promise<JobR
     ? await all(db, `${JOB_SELECT} WHERE j.subject_id=? ORDER BY j.created_at DESC`, [subjectId])
     : await all(db, `${JOB_SELECT} ORDER BY j.created_at DESC`);
   const jobs = rows.map(mapJob);
-  for (const job of jobs) job.progress = await jobProgress(db, job);
+  for (const job of jobs) {
+    job.progress = await jobProgress(db, job);
+    const unverified = await get(db,
+      "SELECT COUNT(*) AS n FROM questions WHERE job_id=? AND page_number IS NULL", [job.id]);
+    job.unverified_pages = Number(unverified?.n ?? 0);
+  }
   return jobs;
 }
 
