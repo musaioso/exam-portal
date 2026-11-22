@@ -1,0 +1,23 @@
+{
+  "phase": "p5",
+  "status": "done",
+  "summary": "The teacher can add and edit question patterns from the NotebookLM tab, the docs describe the job flow, and all seven end-to-end checks pass.",
+  "checks": [
+    "cd backend && npm test -> 135 pass, 0 fail, including patterns, work orders, import, undo and the legacy NotebookLM importer",
+    "cd backend && npm run typecheck -> clean, exit 0",
+    "cd frontend && npm run theme:check -> theme tests 9/9 pass; 58 files and 1535 colour tokens checked; exit 0",
+    "cd frontend && npm run typecheck -> clean, exit 0",
+    "cd frontend && npm run lint -> exit 0 (warnings only, the same style warnings the repo already carries)",
+    "cd frontend && npm run build -> theme check passed; 2041 modules transformed; built in 995 ms",
+    "pattern editor API (same calls the new modal makes): created a pattern, edited it to a passage of short 3 + long 7, deleted it; list came back empty of that id -> pass",
+    "1. BGS Ch 3: created the job MCQ 20 · CQ 6 · short 5; the SSC CQ (default) pattern was picked and progress started 0/0/0 -> pass",
+    "2. copied the MCQ prompt, pasted a 3-question reply with ```json fences and [1] markers -> imported 3, rows 3, failed 0; progress moved to 3/20 -> pass",
+    "3. pasted the identical reply again -> imported 0, skipped 3 (all 3 already in this chapter), failed 0 -> skipped, not failed -> pass",
+    "4. copied the CQ prompt, pasted two passages -> imported 2, rows 8, failed 0; stored rows showed 2 groups of 4, parts ক খ গ ঘ and marks 1,2,3,4 in each -> pass",
+    "5. undid the CQ run -> deleted 8, rows left 0, the run stayed with undone_at set -> pass",
+    "6. Bangla 1st উপন্যাস chapter: the Bangla 1st — উপন্যাস/নাটক pattern was picked with parts short 3 + long 7; its prompt had '3 marks' and '7 marks', no \"options\" and no '4 marks' -> pass",
+    "7. restarted the backend on the same database -> the job still showed MCQ 3/20, CQ 2/6, short 0/5 and its stored 1306-character MCQ prompt naming Chapter 3; the Bangla job kept its pattern and target -> pass",
+    "live end-to-end used a throwaway database (DB_PATH=data/phase5-e2e.db) so the working database was untouched; the throwaway was deleted afterwards",
+    "visual browser click-through not run: the browse extension was offline; the pattern editor's exact API calls and every import flow were exercised over the live API, and the production build succeeded"
+  ]
+}

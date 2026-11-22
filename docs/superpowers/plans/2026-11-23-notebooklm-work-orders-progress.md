@@ -112,6 +112,11 @@ The runner is a port of `C:\Users\musaioso\remote\voice\run-phases.ps1`.
   keeping the legacy template, and the seven end-to-end checks passed on a
   throwaway database. 135 backend tests, backend typecheck, and frontend theme,
   typecheck, lint and build pass.
+- 2026-11-23 — Independent verification after the runner finished: backend
+  `npm test` 135/135 pass and `npm run typecheck` clean; frontend theme 9/9 with
+  58 files and 1535 tokens, typecheck clean, lint exit 0 (pre-existing style
+  warnings only), production build exit 0. Runner state JSONs committed as
+  evidence.
 
 ## Build complete
 

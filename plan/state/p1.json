@@ -1,0 +1,9 @@
+{
+  "phase": "p1",
+  "status": "done",
+  "summary": "Added the work-order schema, seeded editable patterns, per-chapter jobs with targets and runs, and bank-derived progress counting legacy CQ stems; backend suite and typecheck pass.",
+  "checks": [
+    "cd backend && npm test → 106 tests, 106 pass, 0 fail",
+    "cd backend && npm run typecheck → clean (tsc --noEmit, no errors)"
+  ]
+}

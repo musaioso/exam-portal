@@ -1,0 +1,13 @@
+{
+  "phase": "p3",
+  "status": "done",
+  "summary": "Pasted NotebookLM replies are sanitised, validated per kind, imported with passages expanded into atomic part-row groups, and one run can be undone with exams pruned.",
+  "checks": [
+    "cd backend && node --import tsx --test test/jobs-sanitize.test.ts -> 4 pass, 0 fail",
+    "cd backend && node --import tsx --test test/jobs-validate.test.ts -> 5 pass, 0 fail",
+    "cd backend && node --import tsx --test test/jobs-import.test.ts -> 7 pass, 0 fail",
+    "cd backend && node --import tsx --test test/jobs-undo.test.ts -> 5 pass, 0 fail",
+    "cd backend && npm test -> 135 pass, 0 fail (including notebooklm-import, batches-undo, corrections-apply)",
+    "cd backend && npm run typecheck -> clean, exit 0"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "phase": "p4",
+  "status": "done",
+  "summary": "Batch Studio now has a NotebookLM tab: saved jobs, copy prompt, paste reply with a dry-run preview, a runs drawer with undo, and an unverified-page line on each job.",
+  "checks": [
+    "cd frontend && npm run theme:check -> theme tests 9/9 pass; 56 files and 1504 colour tokens checked; exit 0",
+    "cd frontend && npm run typecheck -> clean, exit 0",
+    "cd frontend && npm run lint -> exit 0 (warnings only, the same style warnings the repo already carries)",
+    "cd frontend && npm run build -> theme check passed; 2039 modules transformed; built in 1.10s",
+    "cd backend && npm run typecheck -> clean, exit 0",
+    "cd backend && node --import tsx --test test/jobs-api.test.ts test/jobs-progress.test.ts test/jobs-undo.test.ts -> 11 pass, 0 fail",
+    "cd backend && npm test -> 135 pass, 0 fail, including jobs, patterns, import/undo and the untouched legacy importer",
+    "live servers: created a BGS job (SSC CQ default), built a 3-MCQ work order whose prompt contained the chapter and the avoid list, dry-run preview 2 MCQs -> 2 rows, imported 2 rows, list showed progress 2 and unverified_pages 2, runs drawer payload had the run, undo deleted 2, the run stayed with undone_at set, progress back to 0 and unverified_pages 0; frontend served http://localhost:5173/batch 200",
+    "visual browser click-through not run: the browse extension was offline; the same flow was exercised over the live API and the production build succeeded"
+  ]
+}

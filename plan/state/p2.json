@@ -1,0 +1,12 @@
+{
+  "phase": "p2",
+  "status": "done",
+  "summary": "Work orders now carry the exam label, chapter, pattern format, remaining count and a chapter-scoped avoid list, and each copy is saved as a generation run.",
+  "checks": [
+    "cd backend && npm test -> 114 tests, 114 pass, 0 fail",
+    "cd backend && npm run typecheck -> clean (tsc --noEmit, no errors)",
+    "node --import tsx --test test/jobs-avoid.test.ts -> 3 pass",
+    "node --import tsx --test test/jobs-work-order.test.ts -> 3 pass",
+    "node --import tsx --test test/jobs-work-order-api.test.ts -> 2 pass"
+  ]
+}
