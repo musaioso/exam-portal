@@ -37,7 +37,7 @@ The runner is a port of `C:\Users\musaioso\remote\voice\run-phases.ps1`.
 
 | Phase | Tasks | Status | Commit range | Notes |
 |---|---|---|---|---|
-| 1 — Foundation | 1–4 | not started | — | schema, patterns, jobs API, progress |
+| 1 — Foundation | 1–4 | done | 9278629..f79295b | schema, patterns, jobs API, progress |
 | 2 — Work order | 5–7 | blocked on Phase 1 | — | avoid list, renderer, endpoint |
 | 3 — Reply import | 8–11 | blocked on Phase 2 | — | sanitise, validate, import, undo |
 | 4 — UI | 12–14 | blocked on Phase 3 | — | NotebookLM tab, paste, runs |
@@ -88,3 +88,6 @@ The runner is a port of `C:\Users\musaioso\remote\voice\run-phases.ps1`.
 - 2026-11-23 — Phase runner added (`scripts/run-phases.ps1`, `plan/`), ported
   from `remote\voice\run-phases.ps1`. Listing, dry run and the done-gate were
   verified without spending a session.
+- 2026-11-23 — Phase 1 done (Tasks 1–4, commits 9278629..f79295b): work-order
+  schema, seeded patterns with CRUD, jobs API with runs, and stem-based
+  progress are in; 106 backend tests and typecheck pass.
