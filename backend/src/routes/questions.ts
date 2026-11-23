@@ -135,7 +135,7 @@ router.get("/export", async (req: Request, res: Response) => {
 
 router.get("/", async (req: Request, res: Response) => {
   const db = await getDb();
-  const { subject_id, subject_ids, chapter_id, type, difficulty, q, search, limit, offset, page, pageSize, answer_quality } = req.query as any;
+  const { subject_id, subject_ids, chapter_id, part, type, difficulty, q, search, limit, offset, page, pageSize, answer_quality } = req.query as any;
   let sql = "SELECT * FROM questions WHERE 1=1";
   const params: any[] = [];
   if (subject_ids) {
@@ -152,6 +152,12 @@ router.get("/", async (req: Request, res: Response) => {
   if (chapter_id) {
     const c = Array.isArray(chapter_id) ? chapter_id[0] : chapter_id;
     sql += " AND chapter_id=?"; params.push(c);
+  }
+  // Bangla 1st Paper's গদ্য / পদ্য sections. Questions carry no part of their
+  // own; the chapter does.
+  if (validPart(part)) {
+    sql += " AND chapter_id IN (SELECT id FROM chapters WHERE part=?)";
+    params.push(part);
   }
   if (type) { sql += " AND type=?"; params.push(type); }
   if (difficulty) { sql += " AND difficulty=?"; params.push(difficulty); }
@@ -373,7 +379,7 @@ router.post("/bulk-update", requireAuth, requireRole("admin", "teacher"), async 
 
 const VALID_TYPES = new Set(["mcq", "short", "long"]);
 const VALID_DIFF = new Set(["easy", "medium", "hard"]);
-const VALID_PARTS = new Set(["oddhay", "poricched", "godyo", "podyo"]);
+const VALID_PARTS = new Set(["oddhay", "poricched", "godyo", "podyo", "uponnas", "natok"]);
 
 const validPart = (value: unknown): string | null =>
   typeof value === "string" && VALID_PARTS.has(value) ? value : null;

@@ -23,14 +23,29 @@ export function optionLabel(prompt: string | null | undefined, index: number): s
  * fall back to "Ch." The value is stored on the chapter so a label never has to
  * guess from the title.
  */
-export type ChapterPart = "oddhay" | "poricched" | "godyo" | "podyo";
+export type ChapterPart = "oddhay" | "poricched" | "godyo" | "podyo" | "uponnas" | "natok";
 
 const CHAPTER_WORDS: Record<ChapterPart, string> = {
   oddhay: "অধ্যায়",
   poricched: "পরিচ্ছেদ",
   godyo: "গদ্য",
   podyo: "পদ্য",
+  uponnas: "উপন্যাস",
+  natok: "নাটক",
 };
+
+/** Bangla 1st Paper's sections, in syllabus order. Used by every picker. */
+export const BANGLA_CHAPTER_PARTS: Array<{ value: ChapterPart; label: string }> = [
+  { value: "godyo", label: "গদ্য" },
+  { value: "podyo", label: "পদ্য" },
+  { value: "uponnas", label: "উপন্যাস" },
+  { value: "natok", label: "নাটক" },
+];
+
+/** Bangla 1st Paper pieces carry no printed number; the section word is enough. */
+function isUnnumbered(part?: string | null): boolean {
+  return part === "godyo" || part === "podyo" || part === "uponnas" || part === "natok";
+}
 
 export function chapterWord(part?: string | null): string {
   return part && Object.prototype.hasOwnProperty.call(CHAPTER_WORDS, part)
@@ -45,9 +60,9 @@ export function chapterLabel(chapter: ChapterLike): string {
   if (!chapter) return "";
   const word = chapterWord(chapter.part);
   const title = chapter.title ? String(chapter.title) : "";
-  // Bangla 1st Paper does not number its prose and poems, so its label carries
-  // only the section word and the piece name.
-  const noNumber = chapter.part === "godyo" || chapter.part === "podyo";
+  // Bangla 1st Paper does not number its prose, poems, novels or plays, so its
+  // label carries only the section word and the piece name.
+  const noNumber = isUnnumbered(chapter.part);
   if (noNumber) return `${word}${title ? ` — ${title}` : ""}`.trim();
   const number = chapter.number != null
     ? (word === "Ch." ? String(chapter.number) : toBnDigits(chapter.number))
@@ -60,7 +75,7 @@ export function chapterLabel(chapter: ChapterLike): string {
 export function chapterShort(chapter: ChapterLike): string {
   if (!chapter) return "";
   const word = chapterWord(chapter.part);
-  if (chapter.part === "godyo" || chapter.part === "podyo") return word;
+  if (isUnnumbered(chapter.part)) return word;
   const number = chapter.number != null
     ? (word === "Ch." ? String(chapter.number) : toBnDigits(chapter.number))
     : "";
